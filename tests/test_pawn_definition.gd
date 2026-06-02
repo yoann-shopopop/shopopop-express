@@ -28,8 +28,14 @@ func test_definition_holds_identity() -> void:
 	var d := PawnDefinition.new()
 	d.id = &"cotransporter_axelle"
 	d.display_name = "Axel·le"
+	d.color = Color.RED
 	var tex := PlaceholderTexture2D.new()
 	d.texture = tex
 	assert_eq(d.id, &"cotransporter_axelle")
 	assert_eq(d.display_name, "Axel·le")
+	assert_eq(d.color, Color.RED)
 	assert_eq(d.texture, tex)
+
+
+func test_default_color_is_white() -> void:
+	assert_eq(PawnDefinition.new().color, Color.WHITE)

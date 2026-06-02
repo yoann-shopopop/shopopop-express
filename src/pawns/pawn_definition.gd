@@ -17,8 +17,10 @@ enum PawnType {
 @export var id: StringName = &""
 ## Human-readable name shown in the UI.
 @export var display_name: String = ""
-## The pawn's image.
+## The pawn's image (used by fixed pawns — drive/recipient — that carry a shop sign).
 @export var texture: Texture2D = null
+## The player color, used to tint a cotransporter's figure.
+@export var color: Color = Color.WHITE
 ## Which kind of pawn this is.
 @export var type: PawnType = PawnType.COTRANSPORTER
 

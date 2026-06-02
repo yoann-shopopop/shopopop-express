@@ -1,7 +1,8 @@
 class_name PawnView
 extends Node3D
-## Minimal top-down view of a single [Pawn]: a poker-chip token (a flat round disc with a little
-## relief) carrying the pawn's image laid flat on its top face.
+## Top-down 3D view of a single [Pawn]. A cotransporter shows the classic board-game figure (a
+## tapered cone with a ball head) tinted with the player color; a fixed pawn (drive/recipient) shows
+## a flat poker-chip token carrying its shop image.
 ##
 ## Pure rendering — it listens to the pawn's signals and reads its identity, but never mutates
 ## state. Same pattern as [HexGridView], which reacts to [signal Board.changed].
@@ -14,6 +15,12 @@ const CHIP_RADIUS := 0.55
 const CHIP_HEIGHT := 0.18
 ## Neutral chip body color; the image on top carries the identity.
 const CHIP_COLOR := Color("ececf0")
+
+# Classic pawn figure (cotransporter): a tapered cone body topped by a ball head.
+const _CONE_BOTTOM_RADIUS := 0.42
+const _CONE_TOP_RADIUS := 0.14
+const _CONE_HEIGHT := 0.82
+const _HEAD_RADIUS := 0.3
 
 # Spatial shader for the top face: samples the image but discards fragments outside the inscribed
 # circle, so a square texture fills the round chip instead of overflowing its corners.
@@ -29,13 +36,43 @@ void fragment() {
 }"
 
 
-## Binds this view to [param pawn]: builds its token and follows its position via signals.
+## Binds this view to [param pawn]: builds its figure and follows its position via signals.
 func bind(pawn: Pawn) -> void:
-	_build_token(pawn.definition.texture)
+	if pawn.definition.is_mobile():
+		_build_figure(pawn.definition.color)
+	else:
+		_build_token(pawn.definition.texture)
 	pawn.placed.connect(_on_pawn_placed)
 	pawn.moved.connect(_on_pawn_moved)
 	if pawn.is_placed:
 		_move_to_cell(pawn.position)
+
+
+# Builds the classic pawn: a tapered cone body and a ball head, tinted [param color].
+func _build_figure(color: Color) -> void:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.7
+
+	var body := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.bottom_radius = _CONE_BOTTOM_RADIUS
+	cone.top_radius = _CONE_TOP_RADIUS
+	cone.height = _CONE_HEIGHT
+	cone.radial_segments = 24
+	body.mesh = cone
+	body.position = Vector3(0.0, _CONE_HEIGHT * 0.5, 0.0)  # base sits on the tile
+	body.material_override = material
+	add_child(body)
+
+	var head := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = _HEAD_RADIUS
+	sphere.height = _HEAD_RADIUS * 2.0
+	head.mesh = sphere
+	head.position = Vector3(0.0, _CONE_HEIGHT + _HEAD_RADIUS * 0.45, 0.0)
+	head.material_override = material
+	add_child(head)
 
 
 # Builds the chip body plus, if any, the image plane on top.

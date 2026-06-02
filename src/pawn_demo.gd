@@ -1,20 +1,24 @@
 extends Node3D
 ## Standalone, interactive 3D demo for the Pawn feature — NO board involved.
 ##
-## Spawns three poker-chip pawns (a cotransporter and two fixed pawns) with their images. You can
-## GRAB a chip with the mouse and rotate it (tumble it in 3D); dragging the empty background orbits
-## the camera, and the wheel zooms. Imagery is placeholder (assets/trades/), pending the final map.
+## Spawns four cotransporter figures (the classic cone-with-ball pawn) in the player colors, plus a
+## drive and a recipient shown as image chips. You can GRAB a pawn with the mouse and rotate it;
+## dragging the empty background orbits the camera, and the wheel zooms. Imagery is placeholder.
 
-const _IMG_COTRANSPORTER := preload("res://assets/trades/CHAREFOUR.webp")
 const _IMG_DRIVE := preload("res://assets/trades/IKEO.webp")
 const _IMG_RECIPIENT := preload("res://assets/trades/BELLE_FLEUR.webp")
+
+# Player colors for the cotransporter figures.
+const _PLAYER_COLORS: Array[Color] = [
+	Color("d64545"), Color("e3c64b"), Color("8e5bd0"), Color("4a78d6"),
+]
 
 # Orbit camera state — drag the background to rotate, wheel to zoom.
 var _camera_pivot: Node3D
 var _camera: Camera3D
-var _orbit_yaw := 25.0
-var _orbit_pitch := -35.0
-var _orbit_distance := 7.0
+var _orbit_yaw := 20.0
+var _orbit_pitch := -30.0
+var _orbit_distance := 9.0
 var _orbiting := false
 
 # Grab-and-rotate state.
@@ -28,17 +32,25 @@ func _ready() -> void:
 	_build_environment()
 	_build_hint()
 
-	_spawn(_make_def(&"axelle", "Axel·le", PawnDefinition.PawnType.COTRANSPORTER, _IMG_COTRANSPORTER), Vector2i(0, 0))
-	_spawn(_make_def(&"drive_ikeo", "Drive IKEO", PawnDefinition.PawnType.DRIVE, _IMG_DRIVE), Vector2i(2, 0))
-	_spawn(_make_def(&"recipient_fleur", "Belle Fleur", PawnDefinition.PawnType.RECIPIENT, _IMG_RECIPIENT), Vector2i(1, 1))
+	# Four colored player pawns in a row...
+	for i in _PLAYER_COLORS.size():
+		var player := _make_def(StringName("player_%d" % i), "Joueur %d" % i, PawnDefinition.PawnType.COTRANSPORTER)
+		player.color = _PLAYER_COLORS[i]
+		_spawn(player, Vector2i(i, 0))
+	# ...plus a drive and a recipient as image chips.
+	var drive := _make_def(&"drive_ikeo", "Drive IKEO", PawnDefinition.PawnType.DRIVE)
+	drive.texture = _IMG_DRIVE
+	_spawn(drive, Vector2i(0, 1))
+	var recipient := _make_def(&"recipient_fleur", "Belle Fleur", PawnDefinition.PawnType.RECIPIENT)
+	recipient.texture = _IMG_RECIPIENT
+	_spawn(recipient, Vector2i(2, 1))
 
 
-func _make_def(id: StringName, label: String, type: PawnDefinition.PawnType, tex: Texture2D) -> PawnDefinition:
+func _make_def(id: StringName, label: String, type: PawnDefinition.PawnType) -> PawnDefinition:
 	var d := PawnDefinition.new()
 	d.id = id
 	d.display_name = label
 	d.type = type
-	d.texture = tex
 	return d
 
 
