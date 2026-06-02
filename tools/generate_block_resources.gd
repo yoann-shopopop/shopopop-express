@@ -1,26 +1,25 @@
 extends SceneTree
-## Generates the block resource library: several hexagon patterns (side-3 = 19 cells) plus the
-## bridge. Each pattern has a road crossing it that terminates at edge-center cells (the
-## connectors), one event cell, and water/urban/green regions — in the spirit of the board assets.
-## Run headless:  godot --headless --path . -s res://tools/generate_block_resources.gd
+## Generates the block library: hexagon patterns (side-3 = 19 cells) + the bridge.
+## Roads use ONLY the two available textures (straight, T), so each pattern's road is a straight
+## line between two opposite edge-centers (through the center) plus an optional T branch to a third
+## edge-center. Edge-centers carrying a road are the connectors. The rest is water/urban/green by
+## region, with one event cell. Run: godot --headless --path . -s res://tools/generate_block_resources.gd
 
-const RADIUS := 2          # side-3 hexagon
+const RADIUS := 2
 const CENTER := Vector2i.ZERO
 
-# A pattern = which edges the road exits through + the terrain of each angular region (sextant),
-# aligned with HexUtils.DIRECTIONS. Designed for variety while keeping a connected road network
-# and at least some green (start/recipient) and urban (pickup) cells.
 const W := CellType.Kind.WATER
 const G := CellType.Kind.GREEN
 const U := CellType.Kind.URBAN
 
+# axis = main road between edge-centers [axis] and [axis+3]; branch = optional 3rd edge-center (-1 = none).
 var _patterns := [
-	{"id": "p1", "name": "Quartier A", "exits": [0, 3], "regions": [W, W, U, U, G, G]},
-	{"id": "p2", "name": "Quartier B", "exits": [0, 2, 4], "regions": [U, W, W, G, G, U]},
-	{"id": "p3", "name": "Quartier C", "exits": [1, 4], "regions": [G, U, U, W, W, G]},
-	{"id": "p4", "name": "Quartier D", "exits": [0, 2, 3, 5], "regions": [W, U, G, G, U, W]},
-	{"id": "p5", "name": "Quartier E", "exits": [1, 3, 5], "regions": [G, G, W, W, U, U]},
-	{"id": "p6", "name": "Quartier F", "exits": [2, 5], "regions": [U, G, W, U, G, W]},
+	{"id": "p1", "name": "Quartier A", "axis": 0, "branch": -1, "regions": [W, W, U, U, G, G]},
+	{"id": "p2", "name": "Quartier B", "axis": 1, "branch": 4, "regions": [U, W, W, G, G, U]},
+	{"id": "p3", "name": "Quartier C", "axis": 2, "branch": -1, "regions": [G, U, U, W, W, G]},
+	{"id": "p4", "name": "Quartier D", "axis": 0, "branch": 2, "regions": [W, U, G, G, U, W]},
+	{"id": "p5", "name": "Quartier E", "axis": 1, "branch": -1, "regions": [G, G, W, W, U, U]},
+	{"id": "p6", "name": "Quartier F", "axis": 2, "branch": 5, "regions": [U, G, W, U, G, W]},
 ]
 
 
@@ -31,7 +30,6 @@ func _init() -> void:
 	quit()
 
 
-# Closest DIRECTIONS sextant (0..5) of a non-center cell, by world-space angle.
 func _region_of(cell: Vector2i) -> int:
 	var world := HexUtils.axial_to_world(cell, 1.0)
 	var best := 0
@@ -47,33 +45,30 @@ func _region_of(cell: Vector2i) -> int:
 
 func _save_pattern(spec: Dictionary) -> void:
 	var cells := BlockDefinition.make_hexagon_cells(RADIUS + 1)
-	var exits: Array = spec["exits"]
+	var ec := BlockDefinition.hexagon_edge_centers(RADIUS)
+	var axis: int = spec["axis"]
+	var branch: int = spec["branch"]
 	var regions: Array = spec["regions"]
-	var edge_centers := BlockDefinition.hexagon_edge_centers(RADIUS)
 
-	# 1) Base terrain from the angular region theme.
+	# Road cells = straight line across + optional T branch from the center.
+	var road := {}
+	for c in HexUtils.line(ec[axis], ec[(axis + 3) % 6]):
+		road[c] = true
+	var connectors: Array[Vector2i] = [ec[axis], ec[(axis + 3) % 6]]
+	if branch >= 0:
+		for c in HexUtils.line(CENTER, ec[branch]):
+			road[c] = true
+		connectors.append(ec[branch])
+
+	# Terrain: road, then one event on a free distance-1 cell, then regions for the rest.
 	var type_of := {}
 	for cell in cells:
-		if cell == CENTER:
-			type_of[cell] = CellType.Kind.ROUTE
-		else:
-			type_of[cell] = regions[_region_of(cell)]
-
-	# 2) Carve the road: hub at center, a spoke to each exit's edge-center.
-	var connectors: Array[Vector2i] = []
-	for i in exits:
-		var inner: Vector2i = HexUtils.DIRECTIONS[i]      # distance-1 cell toward that edge
-		type_of[inner] = CellType.Kind.ROUTE
-		type_of[edge_centers[i]] = CellType.Kind.ROUTE
-		connectors.append(edge_centers[i])
-
-	# 3) One event cell on a free distance-1 cell (an unused spoke).
-	for j in 6:
-		if j not in exits:
-			type_of[HexUtils.DIRECTIONS[j]] = CellType.Kind.EVENT
+		type_of[cell] = CellType.Kind.ROUTE if road.has(cell) else regions[_region_of(cell)]
+	for d in 6:
+		if not road.has(HexUtils.DIRECTIONS[d]):
+			type_of[HexUtils.DIRECTIONS[d]] = CellType.Kind.EVENT
 			break
 
-	# 4) Emit cell_types parallel to cells.
 	var cell_types: Array[int] = []
 	for cell in cells:
 		cell_types.append(type_of[cell])
@@ -81,7 +76,7 @@ func _save_pattern(spec: Dictionary) -> void:
 	var block := BlockDefinition.new()
 	block.id = StringName(spec["id"])
 	block.display_name = spec["name"]
-	block.color = Color.WHITE  # recolored per player at distribution time
+	block.color = Color.WHITE
 	block.cells = cells
 	block.cell_types = cell_types
 	block.connectors = connectors
@@ -95,7 +90,7 @@ func _save_bridge() -> void:
 	block.color = Color.WHITE
 	block.cells = BlockDefinition.make_line_cells(3)
 	block.cell_types = [CellType.Kind.WATER, CellType.Kind.ROUTE, CellType.Kind.WATER]
-	block.connectors = [Vector2i(0, 0), Vector2i(2, 0)] as Array[Vector2i]  # the two ends
+	block.connectors = [Vector2i(0, 0), Vector2i(2, 0)] as Array[Vector2i]
 	_save(block, "res://resources/blocks/bridge.tres")
 
 
