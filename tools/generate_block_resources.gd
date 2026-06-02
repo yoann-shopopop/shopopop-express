@@ -12,15 +12,16 @@ const W := CellType.Kind.WATER
 const G := CellType.Kind.GREEN
 const U := CellType.Kind.URBAN
 
-# axis = straight road between opposite edge-centers [axis] and [axis+3], crossing the center.
-# Single 1-wide road (no T-junction, to avoid wide road clumps). branch kept for future use (-1).
+# Road = straight line between opposite edge-centers [axis]/[axis+3] (through the center) + a branch
+# to a 3rd edge-center (T-junction). Every pattern has a bifurcation = 3 road exits (3 connectors).
+# branch must differ from axis and axis+3.
 var _patterns := [
-	{"id": "p1", "name": "Quartier A", "axis": 0, "branch": -1, "regions": [W, W, U, U, G, G]},
-	{"id": "p2", "name": "Quartier B", "axis": 1, "branch": -1, "regions": [U, W, W, G, G, U]},
-	{"id": "p3", "name": "Quartier C", "axis": 2, "branch": -1, "regions": [G, U, U, W, W, G]},
-	{"id": "p4", "name": "Quartier D", "axis": 0, "branch": -1, "regions": [W, U, G, G, U, W]},
-	{"id": "p5", "name": "Quartier E", "axis": 1, "branch": -1, "regions": [G, G, W, W, U, U]},
-	{"id": "p6", "name": "Quartier F", "axis": 2, "branch": -1, "regions": [U, G, W, U, G, W]},
+	{"id": "p1", "name": "Quartier A", "axis": 0, "branch": 1, "regions": [W, W, U, U, G, G]},
+	{"id": "p2", "name": "Quartier B", "axis": 1, "branch": 3, "regions": [U, W, W, G, G, U]},
+	{"id": "p3", "name": "Quartier C", "axis": 2, "branch": 0, "regions": [G, U, U, W, W, G]},
+	{"id": "p4", "name": "Quartier D", "axis": 0, "branch": 2, "regions": [W, U, G, G, U, W]},
+	{"id": "p5", "name": "Quartier E", "axis": 1, "branch": 5, "regions": [G, G, W, W, U, U]},
+	{"id": "p6", "name": "Quartier F", "axis": 2, "branch": 1, "regions": [U, G, W, U, G, W]},
 ]
 
 
