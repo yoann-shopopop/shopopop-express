@@ -4,7 +4,7 @@ extends SceneTree
 ## Run windowed (NOT headless) for a real frame:
 ##   godot --path . -s res://tools/capture_preview.gd
 
-const PLACEMENTS := 7
+const PLACEMENTS := 5
 const SCAN := 12
 
 var _main: Node
@@ -12,6 +12,7 @@ var _frame: int = 0
 
 
 func _initialize() -> void:
+	DisplayServer.window_set_size(Vector2i(1280, 720))
 	_main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(_main)
 
@@ -22,6 +23,7 @@ func _process(_delta: float) -> bool:
 		_main.start_game(3, 42)
 		for _i in PLACEMENTS:
 			_place_one()
+		_center_camera()
 	if _frame == 8:
 		var img := root.get_viewport().get_texture().get_image()
 		img.save_png("user://board_preview.png")
@@ -46,3 +48,17 @@ func _place_one() -> void:
 				if board.can_place(block, Vector2i(q, r), rot):
 					phase.try_place(0, Vector2i(q, r), rot)
 					return
+
+
+# Frames the placed cluster by moving the camera to its centroid.
+func _center_camera() -> void:
+	var cells = _main.board.occupied_cells()
+	if cells.is_empty():
+		return
+	var sum := Vector3.ZERO
+	for c in cells:
+		sum += HexUtils.axial_to_world(c, 1.0)
+	var centroid: Vector3 = sum / float(cells.size())
+	_main._camera.position.x = centroid.x
+	_main._camera.position.z = centroid.z
+	_main._camera.size = 22.0
