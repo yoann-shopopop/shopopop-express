@@ -5,7 +5,8 @@ extends RefCounted
 
 var color: int                                  ## PlayerColor.Kind
 var pieces: Array[BlockDefinition] = []         ## the blocks left to place (one per turn)
-var bridge: BlockDefinition = null              ## the player's single bridge (free, auto-used with a block; null once used)
+var bridge: BlockDefinition = null              ## the player's single free bridge (null once placed)
+var done: bool = false                          ## true once this player has finished placing
 var start_block: BlockDefinition = null         ## the block (by reference) carrying the start point
 var start_cell: Vector2i = Vector2i.ZERO        ## offset of the start cell within that block
 

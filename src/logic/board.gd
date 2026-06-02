@@ -3,16 +3,19 @@ extends RefCounted
 ## The board model: which axial cells are occupied, by which piece/owner/type, and the placement
 ## rules. Pure logic — no nodes. The view listens to [signal changed] and reads [method pieces].
 ##
-## Adjacency rule ("road touches road"): a new piece connects if one of its connector cells is a
-## hex-neighbor of a connector cell already on the board. Hexagon connectors are road edge-centers;
-## bridge connectors are its end cells. Designed so a future A* can walk roads via the cell index.
+## Connection model. Two kinds of connector cells:
+##  - ROAD connectors: a block's road edge-centers (a road cell).
+##  - BRIDGE-END connectors: a placed bridge's water ends (where its road crosses to/from a road).
+## Rules: a BRIDGE may only attach to a ROAD connector (never to water / another bridge end). A
+## BLOCK may attach to a ROAD connector OR a BRIDGE-END (so a road can continue across a bridge).
 
 ## Emitted whenever the set of placed pieces changes (after a successful placement).
 signal changed
 
 var _pieces: Array[PlacedPiece] = []
 var _index: Dictionary = {}            # Vector2i cell -> { "type": int, "owner": int, "piece": PlacedPiece }
-var _connectors: Dictionary = {}       # Vector2i cell -> true (all connector cells on the board)
+var _road_connectors: Dictionary = {}  # road edge-centers on the board
+var _bridge_ends: Dictionary = {}      # placed bridges' end cells
 
 
 ## True while no piece has been placed yet.
@@ -48,23 +51,34 @@ func occupied_cells() -> Array[Vector2i]:
 	return result
 
 
-## All connector (road-link) cells currently on the board.
+## The board's ROAD connector cells (road edge-centers). Used by the bridge finder.
 func connector_cells() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	for cell in _connectors:
+	for cell in _road_connectors:
 		result.append(cell)
 	return result
 
 
 ## Whether [param block] can be placed at [param anchor]/[param rotation]: no overlap, and (unless
-## the board is empty) at least one of its connectors is adjacent to an existing connector.
+## the board is empty) its connectors link up per the model — road connectors attach to roads or
+## bridge ends; the bridge's (water) connectors attach to roads only.
 func can_place(block: BlockDefinition, anchor: Vector2i, rotation: int) -> bool:
 	for cell in block.get_cells(anchor, rotation):
 		if is_occupied(cell):
 			return false
 	if is_empty():
 		return true
-	return _connects(block.get_connectors(anchor, rotation))
+	var type_of := {}
+	for tc in block.get_typed_cells(anchor, rotation):
+		type_of[tc["cell"]] = tc["type"]
+	for c in block.get_connectors(anchor, rotation):
+		var road_conn := CellType.is_road(type_of.get(c, CellType.Kind.WATER))
+		for neighbor in HexUtils.neighbors(c):
+			if _road_connectors.has(neighbor):
+				return true                 # roads link both kinds
+			if road_conn and _bridge_ends.has(neighbor):
+				return true                 # a road may continue across a bridge end
+	return false
 
 
 ## Places [param block] for [param owner]. With [param checked] (default), refuses illegal moves;
@@ -77,19 +91,12 @@ func place(block: BlockDefinition, anchor: Vector2i, rotation: int, owner: int =
 	for tc in piece.typed_cells:
 		_index[tc["cell"]] = {"type": tc["type"], "owner": owner, "piece": piece}
 		type_at[tc["cell"]] = tc["type"]
-	# Only ROAD cells become connectors — a bridge's water ends must never be a connection point.
+	# Road connectors vs bridge ends are split by the connector cell's terrain type.
 	for c in piece.connector_cells:
 		if CellType.is_road(type_at.get(c, CellType.Kind.WATER)):
-			_connectors[c] = true
+			_road_connectors[c] = true
+		else:
+			_bridge_ends[c] = true
 	_pieces.append(piece)
 	changed.emit()
 	return true
-
-
-# True when any of [param target_connectors] is a hex-neighbor of an existing connector cell.
-func _connects(target_connectors: Array[Vector2i]) -> bool:
-	for c in target_connectors:
-		for neighbor in HexUtils.neighbors(c):
-			if _connectors.has(neighbor):
-				return true
-	return false

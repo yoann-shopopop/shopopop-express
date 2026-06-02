@@ -77,6 +77,36 @@ func test_auto_bridge_places_both_and_consumes_the_bridge() -> void:
 	assert_null(red.bridge, "bridge consumed")
 
 
+func test_placing_a_bridge_is_free_and_keeps_the_turn() -> void:
+	var board := Board.new()
+	var blue := _player(PlayerColor.Kind.BLUE, 1)
+	var red := _player(PlayerColor.Kind.RED, 1)
+	red.bridge = _bridge()
+	var phase := SetupPhase.new([blue, red] as Array[Player], board)
+	phase.try_place(0, Vector2i.ZERO, 0)              # BLUE road at origin -> RED's turn
+	# RED places its bridge touching the road: free, so it stays RED's turn.
+	assert_true(phase.try_place_bridge(Vector2i(1, 0), 0))
+	assert_eq(phase.current_player().color, PlayerColor.Kind.RED, "still RED's turn (bridge is free)")
+	assert_null(red.bridge, "bridge consumed")
+
+
+func test_pass_is_blocked_while_blocks_remain() -> void:
+	var board := Board.new()
+	var phase := SetupPhase.new([_player(PlayerColor.Kind.BLUE, 1)] as Array[Player], board)
+	assert_false(phase.pass_turn(), "cannot pass while a block remains")
+
+
+func test_pass_when_only_the_bridge_is_left_finishes() -> void:
+	var board := Board.new()
+	var blue := _player(PlayerColor.Kind.BLUE, 1)
+	blue.bridge = _bridge()
+	var phase := SetupPhase.new([blue] as Array[Player], board)
+	phase.try_place(0, Vector2i.ZERO, 0)              # last block placed, but a bridge remains
+	assert_false(phase.is_finished())
+	assert_true(phase.pass_turn(), "with no blocks left, the player may end")
+	assert_true(phase.is_finished())
+
+
 func test_auto_bridge_fails_without_a_bridge() -> void:
 	var board := Board.new()
 	var blue := _player(PlayerColor.Kind.BLUE, 1)
