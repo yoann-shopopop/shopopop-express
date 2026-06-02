@@ -1,48 +1,47 @@
 class_name PlacementController
 extends Node
-## Turns pointer input (mouse OR touch) into block placement on the board.
-##
-## Projects the pointer onto the board plane, snaps to the hovered cell, drives the ghost, and
-## commits a placement on click/tap. Rotation is exposed as a method so both the UI button and
-## the keyboard action can trigger it. Knows nothing about how things are drawn.
-
-signal block_placed(id: StringName)
+## Turns pointer input (mouse OR touch) into setup placements: previews the current player's selected
+## piece under the pointer and commits it through the [SetupPhase] on click/tap. Knows nothing about
+## how things are drawn nor about the turn order beyond asking the phase whose turn it is.
 
 const BOARD_PLANE := Plane(Vector3.UP, 0.0)
 
 var _camera: Camera3D
 var _board: Board
 var _ghost: BlockGhost
-var _block: BlockDefinition
+var _phase: SetupPhase
+var _selected_index: int = 0
 var _rotation: int = 0
 
 
-func setup(camera: Camera3D, board: Board, ghost: BlockGhost) -> void:
+func setup(camera: Camera3D, board: Board, ghost: BlockGhost, phase: SetupPhase) -> void:
 	_camera = camera
 	_board = board
 	_ghost = ghost
+	_phase = phase
+	select_piece(0)
 
 
-## Selects the block to place and refreshes the ghost.
-func select_block(block: BlockDefinition) -> void:
-	_block = block
-	_ghost.set_block(block)
+## Selects which of the current player's remaining pieces to place.
+func select_piece(index: int) -> void:
+	_selected_index = index
+	_ghost.set_block(_selected_block())
 	_ghost.set_rotation_steps(_rotation)
 	_revalidate()
 
 
-## Moves the ghost to [param cell] and refreshes its validity, without committing.
-## Useful for scripted previews, replays or AI players that bypass pointer input.
-func preview_at(cell: Vector2i) -> void:
-	_ghost.set_anchor(cell)
-	_revalidate()
-
-
-## Rotates the current block by one 60-degree step.
+## Rotates the previewed piece by one 60-degree step.
 func rotate_current() -> void:
 	_rotation = (_rotation + 1) % 6
 	_ghost.set_rotation_steps(_rotation)
 	_revalidate()
+
+
+func _selected_block() -> BlockDefinition:
+	var pieces := _phase.current_player().pieces
+	if _selected_index < 0 or _selected_index >= pieces.size():
+		return null
+	return pieces[_selected_index]
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -60,9 +59,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_current()
 
 
-# Projects [param screen_pos] onto the board plane and moves the ghost to the hovered cell.
 func _update_pointer(screen_pos: Vector2) -> void:
-	if _camera == null or _block == null:
+	if _camera == null or _selected_block() == null:
 		return
 	var origin := _camera.project_ray_origin(screen_pos)
 	var dir := _camera.project_ray_normal(screen_pos)
@@ -74,14 +72,16 @@ func _update_pointer(screen_pos: Vector2) -> void:
 
 
 func _revalidate() -> void:
-	if _block == null:
+	var block := _selected_block()
+	if block == null:
 		return
-	_ghost.set_valid(_board.can_place(_block, _ghost.current_anchor(), _rotation))
+	_ghost.set_valid(_board.can_place(block, _ghost.current_anchor(), _rotation))
 
 
 func _try_place() -> void:
-	if _block == null:
+	if _selected_block() == null:
 		return
-	if _board.place(_block, _ghost.current_anchor(), _rotation):
-		block_placed.emit(_block.id)
-		_revalidate()
+	if _phase.try_place(_selected_index, _ghost.current_anchor(), _rotation):
+		# Default back to the first remaining piece of whoever plays next.
+		_rotation = 0
+		select_piece(0)
