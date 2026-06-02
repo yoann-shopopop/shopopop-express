@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_j8kdw"]
+
+[resource]
+script = ExtResource("1_j8kdw")
+id = &"sasha_velours"
+display_name = "Sasha Velours"
+color = Color(0.60784316, 0.3647059, 0.8980392, 1)

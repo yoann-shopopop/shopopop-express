@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_0ubbe"]
+
+[resource]
+script = ExtResource("1_0ubbe")
+id = &"le_filip"
+display_name = "Le Filip"
+color = Color(0.5647059, 0.74509805, 0.42745098, 1)

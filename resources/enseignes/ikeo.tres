@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="EnseigneDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/enseignes/enseigne_definition.gd" id="1_mduij"]
+[ext_resource type="Texture2D" path="res://assets/trades/IKEO.webp" id="2_em633"]
+
+[resource]
+script = ExtResource("1_mduij")
+id = &"ikeo"
+display_name = "Ikeo"
+texture = ExtResource("2_em633")
+color = Color(0.9529412, 0.44705883, 0.17254902, 1)
