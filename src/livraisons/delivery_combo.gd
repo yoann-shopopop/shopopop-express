@@ -20,6 +20,12 @@ func advance() -> bool:
 	return true
 
 
+## Clips a new recipient and returns the combo to DISPONIBLE (used when recycling after delivery).
+func reset(p_destinataire: DestinataireDefinition) -> void:
+	destinataire = p_destinataire
+	status = DeliveryStatus.Kind.DISPONIBLE
+
+
 func is_available() -> bool:
 	return status == DeliveryStatus.Kind.DISPONIBLE
 

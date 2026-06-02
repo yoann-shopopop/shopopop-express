@@ -40,3 +40,13 @@ func test_advance_past_delivered_is_a_noop() -> void:
 
 func test_status_label_is_french() -> void:
 	assert_eq(DeliveryStatus.label(DeliveryStatus.Kind.EN_COURS), "En cours")
+
+
+func test_reset_clips_a_new_recipient_and_becomes_available() -> void:
+	var c := DeliveryCombo.new(_enseigne(), _destinataire())
+	c.advance(); c.advance()  # move off DISPONIBLE
+	var fresh := DestinataireDefinition.new()
+	fresh.id = &"fresh"
+	c.reset(fresh)
+	assert_eq(c.status, DeliveryStatus.Kind.DISPONIBLE)
+	assert_eq(c.destinataire, fresh)

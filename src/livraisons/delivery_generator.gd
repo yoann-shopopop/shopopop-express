@@ -57,8 +57,7 @@ func complete(index: int) -> bool:
 	var combo := _combos[index]
 	if combo.status != DeliveryStatus.Kind.EN_COURS:
 		return false
-	combo.destinataire = _draw()  # may be null when the pool is exhausted
-	combo.status = DeliveryStatus.Kind.DISPONIBLE
+	combo.reset(_draw())  # new recipient (or null when the pool is exhausted) + back to DISPONIBLE
 	recycled.emit(index)
 	if combo.destinataire == null:
 		exhausted.emit()
