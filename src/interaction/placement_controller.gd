@@ -1,10 +1,10 @@
 class_name PlacementController
 extends Node
-## Pointer-driven placement with a road magnet. Pick a piece (from the UI preview), move the pointer
-## over the board: the magnet snaps the ghost to the nearest legal cell+rotation (auto-rotation);
-## the rotate action cycles between the legal candidates. Clicking places it. Dropping one cell too
-## far auto-inserts the player's bridge (consumed) when one would link the roads, else the ghost is
-## red. Touch and mouse share the same path.
+## Drag-and-drop placement with a road magnet. The UI starts a drag (pressing a piece preview);
+## while dragging, the ghost follows the pointer and the magnet snaps it to the nearest legal
+## cell+rotation (auto-rotation); the rotate action cycles candidates. Releasing places the piece —
+## or, if it landed one cell too far, auto-inserts the player's bridge (consumed) to link the roads.
+## When not dragging, the ghost is hidden. Mouse and touch share the same path.
 
 const BOARD_PLANE := Plane(Vector3.UP, 0.0)
 const MAGNET_RADIUS := 2
@@ -13,12 +13,14 @@ var _camera: Camera3D
 var _board: Board
 var _ghost: BlockGhost
 var _phase: SetupPhase
-var _selected_index: int = 0
-var _rotation: int = 0                 # manual rotation used when no magnet candidate applies
 
+var _dragging: bool = false
+var _selected_index: int = 0
+var _rotation: int = 0                 # manual rotation, used when no magnet candidate applies
 var _candidates: Array = []            # [{ "cell": Vector2i, "rot": int }], nearest first
 var _choice: int = 0
 var _raw_cell: Vector2i = Vector2i.ZERO
+var _over_board: bool = false          # whether the pointer currently projects onto the board
 
 
 func setup(camera: Camera3D, board: Board, ghost: BlockGhost, phase: SetupPhase) -> void:
@@ -26,18 +28,26 @@ func setup(camera: Camera3D, board: Board, ghost: BlockGhost, phase: SetupPhase)
 	_board = board
 	_ghost = ghost
 	_phase = phase
-	select_piece(0)
+	_ghost.visible = false
 
 
-func select_piece(index: int) -> void:
+## Starts dragging the current player's piece [param index] (called when a preview is pressed).
+func begin_drag(index: int) -> void:
 	_selected_index = index
 	_rotation = 0
+	_candidates.clear()
+	_choice = 0
+	_dragging = true
 	_ghost.set_block(_selected_block())
-	_ghost.set_rotation_steps(_rotation)
+	_ghost.set_rotation_steps(0)
+	_ghost.set_valid(false)
+	_ghost.visible = true
 
 
 ## Cycles between legal magnet candidates, or rotates the free piece when none apply.
 func rotate_current() -> void:
+	if not _dragging:
+		return
 	if _candidates.is_empty():
 		_rotation = (_rotation + 1) % 6
 		_ghost.set_rotation_steps(_rotation)
@@ -54,19 +64,32 @@ func _selected_block() -> BlockDefinition:
 	return pieces[_selected_index]
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion:
+func _input(event: InputEvent) -> void:
+	if not _dragging:
+		return
+	if event is InputEventMouseMotion or event is InputEventScreenDrag:
 		_update_pointer(event.position)
-	elif event is InputEventScreenDrag:
-		_update_pointer(event.position)
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		_update_pointer(event.position)
-		_try_place()
-	elif event is InputEventScreenTouch and event.pressed:
-		_update_pointer(event.position)
-		_try_place()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_release(event.position)
+	elif event is InputEventScreenTouch and not event.pressed:
+		_release(event.position)
 	elif event.is_action_pressed(&"rotate_block"):
 		rotate_current()
+
+
+func _release(screen_pos: Vector2) -> void:
+	_update_pointer(screen_pos)
+	_try_place()
+	_end_drag()
+
+
+func _end_drag() -> void:
+	_dragging = false
+	_candidates.clear()
+	_choice = 0
+	_rotation = 0
+	_ghost.visible = false
+	_ghost.set_block(null)
 
 
 func _update_pointer(screen_pos: Vector2) -> void:
@@ -75,7 +98,11 @@ func _update_pointer(screen_pos: Vector2) -> void:
 		return
 	var hit = BOARD_PLANE.intersects_ray(_camera.project_ray_origin(screen_pos), _camera.project_ray_normal(screen_pos))
 	if hit == null:
+		_over_board = false
+		_candidates.clear()
+		_ghost.set_valid(false)
 		return
+	_over_board = true
 	_raw_cell = HexUtils.world_to_axial(hit, GameConfig.HEX_SIZE)
 	_recompute_candidates(block, hit)
 	if _candidates.is_empty():
@@ -109,19 +136,18 @@ func _apply_choice() -> void:
 
 func _try_place() -> void:
 	var block := _selected_block()
-	if block == null:
-		return
+	if block == null or not _over_board:
+		return  # released off the board — cancel
 	if not _candidates.is_empty():
 		var c: Dictionary = _candidates[_choice]
-		if _phase.try_place(_selected_index, c["cell"], c["rot"]):
-			_after_place()
+		_phase.try_place(_selected_index, c["cell"], c["rot"])
 		return
 	# No direct fit — try to bridge across a one-cell gap using the player's bridge.
 	var bridge := _player_bridge()
 	if bridge != null:
 		var found := BridgeFinder.find(_board, block, _raw_cell, _rotation, bridge)
-		if not found.is_empty() and _phase.try_place_with_bridge(_selected_index, _raw_cell, _rotation, found["anchor"], found["rotation"]):
-			_after_place()
+		if not found.is_empty():
+			_phase.try_place_with_bridge(_selected_index, _raw_cell, _rotation, found["anchor"], found["rotation"])
 
 
 func _player_bridge() -> BlockDefinition:
@@ -129,10 +155,3 @@ func _player_bridge() -> BlockDefinition:
 		if piece.id == &"bridge":
 			return piece
 	return null
-
-
-func _after_place() -> void:
-	_candidates.clear()
-	_choice = 0
-	_rotation = 0
-	select_piece(0)

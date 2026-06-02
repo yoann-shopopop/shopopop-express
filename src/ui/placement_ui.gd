@@ -5,7 +5,7 @@ extends CanvasLayer
 ## stays the home of the future game UI (cards, dice, scores). Emits intents; the controller acts.
 
 signal player_count_chosen(count: int)
-signal piece_selected(index: int)
+signal piece_drag_started(index: int)
 signal rotate_requested
 
 const BUTTON_MIN := Vector2(118, 52)
@@ -118,8 +118,8 @@ func set_current_player(player: Player) -> void:
 		button.ignore_texture_size = true
 		button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		button.custom_minimum_size = PREVIEW_SIZE
-		button.modulate = Color.WHITE if i == 0 else Color(0.55, 0.55, 0.55)
-		button.pressed.connect(_on_piece_pressed.bind(i))
+		button.modulate = Color.WHITE
+		button.button_down.connect(_on_piece_pressed.bind(i))  # press = start dragging the tile
 		_pieces_bar.add_child(button)
 
 	var rotate := Button.new()
@@ -142,4 +142,4 @@ func _on_piece_pressed(index: int) -> void:
 		var child := _pieces_bar.get_child(i)
 		if child is TextureButton:
 			child.modulate = Color.WHITE if i == index else Color(0.55, 0.55, 0.55)
-	piece_selected.emit(index)
+	piece_drag_started.emit(index)
