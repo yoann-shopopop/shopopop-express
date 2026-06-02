@@ -110,26 +110,57 @@ Détaillés dans la section « Points ouverts » de `SHOPOPOP-EXPRESS-GAME-RULES
   est l'ancrage des positions — penser un système de **coordonnées de cases** découplé des positions
   monde 3D dès le départ (déplacements comptés « en cases », pas en mètres).
 
-## Architecture implémentée — grille hexagonale & placement
+## Architecture implémentée
 
-Fondations posées sur `feat/hex-grid-placement`. **Découplage strict en 4 couches** : la logique de
-jeu ne dépend pas du rendu (on peut faire évoluer le visuel sans toucher aux règles, et tout tester).
+**Découplage strict logique / rendu** : la logique de jeu est en `RefCounted`/`Resource` purs (sans
+`Node`, testés en `--headless`), le rendu et les entrées sont des `Node` séparés. Deux ensembles
+cohabitent : le **socle plateau** (grille hex + placement) et les **systèmes de gameplay** (pion,
+paquet de cartes, déplacement, dés), chacun **isolé et indépendant**, branchés ensemble à
+l'intégration. Chaque système a une **scène de démo autonome** (`scenes/*_demo.tscn`).
 
 ```
 src/logic/      hex_utils.gd (HexUtils)   maths hexagonales pures, statiques
                 board.gd (Board)          état du plateau + règles de placement
 src/blocks/     block_definition.gd       BlockDefinition (Resource) = bloc en données
+src/pawns/      pawn_definition.gd        PawnDefinition (Resource) : id, nom, image, color, type
+                pawn.gd (Pawn)            état runtime : position + steps, invariants, signaux
+src/cards/      card_definition.gd        CardDefinition (Resource) : identité placeholder
+                deck.gd (Deck)            pioche/défausse, reshuffle, return_to_top, RNG injectable
+src/movement/   movement.gd (Movement)    marche auto-évitante sur un set de cases injecté
+src/dice/       dice_roller.gd (DiceRoller) lance X D6, mémorise le résultat, RNG injectable
 src/view/       hex_grid_view.gd          quadrillage fantôme + tuiles posées (MultiMesh)
                 block_ghost.gd            aperçu vert/rouge sous le pointeur
                 hex_mesh_factory.gd       tuile = prisme CylinderMesh pointy-top (sans asset)
+                pawn_view.gd (PawnView)   figure cône+tête (cotransporteur, colorée) / jeton-image
+                card_view.gd (CardView)   carte 3D : face placeholder, dos logo + CARD_TYPE
+                die_view.gd (DieView)     dé 3D à points, orienté sur la valeur
                 game_config.gd            constantes de présentation
 src/interaction/placement_controller.gd  pointeur souris/tactile -> case -> pose/rotation
                 camera_rig.gd             pan/zoom (molette + clic-droit, pinch + 2 doigts)
 src/ui/         placement_ui.gd           barre Hexagone / Pont / Rotation (CanvasLayer extensible)
-src/main.gd     scenes/main.tscn          composition root (assemble la scène)
+src/main.gd     scenes/main.tscn          composition root du prototype de placement
+src/*_demo.gd   scenes/*_demo.tscn        démos autonomes : pawn / card / movement / dice
 resources/blocks/  hex19.tres, bridge3.tres   blocs canoniques
 tools/          generate_block_resources.gd, capture_preview.gd   outils dev
 ```
+
+### Systèmes de gameplay (logique pure, testée, à intégrer)
+
+Chacun ignore les autres et le `Board` ; le branchement se fera dans un composition root d'intégration.
+
+- **Pion** (`Pawn` + `PawnDefinition`) : `position` (case) + `steps` (cases à parcourir), pose unique,
+  pion fixe immobile ; signaux `placed/moved/steps_changed`. Cotransporteur = figure colorée, drive/
+  destinataire = jeton-image.
+- **Paquet** (`Deck` + `CardDefinition`) : `draw(n)` / `discard` / `reshuffle` / `return_to_top`,
+  RNG injectable. Règle démo : tirer 2 → garder 1 (l'autre revient sur la pioche) → activer le pouvoir
+  → défausse.
+- **Déplacement** (`Movement`) : reçoit un **set de cases praticables** + une case de départ + un
+  budget ; marche **auto-évitante**, total obligatoire, arrêt si bloqué. Aucune dépendance Board/Pawn.
+- **Dés** (`DiceRoller`) : `roll(X)` de D6, mémorise le résultat, `total()` / `consume()`.
+
+**Intégration visée** : `walkable` du `Movement` construit depuis `Board` (puis **routes uniquement**) ;
+`DiceRoller.total()` = budget du `Movement` ; fin de déplacement → `pawn.move_to(current)` ; `Deck`
+pour les événements (cases arc-en-ciel).
 
 **Coordonnées de cases** (réponse à l'exigence « coordonnées découplées ») : axiales **pointy-top**,
 une case = `Vector2i(q, r)`, conventions Red Blob Games. `HexUtils` fournit voisins, distance, rotation
