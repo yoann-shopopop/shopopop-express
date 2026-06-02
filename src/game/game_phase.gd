@@ -162,16 +162,34 @@ func select_delivery(delivery: Delivery) -> bool:
 	return true
 
 
-## Picks up the carried delivery at its drive — costs +1 step. Valid on or next to the drive cell.
+## Picks up a delivery at its drive — costs +1 step. Valid on or next to the drive cell. If the player
+## isn't carrying one yet, the available delivery at this drive is reserved automatically (no separate
+## planning step).
 func confirm_pickup() -> bool:
-	var delivery := current_delivery()
-	if _movement == null or delivery == null or delivery.picked_up:
+	if _movement == null:
 		return false
-	if HexUtils.distance(_movement.current(), delivery.drive_cell) > 1:
+	var delivery := current_delivery()
+	if delivery == null:
+		delivery = _available_delivery_at(_movement.current())
+		if delivery == null:
+			return false
+		delivery.carrier_index = _current
+		_carrying[_current] = delivery
+		delivery_picked.emit(delivery)
+	if delivery.picked_up or HexUtils.distance(_movement.current(), delivery.drive_cell) > 1:
 		return false
 	_movement.subtract_steps(1)
 	delivery.picked_up = true
 	return true
+
+
+# An available delivery whose drive is on or next to [param cell], or null.
+func _available_delivery_at(cell: Vector2i) -> Delivery:
+	for delivery in _deliveries:
+		if not delivery.delivered and delivery.carrier_index < 0 \
+				and HexUtils.distance(cell, delivery.drive_cell) <= 1:
+			return delivery
+	return null
 
 
 ## Delivers the carried delivery at its recipient — free. Valid on or next to the recipient cell.

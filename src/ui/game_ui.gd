@@ -1,21 +1,25 @@
 class_name GameUI
 extends CanvasLayer
-## Play-phase UI: whose turn it is + their score, a rebuildable action bar (roll dice, reserve a
-## delivery, pick up, deliver, end turn) and the live movement budget. A final panel shows the scores.
-## Emits intents; GameRoot acts. Stays dumb — GameRoot decides which actions are available.
+## Play-phase UI: a compact turn-order strip (top center), whose turn it is + their score, a
+## rebuildable action bar (roll dice, pick up, deliver, power, end turn) and the live status line.
+## A final panel shows the scores. Emits intents; GameRoot acts. Stays dumb.
 
 signal roll_requested
 signal end_turn_requested
 signal pickup_requested
 signal deliver_requested
 signal power_requested
-signal delivery_chosen(delivery: Delivery)
+
+const _CHIP := Vector2(26, 26)
 
 var _turn_label: Label
 var _score_label: Label
 var _status_label: Label
 var _actions: HBoxContainer
+var _order_bar: HBoxContainer
 var _end_panel: Control
+var _players: Array[Player] = []
+var _chips: Array[Panel] = []
 
 
 func _ready() -> void:
@@ -38,6 +42,14 @@ func _ready() -> void:
 	_score_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	panel.add_child(_score_label)
 
+	# Turn-order strip, centered at the top, separate from everything else.
+	_order_bar = HBoxContainer.new()
+	_order_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_order_bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_order_bar.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_order_bar.add_theme_constant_override("separation", 6)
+	panel.add_child(_order_bar)
+
 	var bottom := VBoxContainer.new()
 	bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.size_flags_vertical = Control.SIZE_SHRINK_END
@@ -55,15 +67,28 @@ func _ready() -> void:
 	bottom.add_child(_actions)
 
 
-## Rebuilds the bar for a turn. [param can_roll] gates the dice; [param available] are the deliveries
-## that can still be reserved; [param carrying] is the delivery in hand (or null).
-func refresh(player: Player, score: int, can_roll: bool, available: Array[Delivery], carrying: Delivery) -> void:
+## Builds the turn-order strip once (a colored chip per player, in seat order).
+func setup_players(players: Array[Player]) -> void:
+	_players = players
+	for child in _order_bar.get_children():
+		child.queue_free()
+	_chips.clear()
+	for player in players:
+		var chip := Panel.new()
+		chip.custom_minimum_size = _CHIP
+		_order_bar.add_child(chip)
+		_chips.append(chip)
+
+
+## Rebuilds the action bar for a turn and highlights the current player in the strip.
+func refresh(player: Player, score: int, can_roll: bool, carrying: Delivery) -> void:
 	var who := PlayerColor.name_of(player.color)
 	if player.character != null:
 		who = "%s (%s)" % [player.character.display_name, who]
 	_turn_label.text = "Tour : %s" % who
 	_turn_label.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
 	_score_label.text = "Score : %d" % score
+	_highlight_current(player.index)
 
 	for child in _actions.get_children():
 		child.queue_free()
@@ -74,18 +99,11 @@ func refresh(player: Player, score: int, can_roll: bool, available: Array[Delive
 	_actions.add_child(roll)
 
 	if carrying == null:
-		for delivery in available:
-			var label := "Livraison %s" % PlayerColor.name_of(delivery.tile_owners()[0])
-			var btn := _button(label, Vector2(150, 48))
-			btn.pressed.connect(func() -> void: delivery_chosen.emit(delivery))
-			_actions.add_child(btn)
-	else:
-		var pickup := _button("Prendre", Vector2(110, 48))
-		pickup.disabled = carrying.picked_up
+		var pickup := _button("Prendre", Vector2(120, 48))
 		pickup.pressed.connect(func() -> void: pickup_requested.emit())
 		_actions.add_child(pickup)
-		var deliver := _button("Livrer", Vector2(110, 48))
-		deliver.disabled = not carrying.picked_up
+	else:
+		var deliver := _button("Livrer", Vector2(120, 48))
 		deliver.pressed.connect(func() -> void: deliver_requested.emit())
 		_actions.add_child(deliver)
 
@@ -97,6 +115,21 @@ func refresh(player: Player, score: int, can_roll: bool, available: Array[Delive
 	var end := _button("Fin de tour", Vector2(130, 48))
 	end.pressed.connect(func() -> void: end_turn_requested.emit())
 	_actions.add_child(end)
+
+
+# Tints each chip its player's color; the current seat gets a white border and a slight grow.
+func _highlight_current(current_index: int) -> void:
+	for i in _chips.size():
+		var color := PlayerColor.to_color(_players[i].color)
+		var is_current := _players[i].index == current_index
+		var style := StyleBoxFlat.new()
+		style.bg_color = color if is_current else color.darkened(0.35)
+		style.set_corner_radius_all(5)
+		if is_current:
+			style.set_border_width_all(3)
+			style.border_color = Color.WHITE
+		_chips[i].add_theme_stylebox_override("panel", style)
+		_chips[i].custom_minimum_size = _CHIP * (1.25 if is_current else 1.0)
 
 
 ## Sets the status line (dice result, remaining budget, hints).

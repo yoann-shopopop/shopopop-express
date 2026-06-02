@@ -33,6 +33,7 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 
 	_ui = GameUI.new()
 	add_child(_ui)
+	_ui.setup_players(players)
 	_dice_views = Node3D.new()
 	add_child(_dice_views)
 	_highlights = Node3D.new()
@@ -56,8 +57,8 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_ui.pickup_requested.connect(_on_pickup)
 	_ui.deliver_requested.connect(_on_deliver)
 	_ui.power_requested.connect(_on_power)
-	_ui.delivery_chosen.connect(_on_delivery_chosen)
 	_refresh_ui()
+	_ui.set_status("À toi de jouer — lance les dés.")
 
 
 # Pins the dice (bottom-left) and the event-card choice (centered) to fixed screen regions, scaled to
@@ -182,12 +183,6 @@ func _on_budget_changed(remaining: int) -> void:
 		_ui.set_status("Déplacement terminé — prends/livre ou Fin de tour.")
 
 
-func _on_delivery_chosen(delivery: Delivery) -> void:
-	if _phase.select_delivery(delivery):
-		_ui.set_status("Livraison réservée — va au drive (gris) puis au destinataire (vert).")
-		_refresh_ui()
-
-
 func _on_pickup() -> void:
 	if _phase.confirm_pickup():
 		_ui.set_status("Pris en charge au drive (-1 déplacement).")
@@ -248,6 +243,7 @@ func _on_turn_changed(_player: Player) -> void:
 	_clear_dice()
 	_refresh_highlights()
 	_refresh_ui()
+	_ui.set_status("À toi de jouer — lance les dés.")
 
 
 func _on_delivery_completed(_delivery: Delivery, points: int) -> void:
@@ -261,12 +257,7 @@ func _on_game_finished(scores: Dictionary) -> void:
 
 func _refresh_ui() -> void:
 	var player := _phase.current_player()
-	_ui.refresh(
-		player,
-		_phase.score_of(player),
-		_can_roll,
-		_phase.available_deliveries(),
-		_phase.current_delivery())
+	_ui.refresh(player, _phase.score_of(player), _can_roll, _phase.current_delivery())
 
 
 func _load_events() -> Array[CardDefinition]:
