@@ -57,20 +57,35 @@ func try_place_with_bridge(block_index: int, block_anchor: Vector2i, block_rot: 
 	var block := player.pieces[block_index]
 	var bridge := player.bridge
 
-	if not _board.can_place(bridge, bridge_anchor, bridge_rot):
-		return false
+	# No overlap for either piece.
+	for c in bridge.get_cells(bridge_anchor, bridge_rot):
+		if _board.is_occupied(c):
+			return false
 	for c in block.get_cells(block_anchor, block_rot):
 		if _board.is_occupied(c):
 			return false
-	if not _connects(block.get_connectors(block_anchor, block_rot), bridge.get_connectors(bridge_anchor, bridge_rot)):
+	# The bridge must link an existing ROAD to the new block's ROAD (one end each) — never water.
+	if not _bridge_links(
+			bridge.get_connectors(bridge_anchor, bridge_rot),
+			block.get_connectors(block_anchor, block_rot),
+			_board.connector_cells()):
 		return false
 
-	_board.place(bridge, bridge_anchor, bridge_rot, player.color)
-	_board.place(block, block_anchor, block_rot, player.color)
+	_board.place(bridge, bridge_anchor, bridge_rot, player.color, false)
+	_board.place(block, block_anchor, block_rot, player.color, false)
 	player.pieces.remove_at(block_index)
 	player.bridge = null
 	_advance()
 	return true
+
+
+# One bridge end touches a board road, the other touches the new block's road.
+func _bridge_links(bridge_ends: Array[Vector2i], block_roads: Array[Vector2i], board_roads: Array[Vector2i]) -> bool:
+	for i in bridge_ends.size():
+		var other := bridge_ends[(i + 1) % bridge_ends.size()]
+		if _connects([bridge_ends[i]] as Array[Vector2i], board_roads) and _connects([other] as Array[Vector2i], block_roads):
+			return true
+	return false
 
 
 # True if any cell in [param a] is a hex-neighbor of any cell in [param b].

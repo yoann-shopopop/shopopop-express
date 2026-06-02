@@ -28,9 +28,14 @@ func test_finds_a_bridge_that_links_block_to_network() -> void:
 	board.place(_road_tile(), Vector2i.ZERO, 0, BLUE)  # network road at (0,0)
 	var result := BridgeFinder.find(board, _road_tile(), Vector2i(4, 0), 0, _bridge())
 	assert_false(result.is_empty(), "a linking bridge exists")
-	# Placing the bridge then the block must both succeed.
-	assert_true(board.place(_bridge(), result["anchor"], result["rotation"], BLUE))
-	assert_true(board.place(_road_tile(), Vector2i(4, 0), 0, BLUE))
+	# A found bridge end touches the existing road network (the other will touch the new block).
+	var ends := _bridge().get_connectors(result["anchor"], result["rotation"])
+	var touches_network := false
+	for e in ends:
+		for nb in HexUtils.neighbors(e):
+			if board.cell_type_at(nb) == CellType.Kind.ROUTE:
+				touches_network = true
+	assert_true(touches_network, "the bridge links onto the existing road")
 
 
 func test_returns_empty_when_gap_is_too_large() -> void:

@@ -67,15 +67,20 @@ func can_place(block: BlockDefinition, anchor: Vector2i, rotation: int) -> bool:
 	return _connects(block.get_connectors(anchor, rotation))
 
 
-## Places [param block] for [param owner] if legal. Returns true and emits [signal changed].
-func place(block: BlockDefinition, anchor: Vector2i, rotation: int, owner: int = -1) -> bool:
-	if not can_place(block, anchor, rotation):
+## Places [param block] for [param owner]. With [param checked] (default), refuses illegal moves;
+## the auto-bridge passes [code]false[/code] to commit a pre-validated bridge+block. Returns success.
+func place(block: BlockDefinition, anchor: Vector2i, rotation: int, owner: int = -1, checked: bool = true) -> bool:
+	if checked and not can_place(block, anchor, rotation):
 		return false
 	var piece := PlacedPiece.new(block, anchor, rotation, owner)
+	var type_at := {}
 	for tc in piece.typed_cells:
 		_index[tc["cell"]] = {"type": tc["type"], "owner": owner, "piece": piece}
+		type_at[tc["cell"]] = tc["type"]
+	# Only ROAD cells become connectors — a bridge's water ends must never be a connection point.
 	for c in piece.connector_cells:
-		_connectors[c] = true
+		if CellType.is_road(type_at.get(c, CellType.Kind.WATER)):
+			_connectors[c] = true
 	_pieces.append(piece)
 	changed.emit()
 	return true
