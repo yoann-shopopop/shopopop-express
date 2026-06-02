@@ -8,9 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 livraison coopératif où les joueur·euse·s incarnent des cotransporteur·euse·s. Le but de ce dépôt
 est de recréer ce jeu de plateau dans **Godot 4.6** avec une **vue 3D du dessus** (top-down).
 
-À ce stade c'est un projet **greenfield** : seuls `project.godot`, l'icône par défaut et la règle du
-jeu existent. Il n'y a encore ni scène, ni script, ni architecture. Les décisions d'architecture sont
-donc à prendre, pas à découvrir.
+Les **fondations techniques existent désormais** (branche `feat/hex-grid-placement`) : système de
+**grille hexagonale**, **blocs modulaires** et **placement sur le plateau**, avec une architecture en
+couches découplées et des tests unitaires. Voir la section « Architecture implémentée » plus bas. La
+logique de **gameplay** (déplacements sur les routes, dés, livraisons, score, événements) reste à
+construire **au-dessus** de ces fondations, en se référant aux règles.
 
 **La source de vérité du gameplay est `docs/SHOPOPOP-EXPRESS-GAME-RULES.MD`.** Toute logique de jeu
 doit s'y référer. Les règles sont encore en cours de rédaction (voir « Ambiguïtés connues » plus bas) :
@@ -44,9 +46,15 @@ godot --headless --quit          # importer les assets / valider le projet sans 
 godot -s <script.gd>             # exécuter un script (utile pour tests/outils)
 ```
 
-Tests : aucun framework en place. Si des tests deviennent nécessaires, **GUT** (Godot Unit Test) est
-le standard de l'écosystème GDScript ; l'introduire seulement quand il y a de la logique à tester
-(résolution d'événements, calcul de score, validité d'un déplacement).
+Tests : **GUT (Godot Unit Test) est en place** (`addons/gut/`, config `.gutconfig.json`, tests dans
+`tests/`). La couche logique (maths hexagonales, règles de placement) est développée en **TDD**. Les
+commandes complètes sont dans `docs/dev-notes/running.md`. En résumé, après l'ajout d'un nouveau
+`class_name`, lancer un import **avant** les tests :
+
+```bash
+godot --headless --path . --import
+godot --headless --path . -s res://addons/gut/gut_cmdln.gd
+```
 
 ## Modèle de domaine (issu des règles)
 
@@ -90,3 +98,55 @@ le faire dans `docs/` en conservant l'original ou via git, et lever les ambiguï
 - Vue du dessus : prévoir une caméra orthographique ou perspective haute fixe ; la grille du plateau
   est l'ancrage des positions — penser un système de **coordonnées de cases** découplé des positions
   monde 3D dès le départ (déplacements comptés « en cases », pas en mètres).
+
+## Architecture implémentée — grille hexagonale & placement
+
+Fondations posées sur `feat/hex-grid-placement`. **Découplage strict en 4 couches** : la logique de
+jeu ne dépend pas du rendu (on peut faire évoluer le visuel sans toucher aux règles, et tout tester).
+
+```
+src/logic/      hex_utils.gd (HexUtils)   maths hexagonales pures, statiques
+                board.gd (Board)          état du plateau + règles de placement
+src/blocks/     block_definition.gd       BlockDefinition (Resource) = bloc en données
+src/view/       hex_grid_view.gd          quadrillage fantôme + tuiles posées (MultiMesh)
+                block_ghost.gd            aperçu vert/rouge sous le pointeur
+                hex_mesh_factory.gd       tuile = prisme CylinderMesh pointy-top (sans asset)
+                game_config.gd            constantes de présentation
+src/interaction/placement_controller.gd  pointeur souris/tactile -> case -> pose/rotation
+                camera_rig.gd             pan/zoom (molette + clic-droit, pinch + 2 doigts)
+src/ui/         placement_ui.gd           barre Hexagone / Pont / Rotation (CanvasLayer extensible)
+src/main.gd     scenes/main.tscn          composition root (assemble la scène)
+resources/blocks/  hex19.tres, bridge3.tres   blocs canoniques
+tools/          generate_block_resources.gd, capture_preview.gd   outils dev
+```
+
+**Coordonnées de cases** (réponse à l'exigence « coordonnées découplées ») : axiales **pointy-top**,
+une case = `Vector2i(q, r)`, conventions Red Blob Games. `HexUtils` fournit voisins, distance, rotation
+60°, et conversions case↔monde (plan XZ). C'est l'ancrage de tous les déplacements « en cases ».
+
+**Blocs ↔ assets** (correspondance directe avec `assets/boards/`) :
+- `hex19` = hexagone **côté 3 = 19 cases** = une tuile de plateau (`B1..B3`, `R1..R3`, `Y1..Y3` ; les
+  **3 couleurs** correspondent aux quartiers/couleurs des cartes personnage).
+- `bridge3` = **ligne de 3 cases** (eau–route–eau) = `BRIDGE.png`.
+
+`BlockDefinition` décrit un bloc par ses **offsets de cases** (+ rotation) ; créer un bloc = créer un
+`.tres`, sans code. `Board` gère un `Dictionary` case→bloc, expose les cases (utile pour un futur **A***
+sur les routes) et impose à `can_place()` : pas de chevauchement + adjacence à un bloc existant (le
+1er bloc est libre).
+
+**Rendu** : scène 3D + **caméra orthographique top-down** (effet plateau via épaisseur + ombres),
+cohérent avec `GL Compatibility`. **Entrées** pensées **souris ET tactile** via `InputMap` (action
+`rotate_block`).
+
+### À aligner sur les règles (écarts connus, prochaines étapes)
+
+Le placement actuel est **générique** ; pour coller aux règles il faudra notamment :
+- Donner un **type de terrain à chaque case** (route / eau / espace vert / zone grise / arc-en-ciel /
+  enseigne) — à porter sur `BlockDefinition` (par case). Les visuels existent déjà dans `assets/boards/`.
+- Renforcer l'adjacence : la règle exige que **deux tuiles ne se joignent que si une *route* touche une
+  *route*** (cf. règles). `Board.can_place` ne teste pour l'instant que l'adjacence de cases.
+- Déplacements **sur les routes uniquement** + **A*** avec preview de trajectoire (le `Board` expose
+  déjà le graphe de cases pour ça).
+- Texturer les tuiles avec les PNG du plateau plutôt que la couleur unie de prototypage.
+
+> Notes de dev complémentaires (rôle, vision, commandes) : `docs/dev-notes/`.
