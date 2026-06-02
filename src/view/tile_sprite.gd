@@ -13,8 +13,10 @@ const FLAT := Basis(Vector3(1, 0, 0), -PI / 2.0)  # lay flat, texture-up = north
 
 
 ## A textured sprite for [param cell] of [param type]. [param road_cells] is the set (Dictionary
-## keyed by Vector2i) of road cells in the same piece, used to orient roads.
-static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float) -> Sprite3D:
+## keyed by Vector2i) of road cells in the same piece, used to orient roads. [param variant_seed]
+## is the cell's LOCAL offset within its block, so the random texture variant stays stable wherever
+## the block is previewed, placed or rotated.
+static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float, variant_seed: Vector2i) -> Sprite3D:
 	var sprite := Sprite3D.new()
 	sprite.pixel_size = (2.0 * size) / TEX_W
 	sprite.offset = Vector2(0, OFFSET_Y_PX)
@@ -30,7 +32,7 @@ static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float)
 		yaw = float(meta["steps"]) * PI / 3.0
 	else:
 		var variants := TileTextures.variants(type)
-		sprite.texture = variants[_variant_of(cell, variants.size())]
+		sprite.texture = variants[_variant_of(variant_seed, variants.size())]
 
 	var pos := HexUtils.axial_to_world(cell, size)
 	pos.y = pos.z * SORT_K

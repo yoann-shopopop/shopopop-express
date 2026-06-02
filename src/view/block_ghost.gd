@@ -59,7 +59,8 @@ func _rebuild() -> void:
 	var typed := _block.get_typed_cells(_anchor, _rotation)
 	var road_cells := TileSprite.road_cells_of(typed)
 	var tint := _tint()
-	for tc in typed:
-		var sprite := TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE)
+	for i in typed.size():
+		var tc: Dictionary = typed[i]
+		var sprite := TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, _block.cells[i])
 		sprite.modulate = tint
 		add_child(sprite)

@@ -12,6 +12,7 @@ static func build(block: BlockDefinition, host: Node) -> ViewportTexture:
 	var vp := SubViewport.new()
 	vp.size = Vector2i(SIZE, SIZE)
 	vp.transparent_bg = true
+	vp.own_world_3d = true  # isolate from the board world so preview tiles don't leak onto the board
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	host.add_child(vp)
 
@@ -25,7 +26,8 @@ static func build(block: BlockDefinition, host: Node) -> ViewportTexture:
 
 	var typed := block.get_typed_cells(Vector2i.ZERO, 0)
 	var road_cells := TileSprite.road_cells_of(typed)
-	for tc in typed:
-		vp.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, 1.0))
+	for i in typed.size():
+		var tc: Dictionary = typed[i]
+		vp.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, 1.0, block.cells[i]))
 
 	return vp.get_texture()
