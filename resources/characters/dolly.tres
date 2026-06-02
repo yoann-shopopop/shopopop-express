@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="CharacterDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/game/character_definition.gd" id="1_char"]
+
+[resource]
+script = ExtResource("1_char")
+id = &"dolly"
+display_name = "Dolly"
+transport = 1
+colors = Array[int]([0, 1])
+power_id = &"bonne_marcheuse"

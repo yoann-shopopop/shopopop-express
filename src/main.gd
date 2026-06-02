@@ -3,6 +3,7 @@ extends Node3D
 ## the distribution, the turn-by-turn placement phase, the board view, the pointer controller and UI.
 
 const PATTERNS_DIR := "res://resources/blocks/patterns/"
+const CHARACTERS_DIR := "res://resources/characters/"
 const BRIDGE_PATH := "res://resources/blocks/bridge.tres"
 
 var board: Board
@@ -15,11 +16,15 @@ var _ghost: BlockGhost
 var _bridge_ghost: BlockGhost
 var _ui: PlacementUI
 var _library: Array[BlockDefinition] = []
+var _characters: Array[CharacterDefinition] = []
 var _bridge: BlockDefinition
+var _players: Array[Player] = []
+var _game_root: GameRoot
 
 
 func _ready() -> void:
 	_library = _load_library()
+	_characters = _load_characters()
 	_bridge = load(BRIDGE_PATH)
 	_camera = _build_camera()
 	_build_light()
@@ -36,15 +41,15 @@ func start_game(count: int, rng_seed: int = -1) -> void:
 		rng.seed = rng_seed
 	else:
 		rng.randomize()
-	var players := SetupDistributor.build_players(count, _library, _bridge, rng)
+	_players = SetupDistributor.build_players(count, _library, _bridge, rng, _characters)
 	_ui.begin_game()
 
 	board = Board.new()
-	phase = SetupPhase.new(players, board)
+	phase = SetupPhase.new(_players, board)
 
 	grid_view = HexGridView.new()
 	add_child(grid_view)
-	grid_view.setup(board, players)
+	grid_view.setup(board, _players)
 
 	_ghost = BlockGhost.new()
 	add_child(_ghost)
@@ -77,8 +82,13 @@ func _on_pass_requested() -> void:
 
 
 func _on_setup_finished() -> void:
-	_ui.set_finished()
-	grid_view.show_pawns()
+	# Hand over from setup to the play phase: drop the placement UI/controller and start GameRoot,
+	# which owns the moving pawns, dice, movement input and the in-game UI.
+	_ui.queue_free()
+	controller.queue_free()
+	_game_root = GameRoot.new()
+	add_child(_game_root)
+	_game_root.setup(board, _players, _camera)
 
 
 # --- Static library ---------------------------------------------------------
@@ -90,6 +100,16 @@ func _load_library() -> Array[BlockDefinition]:
 		for file in dir.get_files():
 			if file.ends_with(".tres"):
 				result.append(load(PATTERNS_DIR + file))
+	return result
+
+
+func _load_characters() -> Array[CharacterDefinition]:
+	var result: Array[CharacterDefinition] = []
+	var dir := DirAccess.open(CHARACTERS_DIR)
+	if dir:
+		for file in dir.get_files():
+			if file.ends_with(".tres"):
+				result.append(load(CHARACTERS_DIR + file))
 	return result
 
 

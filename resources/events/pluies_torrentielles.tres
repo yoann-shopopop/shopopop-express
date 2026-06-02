@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EventCardDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/cards/event_card_definition.gd" id="1_ixpnb"]
+
+[resource]
+script = ExtResource("1_ixpnb")
+effect = 14
+is_malus = true
+id = &"pluies_torrentielles"
+display_name = "Pluies Torrentielles"

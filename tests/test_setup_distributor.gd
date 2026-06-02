@@ -28,6 +28,16 @@ func _seeded_rng() -> RandomNumberGenerator:
 	return rng
 
 
+# Eight distinct character cards (only the id matters for distribution tests).
+func _characters() -> Array[CharacterDefinition]:
+	var result: Array[CharacterDefinition] = []
+	for i in 8:
+		var c := CharacterDefinition.new()
+		c.id = StringName("c%d" % i)
+		result.append(c)
+	return result
+
+
 func test_builds_one_player_per_requested_count() -> void:
 	var players := SetupDistributor.build_players(3, _library, _bridge, _seeded_rng())
 	assert_eq(players.size(), 3)
@@ -83,6 +93,22 @@ func test_start_is_a_green_cell_of_one_of_the_players_blocks() -> void:
 			if roads.has(nb):
 				roadside = true
 		assert_true(roadside, "start is on the edge of a road")
+
+
+func test_each_player_gets_a_distinct_character() -> void:
+	var players := SetupDistributor.build_players(4, _library, _bridge, _seeded_rng(), _characters())
+	var ids := {}
+	for player in players:
+		assert_not_null(player.character, "a character is assigned")
+		ids[player.character.id] = true
+	assert_eq(ids.size(), 4, "four distinct characters")
+
+
+func test_players_are_indexed_by_seat() -> void:
+	var players := SetupDistributor.build_players(3, _library, _bridge, _seeded_rng(), _characters())
+	assert_eq(players[0].index, 0)
+	assert_eq(players[1].index, 1)
+	assert_eq(players[2].index, 2)
 
 
 # The pattern ids (first 3 pieces) of a player.

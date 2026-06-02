@@ -172,17 +172,50 @@ Connecteurs = routes en centre d'arête (hexagone) / extrémités (pont). `Setup
 (auto-rotation, rotation = cycle des candidats) ; lâcher « une case trop loin » → **auto-pont**
 (`BridgeFinder` + `SetupPhase.try_place_with_bridge`, consomme le pont) ; fantôme **rouge** si invalide.
 
-### À aligner sur les règles (prochaines étapes)
+### Couche de gameplay intégrée (au-dessus du socle plateau)
 
-Faits : types de cases ✓, route-à-route ✓, phase de placement ✓, distribution + départs ✓,
-**textures flat-top par case + routes orientées** ✓, **previews UI + magnet + auto-pont** ✓.
-Restant :
-- **Déplacements sur les routes uniquement** + **A*** avec preview de trajectoire (le `Board` expose déjà
-  l'index des cases / connecteurs pour ça).
-- **Contenus de cases** : points de retrait (cases urbaines) & destinataires (cases vertes) sont pour
-  l'instant des **abstractions** côté nous — la logique concrète revient à la collègue (personnages,
-  livraisons, effets). Les joueurs sont « juste des couleurs ».
-- **Glisser-déposer** vrai geste depuis la preview (aujourd'hui : sélection puis pointeur + magnet).
-- **Multijoueur** : non implémenté (hot-seat 1 client) mais l'état est découplé et les joueurs identifiés.
+Le gameplay est branché au plateau via un second composition root, `GameRoot` (Node3D), que `Main`
+instancie à `setup_finished`. Tout le cœur reste en **logique pure testée** (GUT) ; les Node ne font
+que rendu/entrées.
+
+```
+src/logic/      road_network.gd (RoadNetwork)  set de cases praticables (ROUTE+EVENT) depuis le Board
+                board.gd                       + cells_of_type(kind), piece_at(cell)
+src/movement/   turn_movement.gd (TurnMovement) marche réelle : revisite, ±budget, teleport_to
+src/game/       character_definition.gd        CharacterDefinition (Resource) : transport→dés, 2 couleurs, power_id
+                game_phase.gd (GamePhase)       boucle de tour + sous-phases + livraisons + events + score
+                delivery.gd / delivery_setup.gd Delivery (drive→destinataire) + génération (1/ tuile)
+                score_calculator.gd             5 + 10/tuile à soi + exception mono-tuile (constantes paramétrables)
+                turn_context.gd (TurnContext)   état mutable du tour (effets events/pouvoirs)
+                event_resolver.gd / power_resolver.gd  effets data-driven (match, pas de if géant)
+                game_root.gd (GameRoot)         composition root du jeu : pions, dés, deck, UI, contrôleur
+src/cards/      event_card_definition.gd        EventCardDefinition : effect/amount/condition/is_malus
+src/interaction/movement_controller.gd          clic/tap → case → GamePhase.try_step
+src/ui/         game_ui.gd (GameUI)             tour, score, lancer dés, livraisons, prendre/livrer, pouvoir, fin
+resources/characters/*.tres   8 personnages   ·  resources/events/*.tres   ~22 cartes (outil generate_event_cards.gd)
+```
+
+**Boucle de tour** (`GamePhase`, round-robin) : PLANIFICATION (`select_delivery`) → DEPLACEMENT
+(`begin_movement(budget)` depuis `DiceRoller`, puis `try_step` sur les **routes uniquement**) →
+EVENEMENT (case arc-en-ciel → `apply_event`) → PRISE_EN_CHARGE (`confirm_pickup`, **−1 déplacement**)
+→ LIVRAISON (`confirm_delivery`, **gratuit**, score). Fin de partie quand toutes les livraisons sont
+faites. Pouvoir une seule fois (`use_power`).
+
+⚠️ `Movement` (auto-évitant, démo) **n'est pas** réutilisé en jeu : `TurnMovement` autorise revisite,
+budget ajustable (events ±, prise en charge +1) et téléportation (cartes). « Tuile à moi » = la
+**couleur de quartier** (`PlacedPiece.owner`) appartient au **personnage** (`character.owns_color`),
+jamais l'identité du joueur (`Player.index`).
+
+**Points laissés en STUB (V1, points ouverts non tranchés)** : téléportation « quartier »/« parallèle »,
+Manifestation/Fuite/Pluies (effets persistants), capacité de volume (Margot), pont en jeu, coop vs
+compétitif (scores individuels + total affichés, pas de vainqueur en dur), cumul des doublements.
+
+### Restant / à raffiner
+
+- **A\*** avec preview de trajectoire (le `Board` expose déjà l'index des cases / connecteurs).
+- **Pose manuelle** des jetons drive/destinataire (V1 : placement auto post-setup, livraisons mono-tuile).
+- Effets d'événement **interactifs** (choix de cible/quartier) et **persistants inter-tours**.
+- **Multijoueur** distant : non implémenté (hot-seat 1 client) ; l'état est découplé et les joueurs identifiés.
+- 5–6 joueurs réutilisent une couleur de quartier (4 couleurs) — distingués par `Player.index`.
 
 > Notes de dev complémentaires (rôle, vision, commandes) : `docs/dev-notes/`.

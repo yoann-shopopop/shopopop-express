@@ -51,6 +51,20 @@ func occupied_cells() -> Array[Vector2i]:
 	return result
 
 
+## All occupied cells whose terrain is [param kind] ([enum CellType.Kind]).
+func cells_of_type(kind: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for cell in _index:
+		if _index[cell]["type"] == kind:
+			result.append(cell)
+	return result
+
+
+## The placed piece covering [param cell], or null if the cell is empty.
+func piece_at(cell: Vector2i) -> PlacedPiece:
+	return _index[cell]["piece"] if _index.has(cell) else null
+
+
 ## The board's ROAD connector cells (road edge-centers). Used by the bridge finder.
 func connector_cells() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []

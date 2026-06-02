@@ -5,18 +5,24 @@ extends RefCounted
 ## each player a start point (random green cell of a random one of their blocks). Pure & seedable.
 
 
-## Returns [param count] players (2..4), each with the same 3 drawn patterns (recolored) + a bridge.
+## Returns [param count] players (2..6), each with the same 3 drawn patterns (recolored) + a bridge.
+## When [param characters] is non-empty, each player is also dealt a distinct character card.
 static func build_players(
 	count: int,
 	library: Array[BlockDefinition],
 	bridge: BlockDefinition,
 	rng: RandomNumberGenerator,
+	characters: Array[CharacterDefinition] = [],
 ) -> Array[Player]:
 	var drawn := _draw_distinct(library, 3, rng)
 	var colors := PlayerColor.all()
+	var dealt := _draw_distinct_characters(characters, count, rng)
 	var players: Array[Player] = []
 	for i in count:
-		var player := Player.new(colors[i])
+		var player := Player.new(colors[i % colors.size()])
+		player.index = i
+		if i < dealt.size():
+			player.character = dealt[i]
 		var tint := PlayerColor.to_color(player.color)
 		for pattern in drawn:
 			player.pieces.append(_clone(pattern, tint))
@@ -24,6 +30,17 @@ static func build_players(
 		_assign_start(player, rng)
 		players.append(player)
 	return players
+
+
+# Picks [param n] distinct characters using a seeded Fisher-Yates draw (empty if none provided).
+static func _draw_distinct_characters(characters: Array[CharacterDefinition], n: int, rng: RandomNumberGenerator) -> Array[CharacterDefinition]:
+	var pool := characters.duplicate()
+	for i in range(pool.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp: CharacterDefinition = pool[i]
+		pool[i] = pool[j]
+		pool[j] = tmp
+	return pool.slice(0, min(n, pool.size()))
 
 
 # Picks [param n] distinct entries from [param library] using a seeded Fisher-Yates draw.

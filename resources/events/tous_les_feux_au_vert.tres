@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="EventCardDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/cards/event_card_definition.gd" id="1_m12na"]
+
+[resource]
+script = ExtResource("1_m12na")
+effect = 5
+id = &"tous_les_feux_au_vert"
+display_name = "Tous les Feux sont au Vert"

@@ -51,7 +51,7 @@ func _build_start_panel() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
 	box.add_child(row)
-	for n in [2, 3, 4]:
+	for n in [2, 3, 4, 5, 6]:
 		var button := Button.new()
 		button.text = str(n)
 		button.custom_minimum_size = BUTTON_MIN

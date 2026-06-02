@@ -90,3 +90,22 @@ func test_place_returns_false_and_does_not_mutate_when_invalid() -> void:
 	var ok := _board.place(_green_tile(), Vector2i(1, 0), 0, RED)
 	assert_false(ok)
 	assert_eq(_board.pieces().size(), 1, "board left unchanged")
+
+
+func test_cells_of_type_lists_cells_with_that_type() -> void:
+	_board.place(_road_tile(), Vector2i.ZERO, 0, BLUE)
+	assert_eq(_board.cells_of_type(CellType.Kind.ROUTE), [Vector2i.ZERO] as Array[Vector2i])
+	assert_eq(_board.cells_of_type(CellType.Kind.GREEN), [] as Array[Vector2i])
+
+
+func test_cells_of_type_is_empty_on_a_new_board() -> void:
+	assert_eq(_board.cells_of_type(CellType.Kind.ROUTE), [] as Array[Vector2i])
+
+
+func test_piece_at_returns_the_piece_covering_a_cell() -> void:
+	_board.place(_road_tile(), Vector2i.ZERO, 0, BLUE)
+	assert_eq(_board.piece_at(Vector2i.ZERO), _board.pieces()[0])
+
+
+func test_piece_at_returns_null_on_an_empty_cell() -> void:
+	assert_null(_board.piece_at(Vector2i(5, 5)))

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EventCardDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/cards/event_card_definition.gd" id="1_le74o"]
+
+[resource]
+script = ExtResource("1_le74o")
+effect = 12
+is_malus = true
+id = &"manifestation"
+display_name = "Manifestation en Cours"

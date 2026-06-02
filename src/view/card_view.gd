@@ -23,6 +23,7 @@ const _SLIDE_TIME := 0.35
 func bind(card: CardDefinition) -> void:
 	_build_body()
 	_build_front(card.front_texture)
+	_build_front_label(card.display_name)
 	_build_back()
 
 
@@ -107,6 +108,22 @@ func _build_front(texture: Texture2D) -> void:
 		material.albedo_color = _FRONT_PLACEHOLDER
 	front.material_override = material
 	add_child(front)
+
+
+func _build_front_label(text: String) -> void:
+	if text.is_empty():
+		return
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 48
+	label.pixel_size = 0.0028
+	label.width = 360
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.modulate = Color("20242c")
+	label.position = Vector3(0.0, THICKNESS * 0.5 + 0.006, 0.0)
+	label.rotation_degrees = Vector3(-90, 0, 0)  # lie flat on the front face, readable from above
+	add_child(label)
 
 
 func _build_back() -> void:
