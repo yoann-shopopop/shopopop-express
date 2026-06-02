@@ -95,9 +95,6 @@ Concepts clés à modéliser. Les entités forment naturellement des `Resource` 
 
 Détaillés dans la section « Points ouverts » de `SHOPOPOP-EXPRESS-GAME-RULES.MD` :
 
-- **Nombre de couleurs : 3 vs 4** ⚠️ : les règles Notion citent **4 couleurs** (dont 🟣 Violet), mais
-  les assets/blocs implémentés n'en ont que **3** (B/R/Y, cf. « Blocs ↔ assets »). À réconcilier
-  (ajouter le Violet, ou aligner les cartes personnage sur 3 couleurs).
 - **Objectif coopératif vs compétitif** : intro collective mais score individuel — à trancher.
 - **Capacité de volume** : évoquée par le pouvoir de Margot, jamais définie ailleurs.
 - **Mécanique du pont** : usage non décrit ; recouvre en partie le pouvoir *Passage Secret* de Gégé.
@@ -139,8 +136,10 @@ une case = `Vector2i(q, r)`, conventions Red Blob Games. `HexUtils` fournit vois
 60°, et conversions case↔monde (plan XZ). C'est l'ancrage de tous les déplacements « en cases ».
 
 **Blocs ↔ assets** (correspondance directe avec `assets/boards/`) :
-- `hex19` = hexagone **côté 3 = 19 cases** = une tuile de plateau (`B1..B3`, `R1..R3`, `Y1..Y3` ; les
-  **3 couleurs** correspondent aux quartiers/couleurs des cartes personnage).
+- `hex19` = hexagone **côté 3 = 19 cases** = une tuile de plateau. Les quartiers comptent **4 couleurs**
+  (🔴 Rouge, 🟡 Jaune, 🟣 Violet, 🔵 Bleu — décision validée, le Violet est retenu), correspondant aux
+  couleurs des cartes personnage. ⚠️ **Assets à compléter** : `assets/boards/` ne contient pour l'instant
+  que 3 couleurs (`B1..B3`, `R1..R3`, `Y1..Y3`) ; les tuiles **Violet** (`V1..V3`) restent à produire.
 - `bridge3` = **ligne de 3 cases** (eau–route–eau) = `BRIDGE.png`.
 
 `BlockDefinition` décrit un bloc par ses **offsets de cases** (+ rotation) ; créer un bloc = créer un
