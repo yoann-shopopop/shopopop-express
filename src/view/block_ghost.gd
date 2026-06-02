@@ -31,8 +31,7 @@ func _ready() -> void:
 ## Sets which block is previewed (re-sizes the instance pool).
 func set_block(block: BlockDefinition) -> void:
 	_block = block
-	if _block != null:
-		_mm_instance.multimesh.instance_count = _block.cells.size()
+	_mm_instance.multimesh.instance_count = _block.cells.size() if _block != null else 0
 	_refresh()
 
 

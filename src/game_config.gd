@@ -13,5 +13,9 @@ const GRID_RADIUS: int = 14
 ## Tint of the placement ghost when the move is legal / illegal.
 const GHOST_VALID: Color = Color(0.35, 1.0, 0.45, 0.55)
 const GHOST_INVALID: Color = Color(1.0, 0.35, 0.35, 0.55)
-## Faint color of the empty background lattice tiles.
-const LATTICE_COLOR: Color = Color(1.0, 1.0, 1.0, 0.06)
+## Faint (opaque) color of the empty background lattice tiles — just above the background.
+const LATTICE_COLOR: Color = Color("283242")
+
+## Player-colored perimeter outline drawn on top of placed blocks.
+const OUTLINE_WIDTH: float = 0.12
+const OUTLINE_Y: float = TILE_HEIGHT + 0.02
