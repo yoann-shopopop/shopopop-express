@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_87pm8"]
+
+[resource]
+script = ExtResource("1_87pm8")
+id = &"paloma"
+display_name = "Paloma"
+color = Color(0.2627451, 0.6666667, 0.54509807, 1)

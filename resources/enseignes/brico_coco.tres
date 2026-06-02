@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="EnseigneDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/enseignes/enseigne_definition.gd" id="1_t5xqb"]
+[ext_resource type="Texture2D" path="res://assets/trades/BRICO_COCO.webp" id="2_bnwe7"]
+
+[resource]
+script = ExtResource("1_t5xqb")
+id = &"brico_coco"
+display_name = "Brico Coco"
+texture = ExtResource("2_bnwe7")
+color = Color(0.1764706, 0.49019608, 0.8235294, 1)

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_x41c0"]
+
+[resource]
+script = ExtResource("1_x41c0")
+id = &"lova_ladiva"
+display_name = "Lova Ladiva"
+color = Color(0.95686275, 0.76862746, 0.1882353, 1)
