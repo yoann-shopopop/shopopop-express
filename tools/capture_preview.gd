@@ -32,22 +32,28 @@ func _process(_delta: float) -> bool:
 	return false
 
 
-# Places the current player's first remaining piece at the first valid spot found by scanning.
+# Drives the real controller (simulated pointer + magnet) to place the current piece, exercising
+# the full interaction path. Targets the center first, then any valid spot found by scanning.
 func _place_one() -> void:
 	var phase = _main.phase
 	var board = _main.board
 	if phase.is_finished():
 		return
-	var block = phase.current_player().pieces[0]
+	var target: Vector2i = _target_cell(board, phase.current_player().pieces[0])
+	var screen: Vector2 = _main._camera.unproject_position(HexUtils.axial_to_world(target, 1.0))
+	_main.controller._update_pointer(screen)
+	_main.controller._try_place()
+
+
+func _target_cell(board, block) -> Vector2i:
 	if board.is_empty():
-		phase.try_place(0, Vector2i.ZERO, 0)
-		return
+		return Vector2i.ZERO
 	for rot in 6:
 		for q in range(-SCAN, SCAN + 1):
 			for r in range(-SCAN, SCAN + 1):
 				if board.can_place(block, Vector2i(q, r), rot):
-					phase.try_place(0, Vector2i(q, r), rot)
-					return
+					return Vector2i(q, r)
+	return Vector2i.ZERO
 
 
 # Frames the placed cluster by moving the camera to its centroid.

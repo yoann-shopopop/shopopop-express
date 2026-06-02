@@ -99,66 +99,68 @@ le faire dans `docs/` en conservant l'original ou via git, et lever les ambiguï
   est l'ancrage des positions — penser un système de **coordonnées de cases** découplé des positions
   monde 3D dès le départ (déplacements comptés « en cases », pas en mètres).
 
-## Architecture implémentée — grille, blocs typés & phase de placement
+## Architecture implémentée — grille flat-top texturée & placement UX
 
 **Découplage strict en couches** : la logique de jeu ne dépend pas du rendu (on fait évoluer le
 visuel sans toucher aux règles, et toute la logique est testée par GUT).
 
 ```
-src/logic/      hex_utils.gd (HexUtils)       maths hexagonales pures, statiques
+src/logic/      hex_utils.gd (HexUtils)       maths hexagonales FLAT-TOP, statiques (+ line())
                 board.gd (Board)              état du plateau + règles de placement (connecteurs)
                 placed_piece.gd (PlacedPiece) instance posée : propriétaire, cases typées, connecteurs
-src/blocks/     cell_type.gd (CellType)       enum Route/Vert/Urbain/Eau/Événement + couleurs/variantes
+src/blocks/     cell_type.gd (CellType)       enum Route/Vert/Urbain/Eau/Événement
                 block_definition.gd           BlockDefinition (Resource) : cases + types + connecteurs
 src/game/       player_color.gd / player.gd   4 couleurs (Bleu/Rouge/Violet/Jaune) + modèle joueur
                 setup_distributor.gd          tire 3 patterns partagés, recolore, assigne le départ
-                setup_phase.gd                tours round-robin, 1 pièce/tour, jusqu'à la fin
-src/view/       hex_grid_view.gd              tuiles par type (+variantes), outline par joueur, marqueurs
-                block_ghost.gd                aperçu vert/rouge sous le pointeur
-                block_outline.gd              contour de périmètre d'un bloc (couleur joueur)
-                hex_mesh_factory.gd           tuile = prisme CylinderMesh pointy-top (sans asset)
-                game_config.gd                constantes de présentation
-src/interaction/placement_controller.gd      pointeur souris/tactile -> case -> pose via la phase
+                setup_phase.gd                tours round-robin (+ pose atomique pont+bloc)
+                bridge_finder.gd              trouve un pont reliant un bloc « une case trop loin »
+src/view/       hex_grid_view.gd              assemble lattice + tuiles + outlines + marqueurs
+                tile_sprite.gd / tile_textures.gd  une case = Sprite3D texturé (débord Nord)
+                road_tiling.gd                oriente les routes (droite/T) selon la connectivité
+                tile_preview.gd               rend un bloc en SubViewport pour l'UI
+                block_ghost.gd / block_outline.gd  fantôme texturé (rouge si invalide) / contour joueur
+                hex_mesh_factory.gd / game_config.gd
+src/interaction/placement_controller.gd      magnet auto-rotation + auto-pont
                 camera_rig.gd                 pan/zoom (molette + clic-droit, pinch + 2 doigts)
-src/ui/         placement_ui.gd               écran 2–4 joueurs + barre (joueur courant, pièces, rotation)
-src/main.gd     scenes/main.tscn              composition root (distribution + phase + vue + UI)
-resources/blocks/patterns/p1..pN.tres, bridge.tres   bibliothèque (générée)
+src/ui/         placement_ui.gd               écran 2–4 joueurs + barre (joueur, previews de tuiles)
+src/main.gd     scenes/main.tscn              composition root
+resources/blocks/patterns/*.tres, bridge.tres   bibliothèque (générée)
+assets/tiles/   textures par type (green/urban/water/road + special/spawn)
 tools/          generate_block_resources.gd, capture_preview.gd   outils dev
 ```
 
-**Coordonnées de cases** : axiales **pointy-top**, une case = `Vector2i(q, r)`, conventions Red Blob
-Games. `HexUtils` fournit voisins, distance, rotation 60°, conversions case↔monde (plan XZ).
+**Coordonnées de cases** : axiales **flat-top** (imposé par les textures), une case = `Vector2i(q, r)`,
+conventions Red Blob Games. `HexUtils` : voisins, distance, rotation 60°, `line()`, case↔monde (plan XZ).
 
-**Blocs & types** : `BlockDefinition` = `cells` + `cell_types` (parallèle) + `connectors`. Une tuile
-quartier = hexagone **côté 3 = 19 cases** (= assets `B/R/Y 1..3`) ; le **pont** = `Eau–Route–Eau`
-(= `BRIDGE.png`). Chaque case a un **type** (`CellType`: Route/Vert/Urbain/Eau/Événement) rendu par
-une couleur placeholder + variante aléatoire (les vraies textures viendront).
+**Blocs & types** : `BlockDefinition` = `cells` + `cell_types` (parallèle) + `connectors`. Tuile quartier
+= hexagone **côté 3 = 19 cases** ; **pont** = `Eau–Route–Eau`. Patterns générés avec route en **ligne
+droite + branche T** (uniquement les 2 textures de route). Bibliothèque → **3 patterns tirés, partagés**
+(`SetupDistributor`) ; chaque joueur (2–4) reçoit les 3 dans sa couleur + 1 pont + un **départ** (case
+verte aléatoire).
 
-**Patterns & distribution** : une **bibliothèque** de patterns est générée (`tools/generate_block_resources.gd`) ;
-chaque partie **tire 3 patterns au sort**, **partagés par tous les joueurs** (`SetupDistributor`).
-Chaque joueur (2–4, couleurs Bleu/Rouge/Violet/Jaune) reçoit les 3 patterns **dans sa couleur** + 1 pont,
-et un **point de départ** (case verte aléatoire d'un de ses blocs, fixé avant placement).
+**Placement (route-à-route)** : `Board` indexe des `PlacedPiece`. `can_place()` = pas de chevauchement +
+(1ʳᵉ pièce libre, sinon **un connecteur de la nouvelle pièce voisin d'un connecteur existant**).
+Connecteurs = routes en centre d'arête (hexagone) / extrémités (pont). `SetupPhase` enchaîne les tours.
 
-**Placement (adjacence route-à-route)** : `Board` indexe des `PlacedPiece` (propriétaire + cases typées
-+ connecteurs). `can_place()` = pas de chevauchement + (1ʳᵉ pièce libre, sinon **un connecteur de la
-nouvelle pièce voisin d'un connecteur existant**). Connecteurs = cases route en centre d'arête pour les
-hexagones, cases extrémités pour le pont → satisfait « route touche route » et « le pont relie des routes ».
-`SetupPhase` enchaîne les tours (1 pièce/tour) jusqu'à ce que tout soit posé (pions placés aux départs).
+**Rendu** : scène 3D, **caméra ortho top-down**, chaque case = **Sprite3D texturé** posé à plat (base
+388px sur l'hexagone, décor débordant au Nord, tri Sud-sur-Nord), routes orientées via `RoadTiling`,
+**outline** de périmètre couleur joueur, `special`/`spawn`. UI : **previews réelles** des tuiles.
 
-**Rendu** : scène 3D + **caméra ortho top-down**, cases colorées par type, **outline de périmètre** de
-la couleur du propriétaire (la couleur a un sens gameplay : trajets réguliers), marqueurs de départ/pion.
-**Entrées** souris ET tactile via `InputMap`.
+**Interaction** : pointeur souris/tactile ; **magnet** snappe le fantôme à la pose légale la plus proche
+(auto-rotation, rotation = cycle des candidats) ; lâcher « une case trop loin » → **auto-pont**
+(`BridgeFinder` + `SetupPhase.try_place_with_bridge`, consomme le pont) ; fantôme **rouge** si invalide.
 
 ### À aligner sur les règles (prochaines étapes)
 
-Faits : types de cases ✓, adjacence **route-à-route** ✓, phase de placement ✓, distribution + départs ✓.
+Faits : types de cases ✓, route-à-route ✓, phase de placement ✓, distribution + départs ✓,
+**textures flat-top par case + routes orientées** ✓, **previews UI + magnet + auto-pont** ✓.
 Restant :
 - **Déplacements sur les routes uniquement** + **A*** avec preview de trajectoire (le `Board` expose déjà
   l'index des cases / connecteurs pour ça).
 - **Contenus de cases** : points de retrait (cases urbaines) & destinataires (cases vertes) sont pour
   l'instant des **abstractions** côté nous — la logique concrète revient à la collègue (personnages,
   livraisons, effets). Les joueurs sont « juste des couleurs ».
-- **Vraies textures** par case (3 variantes/type) à la place des couleurs de prototypage.
+- **Glisser-déposer** vrai geste depuis la preview (aujourd'hui : sélection puis pointeur + magnet).
 - **Multijoueur** : non implémenté (hot-seat 1 client) mais l'état est découplé et les joueurs identifiés.
 
 > Notes de dev complémentaires (rôle, vision, commandes) : `docs/dev-notes/`.
