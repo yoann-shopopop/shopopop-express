@@ -31,6 +31,7 @@ func _ready() -> void:
 	_generator = DeliveryGenerator.new(_load_enseignes(), _load_destinataires(), SLOTS)
 	_generator.combo_changed.connect(_on_combo_changed)
 	_generator.recycled.connect(_on_combo_changed)
+	_generator.exhausted.connect(_on_exhausted)
 	_build_views()
 	_refresh_count()
 
@@ -51,8 +52,12 @@ func _build_views() -> void:
 
 func _on_combo_changed(index: int) -> void:
 	if index < _views.size():
-		_views[index].refresh()
+		_views[index].bind(_generator.combos()[index])  # full rebuild (status insert + new destinataire)
 	_refresh_count()
+
+
+func _on_exhausted() -> void:
+	_count_label.text = "Pioche épuisée — plus de destinataire à clipser."
 
 
 # --- Interaction -------------------------------------------------------------
