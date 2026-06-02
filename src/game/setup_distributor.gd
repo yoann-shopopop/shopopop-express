@@ -50,10 +50,25 @@ static func _clone(block: BlockDefinition, tint: Color) -> BlockDefinition:
 static func _assign_start(player: Player, rng: RandomNumberGenerator) -> void:
 	var block_index := rng.randi_range(0, 2)
 	var block: BlockDefinition = player.pieces[block_index]
-	var green_cells: Array[Vector2i] = []
-	for i in block.cells.size():
-		if block.cell_types[i] == CellType.Kind.GREEN:
-			green_cells.append(block.cells[i])
 	player.start_block = block
-	if not green_cells.is_empty():
-		player.start_cell = green_cells[rng.randi_range(0, green_cells.size() - 1)]
+
+	var roads := {}
+	for i in block.cells.size():
+		if CellType.is_road(block.cell_types[i]):
+			roads[block.cells[i]] = true
+
+	# Prefer green cells on the edge of a road; fall back to any green.
+	var roadside: Array[Vector2i] = []
+	var any_green: Array[Vector2i] = []
+	for i in block.cells.size():
+		if block.cell_types[i] != CellType.Kind.GREEN:
+			continue
+		any_green.append(block.cells[i])
+		for nb in HexUtils.neighbors(block.cells[i]):
+			if roads.has(nb):
+				roadside.append(block.cells[i])
+				break
+
+	var pool := roadside if not roadside.is_empty() else any_green
+	if not pool.is_empty():
+		player.start_cell = pool[rng.randi_range(0, pool.size() - 1)]

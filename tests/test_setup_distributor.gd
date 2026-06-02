@@ -8,15 +8,15 @@ var _bridge: BlockDefinition
 func before_each() -> void:
 	_library = []
 	for i in 6:
-		_library.append(_pattern(StringName("p%d" % i), Vector2i(1 + i, 0)))
-	_bridge = _pattern(&"bridge", Vector2i(2, 0))
+		_library.append(_pattern(StringName("p%d" % i)))
+	_bridge = _pattern(&"bridge")
 
 
-# A pattern with one ROUTE connector cell and one GREEN cell (a candidate start).
-func _pattern(id: StringName, green_offset: Vector2i) -> BlockDefinition:
+# A pattern with a ROUTE cell and a GREEN cell on the edge of that road (a candidate start).
+func _pattern(id: StringName) -> BlockDefinition:
 	var b := BlockDefinition.new()
 	b.id = id
-	b.cells = [Vector2i(0, 0), green_offset] as Array[Vector2i]
+	b.cells = [Vector2i(0, 0), Vector2i(1, 0)] as Array[Vector2i]
 	b.cell_types = [CellType.Kind.ROUTE, CellType.Kind.GREEN]
 	b.connectors = [Vector2i(0, 0)] as Array[Vector2i]
 	return b
@@ -72,6 +72,16 @@ func test_start_is_a_green_cell_of_one_of_the_players_blocks() -> void:
 		var idx := player.start_block.cells.find(player.start_cell)
 		assert_gte(idx, 0, "start cell belongs to the block")
 		assert_eq(player.start_block.cell_types[idx], CellType.Kind.GREEN, "start sits on a green cell")
+		# And that green cell is on the edge of a road.
+		var roads := {}
+		for j in player.start_block.cells.size():
+			if CellType.is_road(player.start_block.cell_types[j]):
+				roads[player.start_block.cells[j]] = true
+		var roadside := false
+		for nb in HexUtils.neighbors(player.start_cell):
+			if roads.has(nb):
+				roadside = true
+		assert_true(roadside, "start is on the edge of a road")
 
 
 # The pattern ids (first 3 pieces) of a player.
