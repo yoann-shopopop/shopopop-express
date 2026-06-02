@@ -4,7 +4,7 @@ extends SceneTree
 ## Run windowed (NOT headless) for a real frame:
 ##   godot --path . -s res://tools/capture_preview.gd
 
-const PLACEMENTS := 6
+const PLACEMENTS := 3
 const SCAN := 12
 
 var _main: Node
@@ -68,4 +68,4 @@ func _center_camera() -> void:
 	var centroid: Vector3 = sum / float(cells.size())
 	_main._camera.position.x = centroid.x
 	_main._camera.position.z = centroid.z
-	_main._camera.size = 20.0
+	_main._camera.size = 16.0

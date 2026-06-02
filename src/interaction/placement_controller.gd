@@ -7,7 +7,7 @@ extends Node
 ## When not dragging, the ghost is hidden. Mouse and touch share the same path.
 
 const BOARD_PLANE := Plane(Vector3.UP, 0.0)
-const MAGNET_RADIUS := 2
+const MAGNET_RADIUS := 1  # gentle snap; leaves real gaps open so the auto-bridge can kick in
 
 var _camera: Camera3D
 var _board: Board
@@ -142,16 +142,13 @@ func _try_place() -> void:
 		var c: Dictionary = _candidates[_choice]
 		_phase.try_place(_selected_index, c["cell"], c["rot"])
 		return
-	# No direct fit — try to bridge across a one-cell gap using the player's bridge.
-	var bridge := _player_bridge()
-	if bridge != null:
-		var found := BridgeFinder.find(_board, block, _raw_cell, _rotation, bridge)
+	# No direct fit — try to bridge across the gap with the player's (free) bridge. Search every
+	# block rotation so the auto-bridge "just works" without the player pre-orienting the block.
+	var bridge := _phase.current_player().bridge
+	if bridge == null:
+		return
+	for rot in 6:
+		var found := BridgeFinder.find(_board, block, _raw_cell, rot, bridge)
 		if not found.is_empty():
-			_phase.try_place_with_bridge(_selected_index, _raw_cell, _rotation, found["anchor"], found["rotation"])
-
-
-func _player_bridge() -> BlockDefinition:
-	for piece in _phase.current_player().pieces:
-		if piece.id == &"bridge":
-			return piece
-	return null
+			_phase.try_place_with_bridge(_selected_index, _raw_cell, rot, found["anchor"], found["rotation"])
+			return
