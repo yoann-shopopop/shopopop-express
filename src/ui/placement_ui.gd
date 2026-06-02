@@ -6,6 +6,8 @@ extends CanvasLayer
 
 signal player_count_chosen(count: int)
 signal piece_drag_started(index: int)
+signal bridge_drag_started
+signal pass_requested
 signal rotate_requested
 
 const BUTTON_MIN := Vector2(118, 52)
@@ -118,15 +120,33 @@ func set_current_player(player: Player) -> void:
 		button.ignore_texture_size = true
 		button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		button.custom_minimum_size = PREVIEW_SIZE
-		button.modulate = Color.WHITE
 		button.button_down.connect(_on_piece_pressed.bind(i))  # press = start dragging the tile
 		_pieces_bar.add_child(button)
+
+	# The free bridge, if still held — draggable like a piece.
+	if player.bridge != null:
+		var bridge_btn := TextureButton.new()
+		bridge_btn.texture_normal = TilePreview.build(player.bridge, _vp_host)
+		bridge_btn.ignore_texture_size = true
+		bridge_btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		bridge_btn.custom_minimum_size = PREVIEW_SIZE
+		bridge_btn.modulate = Color(0.8, 0.95, 1.0)  # slight tint to read as the (free) bridge
+		bridge_btn.button_down.connect(func() -> void: bridge_drag_started.emit())
+		_pieces_bar.add_child(bridge_btn)
 
 	var rotate := Button.new()
 	rotate.text = "⟳"
 	rotate.custom_minimum_size = Vector2(52, 52)
 	rotate.pressed.connect(func() -> void: rotate_requested.emit())
 	_pieces_bar.add_child(rotate)
+
+	# When no blocks remain, allow ending the turn (keeping or skipping the bridge).
+	if player.pieces.is_empty():
+		var finish := Button.new()
+		finish.text = "Terminer"
+		finish.custom_minimum_size = Vector2(110, 52)
+		finish.pressed.connect(func() -> void: pass_requested.emit())
+		_pieces_bar.add_child(finish)
 
 
 func set_finished() -> void:

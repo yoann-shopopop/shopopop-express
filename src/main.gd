@@ -58,6 +58,8 @@ func start_game(count: int, rng_seed: int = -1) -> void:
 	phase.turn_changed.connect(_on_turn_changed)
 	phase.setup_finished.connect(_on_setup_finished)
 	_ui.piece_drag_started.connect(controller.begin_drag)
+	_ui.bridge_drag_started.connect(controller.begin_bridge_drag)
+	_ui.pass_requested.connect(_on_pass_requested)
 	_ui.rotate_requested.connect(controller.rotate_current)
 	_ui.set_current_player(phase.current_player())
 
@@ -68,6 +70,10 @@ func _on_player_count_chosen(count: int) -> void:
 
 func _on_turn_changed(player: Player) -> void:
 	_ui.set_current_player(player)
+
+
+func _on_pass_requested() -> void:
+	phase.pass_turn()
 
 
 func _on_setup_finished() -> void:
