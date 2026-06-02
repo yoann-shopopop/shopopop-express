@@ -57,11 +57,14 @@ func _build_lattice() -> void:
 	for q in range(-radius, radius + 1):
 		for r in range(maxi(-radius, -q - radius), mini(radius, -q + radius) + 1):
 			cells.append(Vector2i(q, r))
+	# The 6-sided CylinderMesh is pointy-top; rotate it 30° so the lattice reads as FLAT-TOP and
+	# tessellates with the flat-top layout.
+	var flat_top := Basis(Vector3.UP, PI / 6.0)
 	mm.instance_count = cells.size()
 	for i in cells.size():
 		var pos := HexUtils.axial_to_world(cells[i], GameConfig.HEX_SIZE)
 		pos.y = -1.0  # well below the tiles so it never occludes them
-		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, pos))
+		mm.set_instance_transform(i, Transform3D(flat_top, pos))
 		mm.set_instance_color(i, GameConfig.LATTICE_COLOR)
 
 
