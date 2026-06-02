@@ -71,6 +71,11 @@ func discard(card: CardDefinition) -> void:
 	discarded.emit(card)
 
 
+## Puts [param card] back on top of the draw pile — it will be the next card drawn.
+func return_to_top(card: CardDefinition) -> void:
+	_draw_pile.append(card)
+
+
 ## Folds the discard pile back into the draw pile and shuffles. Also done automatically by
 ## [method draw] when the draw pile empties mid-draw.
 func reshuffle() -> void:

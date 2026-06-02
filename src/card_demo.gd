@@ -114,7 +114,7 @@ func _on_left_pressed(screen_pos: Vector2) -> void:
 	# Idle: clicking the PIOCHE draws; clicking the full DÉFAUSSE (when the pile is empty) reshuffles.
 	if _hits_pile(screen_pos, _DRAW_POS):
 		_draw_cards()
-	elif _hits_pile(screen_pos, _DISCARD_POS) and _deck.draw_count() == 0 and _deck.discard_count() > 0:
+	elif _hits_pile(screen_pos, _DISCARD_POS) and _deck.draw_count() < _DRAW_COUNT and _deck.discard_count() > 0:
 		_animate_reshuffle()
 	else:
 		_orbiting = true
@@ -194,11 +194,20 @@ func _choose(picked: CardView) -> void:
 			view.animate_move_to(_ACTIVE_POS)
 			_chosen = entry
 		else:
-			view.animate_discard(_DISCARD_POS + Vector3(0.0, _deck.discard_count() * _STACK_STEP, 0.0))
-			_deck.discard(entry["card"])
+			# The non-chosen card goes back on top of the draw pile.
+			_deck.return_to_top(entry["card"])
+			view.animate_gather(_DRAW_POS + Vector3(0.0, _deck.draw_count() * _STACK_STEP, 0.0))
+			_free_after(view, 0.45)
 	_revealed.clear()
 	_refresh_piles()
 	_refresh_counts()
+
+
+# Frees [param node] after [param delay] seconds (once an animation has landed).
+func _free_after(node: Node, delay: float) -> void:
+	await get_tree().create_timer(delay).timeout
+	if is_instance_valid(node):
+		node.queue_free()
 
 
 func _activate_chosen() -> void:

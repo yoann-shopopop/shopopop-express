@@ -75,6 +75,14 @@ func test_draw_from_fully_empty_deck_returns_empty() -> void:
 	assert_eq(deck.draw_count(), 0)
 
 
+func test_return_to_top_makes_the_card_drawn_next() -> void:
+	var deck := Deck.new(_cards(3))
+	var first := deck.draw(1)[0]
+	deck.return_to_top(first)
+	assert_eq(deck.draw_count(), 3, "the card is back in the draw pile")
+	assert_eq(deck.draw(1)[0], first, "the returned card is on top, drawn first")
+
+
 func test_total_card_count_is_preserved_through_recycle() -> void:
 	var deck := Deck.new(_cards(3), _seeded(7))
 	for c in deck.draw(3):
