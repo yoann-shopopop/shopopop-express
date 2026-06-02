@@ -114,20 +114,42 @@ src/game/       player_color.gd / player.gd   4 couleurs (Bleu/Rouge/Violet/Jaun
                 setup_distributor.gd          tire 3 patterns partagés, recolore, assigne le départ
                 setup_phase.gd                tours round-robin (+ pose atomique pont+bloc)
                 bridge_finder.gd              trouve un pont reliant un bloc « une case trop loin »
+src/pawns/      pawn_definition.gd / pawn.gd  PawnDefinition (Resource) + Pawn (état : position + steps)
+src/cards/      card_definition.gd / deck.gd  CardDefinition (Resource) + Deck (pioche/défausse, RNG)
+src/movement/   movement.gd (Movement)        marche auto-évitante sur un set de cases injecté
+src/dice/       dice_roller.gd (DiceRoller)   lance X D6, mémorise le résultat, RNG injectable
 src/view/       hex_grid_view.gd              assemble lattice + tuiles + outlines + marqueurs
                 tile_sprite.gd / tile_textures.gd  une case = Sprite3D texturé (débord Nord)
                 road_tiling.gd                oriente les routes (droite/T) selon la connectivité
                 tile_preview.gd               rend un bloc en SubViewport pour l'UI
                 block_ghost.gd / block_outline.gd  fantôme texturé (rouge si invalide) / contour joueur
+                pawn_view.gd (PawnView)       figure cône+tête colorée / jeton-image
+                card_view.gd (CardView)       carte 3D : face placeholder, dos logo + CARD_TYPE
+                die_view.gd (DieView)         dé 3D à points, orienté sur la valeur
                 hex_mesh_factory.gd / game_config.gd
 src/interaction/placement_controller.gd      magnet auto-rotation + auto-pont
                 camera_rig.gd                 pan/zoom (molette + clic-droit, pinch + 2 doigts)
 src/ui/         placement_ui.gd               écran 2–4 joueurs + barre (joueur, previews de tuiles)
 src/main.gd     scenes/main.tscn              composition root
+src/*_demo.gd   scenes/*_demo.tscn            démos autonomes : pawn / card / movement / dice
 resources/blocks/patterns/*.tres, bridge.tres   bibliothèque (générée)
 assets/tiles/   textures par type (green/urban/water/road + special/spawn)
 tools/          generate_block_resources.gd, capture_preview.gd   outils dev
 ```
+
+### Systèmes de gameplay (logique pure, testée, en cours d'intégration)
+
+Apportés par la fusion de `main` ; chacun ignore les autres et le `Board`, branchés à l'intégration
+(voir le plan en 3 phases). Chaque système a une **scène de démo autonome** (`scenes/*_demo.tscn`).
+
+- **Pion** (`Pawn` + `PawnDefinition`) : `position` (case) + `steps`, pose unique, pion fixe immobile ;
+  signaux `placed/moved/steps_changed`. Cotransporteur = figure colorée, drive/destinataire = jeton-image.
+- **Paquet** (`Deck` + `CardDefinition`) : `draw(n)` / `discard` / `reshuffle` / `return_to_top`, RNG
+  injectable.
+- **Déplacement** (`Movement`) : set de cases praticables + départ + budget ; marche **auto-évitante**,
+  total obligatoire, arrêt si bloqué. ⚠️ Inadapté tel quel au déplacement de plateau (demi-tours,
+  téléportations, coût +1 prise en charge) → une variante `TurnMovement` est introduite à l'intégration.
+- **Dés** (`DiceRoller`) : `roll(X)` de D6, mémorise le résultat, `total()` / `consume()`.
 
 **Coordonnées de cases** : axiales **flat-top** (imposé par les textures), une case = `Vector2i(q, r)`,
 conventions Red Blob Games. `HexUtils` : voisins, distance, rotation 60°, `line()`, case↔monde (plan XZ).

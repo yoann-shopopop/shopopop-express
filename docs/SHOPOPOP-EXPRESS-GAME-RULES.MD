@@ -1,139 +1,217 @@
-# Shopopop Express
+# Shopopop Express — Règles du jeu
+
+> **Source de vérité : page Notion « SHOPOPOP Express 2 - LE Retour »**
+> (`3732c5c7-9816-8027-bddc-e78f7729d8a5`). Ce fichier en est une copie synchronisée le 2026-06-02.
+> En cas de doute, Notion fait foi. Voir aussi la note « Points ouverts » en fin de document.
 
 ## Mécanismes du jeu
 
-### Objectif du Jeu
+### Objectif du jeu
 
-Les joueur•euse•s incarnent des cotransporteur•euse•s qui réalisent des livraisons Shopopop. 
-Elles doivent réussir à accomplir toutes les livraisons de la journée avec le plus de points possible.
-Les livraisons doivent être réalisés sur le trajet régulier de chaque co-transporteur pour remporter le plus de points !
+Les joueur·euse·s incarnent des cotransporteur·euse·s qui réalisent des livraisons Shopopop. Elles
+doivent réussir à accomplir toutes les livraisons de la journée avec le plus de points possible. Les
+livraisons doivent être réalisées sur le trajet régulier de chaque cotransporteur·euse pour remporter
+le plus de points.
 
 ### Plateau de jeu
 
-La zone de jeu se compose de plusieurs plateaux à assembler en début de partie. 
-Chaque plateau représente un quartier autonome avec ses routes, ses espaces verts, et ses zones urbanisées ou végétalisées. 
+La zone de jeu se compose de plusieurs plateaux à assembler en début de partie. Chaque plateau
+représente un quartier autonome avec ses routes, ses espaces verts et ses zones urbanisées ou
+végétalisées.
 
-Les déplacements sont possibles uniquement en utilisant les routes, sauf en cas d'utilisation de cartes événements spéciales. 
-Deux tuiles ne peuvent être assemblées que si au moins une de ses routes touche une route de l’autre.
+Les déplacements sont possibles uniquement en utilisant les routes, sauf en cas d'utilisation de
+cartes événement spéciales. Deux tuiles ne peuvent être assemblées que si au moins une de leurs routes
+touche une route de l'autre.
 
-**Cartes personnage**
+### Cartes personnage
 
-Chaque joueur•euse reçoit une carte personnage avec des caractéristiques spécifiques. 
+Chaque joueur·euse reçoit une carte personnage avec des caractéristiques spécifiques :
 
-Chaque personnage possède son propre mode de déplacement (voiture ou vélo). 
+- un **mode de déplacement** (vélo, à pied, voiture ou camion), qui détermine le nombre de dés ;
+- **deux couleurs** représentant les quartiers de son trajet régulier quotidien ;
+- un **super-pouvoir** propre, utilisable une seule fois dans la partie (voir « Les 8 personnages »).
 
-Deux couleurs sont associées au personnage et représentent les quartiers sur lesquels il se déplace quotidiennement. 
+### Drives & Destinataires
 
-Un personnage a un super pouvoir qui lui est propre. Ce pouvoir peut être utilisé une fois au cours de la partie pour annuler un événement.
-
-### **Tuiles Enseigne/Destinataire**
-
-Il y a 9 tuiles enseignes et 9 tuiles destinataires
-Une tuile destinataire doit être assemblée à une tuile enseigne.
+Chaque tuile-quartier posée porte **1 drive** (point de retrait, à placer sur une zone grise) et
+**1 destinataire** (à placer sur un espace vert) — ce sont des jetons, pas des tuiles séparées. Une
+**livraison** relie un drive à un destinataire et s'étend sur **1 ou 2 tuiles**. Le nombre de
+livraisons d'une partie est donc égal au nombre de tuiles posées (voir Mise en place).
 
 ### Mise en place
 
-1. **Préparation du Plateau** :
-    - Chaque joueur•euse reçoit 
-         - une carte personnage
-         - 3 tuiles correspondantes à la couleur de son point de départ symbolisé par une maison rose sur la carte.
-         - 3 jetons destinataires
-         - 3 jetons enseigne 
-         - 1 pion permettant d’avancer sur le plateau
-         - 1 pont
-    - Mélangez et disposez les cartes événement en une pile face cachée.
-    - Le premier joueur à jouer est celui porte le plus de vêtement noir sur lui
-    - Chaque joueur•euse place tour à tour une tuile sur la surface de jeu.
-    - Chaque  joueur•euse place un jeton destinataire et un jeton enseigne par tuile de sa couleur.
-    Les destinataires sont à placer dans les espaces verts.
-    Les enseignes sont à placer sur les zones grises.
-    - Construire 9 livraisons à partir des pièces destinataires et enseignes
-    - Placer les pions de chaque joueur à leur point de départ.
+**Nombre de joueur·euse·s : 2 à 6.** Nombre de tuiles par joueur·euse : jusqu'à 3 joueurs → **3 tuiles**
+chacun ; à partir de 4 joueurs → **2 tuiles** chacun. Le total de tuiles posées = le nombre de
+livraisons de la partie.
 
-### Déroulement du Jeu
+| Joueurs | Tuiles / joueur | Total tuiles = livraisons |
+|---|---|---|
+| 2 | 3 | 6 |
+| 3 | 3 | 9 |
+| 4 | 2 | 8 |
+| 5 | 2 | 10 |
+| 6 | 2 | 12 |
 
-Le jeu se déroule en tours jusqu’à ce qu’il n’y ait plus de livraison à effectuer.
+1. Chaque joueur·euse reçoit :
+   - une carte personnage ;
+   - ses tuiles, à la couleur de son point de départ (symbolisé par une maison rose sur la carte ;
+     nombre selon l'effectif) ;
+   - autant de jetons drive et de jetons destinataire que de tuiles ;
+   - 1 pion permettant d'avancer sur le plateau ;
+   - 1 pont.
+2. Mélanger et disposer les cartes événement en une pile face cachée.
+3. Le ou la premier·ère joueur·euse est la personne qui porte le plus de vêtements noirs.
+4. Chaque joueur·euse place tour à tour une tuile sur la surface de jeu.
+5. Chaque joueur·euse place un jeton drive et un jeton destinataire par tuile de sa couleur. Les
+   destinataires sont à placer dans les espaces verts, les drives sur les zones grises.
+6. Former les livraisons en associant chaque drive à un destinataire (autant de livraisons que de
+   tuiles posées).
+7. Placer les pions de chaque joueur·euse à leur point de départ.
 
-1. **Planification** :
-    - Chaque joueur choisi une livraison à disposition sur le deck de livraison
-    - Le premier joueur à jouer est celui porte le plus de vétements noir sur lui.
-2.  **Déplacements** :
-    - Les  joueur•euse•s lancent les deux dés pour déterminer de combien de cases iels peuvent avancer.
-    - Le résultat des dés correspond au nombre de cases que le  joueur•euse peut déplacer son pion sur le plateau.
-    - Les  joueur•euse•s déplacent leurs pions en suivant les routes qu'ils ont choisis, en respectant le nombre de cases indiqué par le lancer de dés.
-3. **Événements** :
-    - Lors de son déplacement, un•e  joueur•euse peut tomber sur une case évènement représenté par un Arc en ciel. Mettez en pose votre déplacement en cours.
-    Dans ce cas, piocher une carte évènement et la résoudre puis continuer si vous le pouvez le déplacement
-    - Exemple d'événement : embouteillages, grèves, conditions météorologiques, etc.
-    - Pensez à utiliser votre super pouvoir au besoin !
-4. **Prise en charge livraison
--** Prendre une livraison coute un point de déplacement supplémentaire
-5. **Livrer**
-- Livrer une livraison ne coute pas de point de déplacement supplémentaire.
+### Déroulement du jeu
 
-### Fin de la Partie
+Le jeu se déroule en tours jusqu'à ce qu'il n'y ait plus de livraison à effectuer.
 
-La partie se termine lorsqu’il n’y a plus de livraison à effectuer.
+1. **Planification** — chaque joueur·euse choisit une livraison disponible. Le ou la premier·ère à
+   jouer est la personne qui porte le plus de vêtements noirs.
+2. **Déplacements** — lancer les dés (selon le mode de transport) pour déterminer le nombre de cases,
+   puis déplacer son pion en suivant les routes.
+3. **Événements** — si le déplacement passe sur une case événement (un arc-en-ciel), le mettre en
+   pause, piocher une carte événement, la résoudre, puis reprendre le déplacement si possible. Penser
+   à utiliser son super-pouvoir au besoin.
+4. **Prise en charge** — prendre une livraison coûte **1 point de déplacement supplémentaire**.
+5. **Livrer** — livrer une livraison **ne coûte pas** de point de déplacement.
+
+### Fin de la partie
+
+La partie se termine lorsqu'il n'y a plus de livraison à effectuer.
 
 ### Scoring
 
-Chaque livraison rapporte 5 points de base et en rapporte plus si elle est effectuée sur un trajet régulier (représenté par les 2 couleurs des joueurs).
+Une livraison s'étend sur **1 ou 2 tuiles**. Chaque livraison rapporte **5 points de base**, plus
+**+10 points par tuile de la livraison dont la couleur t'appartient** (une de tes 2 couleurs).
+**Exception** : une livraison qui tient sur une **seule tuile t'appartenant** rapporte **20 points**
+pour cette tuile (au lieu de 10).
 
-| Livraison de base | 5 POINTS |
-| --- | --- |
-| Trajet régulier sur 2 couleurs | 10 POINTS |
-| Trajet régulier sur 1 couleur | 20 POINTS |
-- **Bonus et Pénalités** :
-    - Les événements peuvent ajouter des points bonus ou infliger des pénalités.
+| Cas | Score |
+|---|---|
+| Livraison de base | 5 points |
+| Par tuile de la livraison dont la couleur t'appartient | +10 points |
+| Exception — livraison sur une seule tuile qui t'appartient | 20 points (au lieu de 10) |
 
-<aside>
-<img src="https://www.notion.so/icons/confetti-party-popper_green.svg" alt="https://www.notion.so/icons/confetti-party-popper_green.svg" width="40px" /> **Avantages**
+En pratique : 2 tuiles à toi = 25 pts · 1 tuile à toi = 25 pts · 1 seule tuile pas à toi (ou aucune à
+toi) = 5 pts.
 
-- **Prime Gouvernementale** :
-    - Une prime gouvernementale encourage les déplacements à vélo. Tous les joueur·euse·s utilisant des vélos peuvent lancer un dé supplémentaire pendant un tour.
-- **Faille Spatio-Temporelle** :
-    - Une faille spatio-temporelle s'est ouverte, vous permettant de vous déplacer directement vers n'importe quel autre quartier.
-- **Tous les Feux sont au Vert** :
-    - Tous les feux tricolores sont verts pour vous. Vous pouvez rejouer immédiatement.
-- **Escorte Policière** :
-    - Vous êtes escorté·e par la police. Vous pouvez vous rendre directement à votre destination (point de retrait ou destinataire).
-- **Évaluation Positive** :
-    - Vous avez reçu une évaluation positive lors de votre dernière livraison, vous êtes autorisé·e à vous déplacer de 5 cases supplémentaires ce tour-ci.
-- **Grand Soleil :**
-    - Le temps est parfait pour les livraisons. Avancez de 3 cases supplémentaires.
-- **Parrainage** :
-    - Vous avez parrainés 3 cotransporteur•euse•s. Bravo ! Doublez le résultat de votre lancer de dés pour ce tour.
-- **Raccourci Secret** :
-    - Vous découvrez un raccourci secret. Vous pouvez vous déplacer sur n’importe quelle route parallèle à votre position actuelle.
-- **5/5** :
-    - Vous avez reçu une note de 5/5 pour votre dernière livraison. Ajoutez 20 points à votre score final.
-- **Livraison Écologique** :
-    - Tous les joueur•euse•s effectuant leurs livraisons à velo double les points de chacune de leur livraison pour récompenser leur faible impact environnemental.
-- **Voie Verte Prioritaire** :
-    - Une voie verte réservée aux cyclistes est ouverte. Avancez de 5 cases supplémentaires si vous utilisez un vélo.
-</aside>
+**Bonus et pénalités** : les événements peuvent ajouter des points bonus ou infliger des pénalités.
 
-<aside>
-<img src="https://www.notion.so/icons/circle-remove_red.svg" alt="https://www.notion.so/icons/circle-remove_red.svg" width="40px" /> **Malus**
+## Cartes événement
 
-- **Feu Rouge** :
-    - Un feu rouge vous arrête. Votre tour s’arrête ici, sauf si vous êtes à vélo, auquel cas vous pouvez continuer.
-- **Recharge de Batterie** :
-    - Vous devez faire une pause pour recharger votre véhicule. Reculez de 3 cases.
-- **Sac Oublié** :
-    - Vous avez oublié un sac. Retournez immédiatement au point de retrait.
-- **Manifestation en Cours** :
-    - Une manifestation bloque le quartier. Vous ne pouvez lancer qu'un seul dé pour vos déplacements jusqu'à ce qu'un autre joueur passe par ce point.
-- **Fuite de Canalisation** :
-    - Une canalisation a éclaté. La route est bloquée pour tous les joueur·euse·s pendant un tour.
-- **Pluies Torrentielles** :
-    - En raison des pluies torrentielles, tous les ponts sont fermés pendant un tour.
-- **Pic de Pollution** :
-    - En raison d’un pic de pollution, la zone à faibles émissions est activée. Vous ne pouvez entrer dans ce quartier qu’en utilisant un vélo.
-- **Sac Isotherme Oublié** :
-    - Vous avez oublié votre sac isotherme ou glacière. Retournez immédiatement à votre point de départ.
-- **Panne de Véhicule** :
-    - Votre véhicule tombe en panne. Votre tour s’arrête immédiatement.
-- **Animal sur la Route** :
-    - Un animal traverse la route, vous devez ralentir. Avancez de 2 cases de moins que le résultat de votre lancer de dés.
-</aside>
+### Avantages
+
+- **Prime Gouvernementale** — les joueur·euse·s à vélo lancent un dé supplémentaire pendant un tour.
+- **Faille Spatio-Temporelle** — déplace-toi directement vers n'importe quel autre quartier.
+- **Tous les Feux sont au Vert** — rejoue immédiatement ; tu peux réserver une nouvelle livraison.
+- **Escorte Policière** — rends-toi directement à ta destination (point de retrait ou destinataire).
+- **Évaluation Positive** — avance de 5 cases supplémentaires ce tour-ci ; tu peux réserver une
+  nouvelle livraison.
+- **Grand Soleil** — avance de 3 cases supplémentaires.
+- **Parrainage** — double le résultat de ton lancer de dés pour ce tour ; tu peux réserver une
+  nouvelle livraison.
+- **Raccourci Secret** — déplace-toi sur n'importe quelle route parallèle à ta position actuelle.
+- **5/5** — ajoute 20 points à ton score final.
+- **Livraison Écologique** — les joueur·euse·s livrant à vélo doublent les points de chacune de leurs
+  livraisons.
+- **Voie Verte Prioritaire** — avance de 5 cases supplémentaires si tu utilises un vélo.
+
+### Malus
+
+- **Feu Rouge** — ton tour s'arrête, sauf si tu es à vélo (tu peux continuer).
+- **Recharge de Batterie** — recule de 3 cases.
+- **Sac Oublié** — retourne immédiatement au point de retrait.
+- **Manifestation en Cours** — tu ne lances qu'un seul dé pour tes déplacements jusqu'à ce qu'un·e
+  autre joueur·euse passe par ce point.
+- **Fuite de Canalisation** — la route est bloquée pour tou·te·s les joueur·euse·s pendant un tour.
+- **Pluies Torrentielles** — tous les ponts sont fermés pendant un tour.
+- **Pic de Pollution** — la zone à faibles émissions est activée : on ne peut entrer dans ce quartier
+  qu'en utilisant un vélo ; ton tour est instantanément terminé.
+- **Sac Isotherme Oublié** — retourne immédiatement à ton point de départ.
+- **Panne de Véhicule** — ton tour s'arrête immédiatement.
+- **Animal sur la Route** — avance de 2 cases de moins que le résultat de ton lancer de dés.
+- **Prévention de l'Hyperactivité** — le ou la joueur·euse ciblé·e recule de 3 cases.
+
+## Les 8 personnages (2 par transport)
+
+**Couleurs officielles des quartiers (4)** : 🔴 Rouge · 🟡 Jaune · 🟣 Violet · 🔵 Bleu (le Violet est
+validé). Chaque personnage possède 2 de ces couleurs comme trajet régulier.
+
+### 🚲 Vélo
+
+**AXEL·LE** — vélo (1 dé) · 🔴 Rouge · 🟡 Jaune.
+Connaît les pistes cyclables comme sa poche et profite de ses trajets pour chercher ses enfants à
+l'école, en vélo cargo.
+*Pouvoir — Bouclier Vert* : crée un bouclier d'énergie renouvelable qui annule un événement négatif
+(carte malus) qui te cible. *Défausse la carte.*
+
+**CAMILLE** — vélo (1 dé) · 🟣 Violet · 🔴 Rouge.
+Pédale autant pour livrer que pour croiser du monde ; connaît ses voisins par leur prénom.
+*Pouvoir — Habitué·e du Quartier* : sur **une livraison**, encaisse le bonus « trajet régulier » même
+si la couleur de la case ne correspond pas à la tienne. *Défausse la carte.*
+
+### 🚶 À pied
+
+**GÉGÉ** — à pied (1 dé) · 🟣 Violet · 🔵 Bleu.
+Jeune retraité et ancien facteur, connaît chaque ruelle et raccourci ; livre à pied par tous les temps.
+*Pouvoir — Passage Secret* : une seule fois, franchis une case d'eau à pied (un gué, une passerelle).
+*Défausse la carte.*
+
+**DOLLY** — à pied (1 dé) · 🔵 Bleu · 🔴 Rouge.
+Arpente le quartier pour rejoindre ses copines au bingo et optimise ses trajets en livrant en chemin.
+*Pouvoir — Bonne Marcheuse* : ajoute +2 cases à ton déplacement ce tour. *Défausse la carte.*
+
+### 🚗 Voiture
+
+**VIC** — voiture (2 dés) · 🔴 Rouge · 🟣 Violet.
+Jongle entre le boulot, les enfants et mille trajets ; toujours efficace.
+*Pouvoir — Coup d'Accélérateur* : après ton lancer, relance un des 2 dés. *Défausse la carte.*
+
+**SAM** — voiture (2 dés) · 🟣 Violet · 🟡 Jaune.
+Étudiant·e, se rend à ses entraînements de handball et arrondit ses fins de mois en livrant.
+*Pouvoir — Dépassement* : échange immédiatement ta case avec celle d'un·e autre joueur·euse de ton
+choix. *Défausse la carte.*
+
+### 🚚 Camion
+
+**MARGOT** — camion (2 dés) · 🟡 Jaune · 🔴 Rouge.
+A roulé sa bosse dans le déménagement ; les grosses commandes ne lui font pas peur.
+*Pouvoir — Chargement Pro* : à un drive, embarque une commande supplémentaire au-delà de ta capacité
+de volume pour ce chargement. *Défausse la carte.*
+
+**CHARLIE** — camion (2 dés) · 🟡 Jaune · 🔵 Bleu.
+Sillonne la région entre sa ferme et les marchés ; profite de son camion plein pour livrer.
+*Pouvoir — Carnet d'Adresses* : une fois dans la partie, quand tu dois piocher une carte événement,
+pioche-en 2 et garde celle qui t'arrange (défausse l'autre). *Défausse la carte.*
+
+---
+
+## Points ouverts (observations côté repo, hors règles Notion)
+
+À arbitrer lors des playtests ; non figés dans la logique de jeu tant que non tranchés :
+
+- **Objectif coopératif vs compétitif** : l'intro évoque un but collectif (« accomplir toutes les
+  livraisons »), mais le score est individuel. À clarifier (meilleur score gagne ?).
+- **Capacité de volume** : mentionnée par le pouvoir de Margot mais jamais définie ailleurs (combien de
+  livraisons transportables à la fois selon le transport ?).
+- **Cohérence super-pouvoir** : la section « Cartes personnage » dit « annuler un événement » alors que
+  les 8 pouvoirs sont variés (seul *Bouclier Vert* annule un malus).
+- **Mécanique du pont** : chaque joueur·euse a 1 pont, fermé par *Pluies Torrentielles*, mais son usage
+  n'est pas décrit. Recouvre en partie le pouvoir *Passage Secret* de Gégé.
+- **Cumul des doublements de points** (*Livraison Écologique*) : effet ponctuel ou persistant ? Cumul ?
+- **Score mono-tuile = deux-tuiles** (25 pts) : favorise les livraisons compactes.
+- **Variance** : événements « téléportation » (*Faille Spatio-Temporelle*, *Escorte Policière*,
+  *Raccourci Secret*) et **5/5 (+20 pts)** très swingy.
+- **Mini-effets de destinataire** : le catalogue des destinataires (sous-page Notion « 📦 Les
+  Destinataires ») prête à chaque nom une « manie » décorative qui pourrait, plus tard, devenir un
+  petit bonus/contrainte à la livraison. Décoratif pour l'instant. La V1 retient **9 destinataires**.
+
+> Contenu d'univers (noms parodiques des destinataires, par familles) : sous-page Notion
+> **« 📦 Les Destinataires »**, enfant de la page de règles. Non recopié ici (catalogue d'idées).
