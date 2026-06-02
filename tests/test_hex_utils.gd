@@ -52,11 +52,28 @@ func test_origin_maps_to_world_origin() -> void:
 	assert_eq(HexUtils.axial_to_world(ORIGIN, 1.0), Vector3.ZERO)
 
 
-func test_horizontal_neighbor_distance_pointy_top() -> void:
-	# Pointy-top: horizontally adjacent hexes are sqrt(3) * size apart.
-	var a := HexUtils.axial_to_world(Vector2i(0, 0), 1.0)
-	var b := HexUtils.axial_to_world(Vector2i(1, 0), 1.0)
-	assert_almost_eq(a.distance_to(b), sqrt(3.0), 0.0001)
+func test_all_neighbors_are_equidistant() -> void:
+	# Every neighbor sits sqrt(3) * size from the center (both orientations).
+	for cell in HexUtils.neighbors(ORIGIN):
+		assert_almost_eq(HexUtils.axial_to_world(cell, 1.0).length(), sqrt(3.0), 0.0001)
+
+
+func test_flat_top_north_neighbor_is_due_north() -> void:
+	# Flat-top: cell (0,-1) is directly north — x ~ 0, z < 0. (Distinguishes from pointy-top.)
+	var north := HexUtils.axial_to_world(Vector2i(0, -1), 1.0)
+	assert_almost_eq(north.x, 0.0, 0.0001)
+	assert_lt(north.z, 0.0)
+
+
+func test_line_links_two_cells_contiguously() -> void:
+	var a := Vector2i(0, 0)
+	var b := Vector2i(3, -1)
+	var path := HexUtils.line(a, b)
+	assert_eq(path.front(), a, "starts at a")
+	assert_eq(path.back(), b, "ends at b")
+	assert_eq(path.size(), HexUtils.distance(a, b) + 1, "one cell per step")
+	for i in range(path.size() - 1):
+		assert_true(HexUtils.are_adjacent(path[i], path[i + 1]), "consecutive cells touch")
 
 
 func test_world_round_trip() -> void:
