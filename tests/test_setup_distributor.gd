@@ -33,10 +33,11 @@ func test_builds_one_player_per_requested_count() -> void:
 	assert_eq(players.size(), 3)
 
 
-func test_each_player_gets_three_patterns_plus_a_bridge() -> void:
+func test_each_player_gets_three_blocks_and_a_separate_bridge() -> void:
 	var players := SetupDistributor.build_players(2, _library, _bridge, _seeded_rng())
 	for player in players:
-		assert_eq(player.pieces.size(), 4, "3 patterns + 1 bridge")
+		assert_eq(player.pieces.size(), 3, "3 pattern blocks as turn pieces")
+		assert_not_null(player.bridge, "a bridge held aside (not a turn piece)")
 
 
 func test_all_players_share_the_same_three_patterns() -> void:

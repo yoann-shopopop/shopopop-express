@@ -47,18 +47,15 @@ func try_place(piece_index: int, anchor: Vector2i, rotation: int) -> bool:
 	return true
 
 
-## Atomically places the current player's bridge + their [param block_index] piece in one turn,
-## consuming both. Used by the auto-bridge convenience. Returns false if the player has no bridge
-## or the placement is illegal.
+## Atomically places the current player's bridge + their [param block_index] block in ONE turn,
+## consuming both. The bridge is free and can never be placed on its own. Returns false if the
+## player has no bridge left or the placement is illegal.
 func try_place_with_bridge(block_index: int, block_anchor: Vector2i, block_rot: int, bridge_anchor: Vector2i, bridge_rot: int) -> bool:
 	var player := current_player()
-	if block_index < 0 or block_index >= player.pieces.size():
-		return false
-	var bridge_index := _bridge_index(player)
-	if bridge_index < 0:
+	if block_index < 0 or block_index >= player.pieces.size() or player.bridge == null:
 		return false
 	var block := player.pieces[block_index]
-	var bridge := player.pieces[bridge_index]
+	var bridge := player.bridge
 
 	if not _board.can_place(bridge, bridge_anchor, bridge_rot):
 		return false
@@ -70,17 +67,10 @@ func try_place_with_bridge(block_index: int, block_anchor: Vector2i, block_rot: 
 
 	_board.place(bridge, bridge_anchor, bridge_rot, player.color)
 	_board.place(block, block_anchor, block_rot, player.color)
-	player.pieces.remove_at(maxi(block_index, bridge_index))
-	player.pieces.remove_at(mini(block_index, bridge_index))
+	player.pieces.remove_at(block_index)
+	player.bridge = null
 	_advance()
 	return true
-
-
-func _bridge_index(player: Player) -> int:
-	for i in player.pieces.size():
-		if player.pieces[i].id == &"bridge":
-			return i
-	return -1
 
 
 # True if any cell in [param a] is a hex-neighbor of any cell in [param b].

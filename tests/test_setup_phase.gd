@@ -64,16 +64,17 @@ func test_round_robin_returns_to_first_player() -> void:
 func test_auto_bridge_places_both_and_consumes_the_bridge() -> void:
 	var board := Board.new()
 	var blue := _player(PlayerColor.Kind.BLUE, 1)
-	var red := Player.new(PlayerColor.Kind.RED)
-	red.pieces = [_road_tile(), _bridge()] as Array[BlockDefinition]
+	var red := _player(PlayerColor.Kind.RED, 1)
+	red.bridge = _bridge()
 	var phase := SetupPhase.new([blue, red] as Array[Player], board)
 
 	phase.try_place(0, Vector2i.ZERO, 0)              # BLUE road at origin -> RED's turn
-	var bridge := BridgeFinder.find(board, red.pieces[0], Vector2i(4, 0), 0, red.pieces[1])
+	var bridge := BridgeFinder.find(board, red.pieces[0], Vector2i(4, 0), 0, red.bridge)
 	assert_false(bridge.is_empty(), "a linking bridge exists")
 	assert_true(phase.try_place_with_bridge(0, Vector2i(4, 0), 0, bridge["anchor"], bridge["rotation"]))
 	assert_eq(board.pieces().size(), 3, "BLUE road + bridge + RED road")
-	assert_eq(red.pieces.size(), 0, "block and bridge both consumed")
+	assert_eq(red.pieces.size(), 0, "block consumed")
+	assert_null(red.bridge, "bridge consumed")
 
 
 func test_auto_bridge_fails_without_a_bridge() -> void:

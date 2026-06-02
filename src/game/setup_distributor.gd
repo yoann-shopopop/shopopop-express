@@ -20,7 +20,7 @@ static func build_players(
 		var tint := PlayerColor.to_color(player.color)
 		for pattern in drawn:
 			player.pieces.append(_clone(pattern, tint))
-		player.pieces.append(_clone(bridge, tint))
+		player.bridge = _clone(bridge, tint)  # held aside; free, auto-used with a block
 		_assign_start(player, rng)
 		players.append(player)
 	return players
