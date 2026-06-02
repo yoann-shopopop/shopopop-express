@@ -67,29 +67,35 @@ Concepts clés à modéliser. Les entités forment naturellement des `Resource` 
 - **Carte personnage** : mode de déplacement (**voiture** ou **vélo**), **2 couleurs** = les quartiers
   de son *trajet régulier* quotidien, et **1 super-pouvoir** utilisable **une seule fois** pour annuler
   un événement.
-- **Livraison** = une **tuile enseigne** (point de retrait, zone grise) + une **tuile destinataire**
-  (zone verte). Il y a **9 enseignes** et **9 destinataires** → **9 livraisons** construites par partie.
+- **Drive** (point de retrait, zone grise) et **destinataire** (espace vert) sont des **jetons posés sur
+  les tuiles-quartiers**, pas des tuiles séparées. Une **livraison** = relier un drive à un destinataire ;
+  elle s'étend sur **1 ou 2 tuiles**. Chaque tuile posée porte 1 drive + 1 destinataire, donc
+  **nb de livraisons = nb de tuiles posées**.
+- **Effectif & tuiles** : 2 à 6 joueurs. Jusqu'à 3 joueurs → 3 tuiles/joueur ; à partir de 4 →
+  2 tuiles/joueur. (2j=6, 3j=9, 4j=8, 5j=10, 6j=12 tuiles = livraisons.)
 - **Tour de jeu** : Planification (choisir une livraison) → Déplacement (**2 dés**, avancer le pion sur
   les routes) → Événements (case arc-en-ciel = piocher/résoudre une carte) → Prise en charge
-  (**coûte +1 point de déplacement**) → Livraison (**gratuite**). Fin de partie : plus aucune livraison.
-- **Scoring** : 5 pts de base ; **+** si réalisée sur un trajet régulier (les 2 couleurs du personnage).
+  (**coûte +1 point de déplacement**) → Livraison (**gratuite**). Fin de partie : plus aucune livraison ;
+  jeu **compétitif**, meilleur score gagne.
+- **Scoring** : 5 pts de base par livraison ; **+10 pts par tuile de la livraison dont la couleur
+  appartient au joueur** ; **exception** : livraison sur une **seule** tuile à soi = **20 pts** (au lieu
+  de 10). Donc 2 tuiles à soi (25) = 1 tuile à soi (25).
 - **Cartes événement** : deux familles — **Avantages** (bonus/déplacement supplémentaire, souvent en
   faveur du vélo) et **Malus** (blocages, retours forcés, fin de tour). Le **vélo** est un thème
-  récurrent (bonus écologiques). Le **pont** permet de franchir certains obstacles ; fermé par l'événement
-  « Pluies Torrentielles ».
+  récurrent (bonus écologiques). Le **pont** (1/joueur) permet de franchir certains obstacles ; fermé par
+  l'événement « Pluies Torrentielles ».
 
-### Ambiguïtés connues dans les règles (à clarifier, ne pas coder en dur sans validation)
+### Points encore ouverts (ne pas coder en dur sans validation)
 
-- **Table de score incohérente** : « trajet régulier 1 couleur = 20 pts » vaut *plus* que « 2 couleurs
-  = 10 pts », ce qui est contre-intuitif. À confirmer.
-- **Nombre de joueurs** non spécifié ; quantités par joueur (3 tuiles, 3 jetons destinataire, 3 jetons
-  enseigne, 1 pion, 1 pont) données sans total de plateau clair.
-- Terminologie flottante : « deck de livraison » vs les 9 livraisons construites ; « jetons » vs
-  « tuiles » enseigne/destinataire.
-- Le doublement des points au vélo apparaît dans plusieurs événements — vérifier s'ils se cumulent.
+Les ambiguïtés majeures ont été levées dans `SHOPOPOP-EXPRESS-GAME-RULES.MD`. Restent ouverts, listés
+dans l'**Annexe « Déséquilibres repérés »** de ce même document (questions d'équilibrage, à arbitrer
+aux tests) :
 
-Si l'utilisateur·rice demande de **réécrire les règles** (formulations imparfaites, répétitions),
-le faire dans `docs/` en conservant l'original ou via git, et lever les ambiguïtés ci-dessus.
+- **Mécanique du pont** : définition proposée mais non confirmée par le design d'origine.
+- **Équilibrage vélo/voiture** : fort biais pro-vélo (la voiture n'a presque aucun avantage propre).
+- **Cumul des doublements** de points (ex. *Livraison Écologique*) : ponctuel ou persistant ?
+- **Événements « téléportation »** et **« 5/5 » (+20 pts)** : forte variance.
+- **Score mono-tuile == deux-tuiles** (25 pts) : favorise les livraisons compactes.
 
 ## Conventions Godot
 
