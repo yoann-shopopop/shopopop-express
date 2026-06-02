@@ -40,11 +40,12 @@ static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float,
 	return sprite
 
 
-## Road cells (set) of a piece from its typed cells, for connectivity.
+## Road cells (set) of a piece from its typed cells, for connectivity. Special/event cells count
+## as roads (they are roads with a unique texture).
 static func road_cells_of(typed_cells: Array) -> Dictionary:
 	var set := {}
 	for tc in typed_cells:
-		if tc["type"] == CellType.Kind.ROUTE:
+		if CellType.is_road(tc["type"]):
 			set[tc["cell"]] = true
 	return set
 

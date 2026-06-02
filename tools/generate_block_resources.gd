@@ -44,6 +44,18 @@ func _region_of(cell: Vector2i) -> int:
 	return best
 
 
+# Guarantees at least one cell of [param kind] by converting a rim cell if none is present.
+func _ensure_present(type_of: Dictionary, cells: Array, kind: int) -> void:
+	for cell in cells:
+		if type_of[cell] == kind:
+			return
+	for cell in cells:
+		var t: int = type_of[cell]
+		if t != CellType.Kind.ROUTE and t != CellType.Kind.EVENT and HexUtils.distance(CENTER, cell) == RADIUS:
+			type_of[cell] = kind
+			return
+
+
 func _save_pattern(spec: Dictionary) -> void:
 	var cells := BlockDefinition.make_hexagon_cells(RADIUS + 1)
 	var ec := BlockDefinition.hexagon_edge_centers(RADIUS)
@@ -61,8 +73,8 @@ func _save_pattern(spec: Dictionary) -> void:
 			road[c] = true
 		connectors.append(ec[branch])
 
-	# Terrain: road, then one event on a free distance-1 cell, then regions for the rest.
-	# Water is kept to the outer ring so it never appears in the middle of a block.
+	# Terrain: road cells, then regions for the rest (water kept to the outer ring so it never
+	# appears in the middle of a block).
 	var type_of := {}
 	for cell in cells:
 		if road.has(cell):
@@ -72,10 +84,16 @@ func _save_pattern(spec: Dictionary) -> void:
 		if t == CellType.Kind.WATER and HexUtils.distance(CENTER, cell) < RADIUS:
 			t = CellType.Kind.GREEN
 		type_of[cell] = t
+
+	# The special cell is a ROAD with a unique texture: replace one inner road cell (a spoke next to
+	# the center, never an edge-center connector) by EVENT.
 	for d in 6:
-		if not road.has(HexUtils.DIRECTIONS[d]):
+		if road.has(HexUtils.DIRECTIONS[d]):
 			type_of[HexUtils.DIRECTIONS[d]] = CellType.Kind.EVENT
 			break
+
+	_ensure_present(type_of, cells, CellType.Kind.GREEN)
+	_ensure_present(type_of, cells, CellType.Kind.URBAN)
 
 	var cell_types: Array[int] = []
 	for cell in cells:

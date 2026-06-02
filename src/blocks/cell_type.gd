@@ -11,8 +11,13 @@ enum Kind {
 	GREEN,  ## Green space — hosts recipients (destinataires) and player start points.
 	URBAN,  ## Grey urbanized zone — hosts pickup points (points de retrait).
 	WATER,  ## Water — impassable; the bridge's end cells are water.
-	EVENT,  ## Rainbow event cell — draws an event card (handled by gameplay, abstracted here).
+	EVENT,  ## Special cell: a ROAD with a unique texture that triggers an event when crossed.
 }
+
+
+## True for cells that are part of the road network (a plain road, or a special/event road cell).
+static func is_road(kind: int) -> bool:
+	return kind == Kind.ROUTE or kind == Kind.EVENT
 
 # Placeholder albedo per type, used until real per-cell textures exist.
 const _COLORS := {

@@ -68,4 +68,4 @@ func _center_camera() -> void:
 	var centroid: Vector3 = sum / float(cells.size())
 	_main._camera.position.x = centroid.x
 	_main._camera.position.z = centroid.z
-	_main._camera.size = 24.0
+	_main._camera.size = 20.0
