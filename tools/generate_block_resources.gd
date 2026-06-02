@@ -12,14 +12,15 @@ const W := CellType.Kind.WATER
 const G := CellType.Kind.GREEN
 const U := CellType.Kind.URBAN
 
-# axis = main road between edge-centers [axis] and [axis+3]; branch = optional 3rd edge-center (-1 = none).
+# axis = straight road between edge-centers [axis] and [axis+3]; branch = a 3rd edge-center making a
+# T-junction (3 roads crossing), or -1 for a single straight road. branch must differ from axis/axis+3.
 var _patterns := [
 	{"id": "p1", "name": "Quartier A", "axis": 0, "branch": -1, "regions": [W, W, U, U, G, G]},
-	{"id": "p2", "name": "Quartier B", "axis": 1, "branch": 4, "regions": [U, W, W, G, G, U]},
-	{"id": "p3", "name": "Quartier C", "axis": 2, "branch": -1, "regions": [G, U, U, W, W, G]},
-	{"id": "p4", "name": "Quartier D", "axis": 0, "branch": 2, "regions": [W, U, G, G, U, W]},
-	{"id": "p5", "name": "Quartier E", "axis": 1, "branch": -1, "regions": [G, G, W, W, U, U]},
-	{"id": "p6", "name": "Quartier F", "axis": 2, "branch": 5, "regions": [U, G, W, U, G, W]},
+	{"id": "p2", "name": "Quartier B", "axis": 0, "branch": 1, "regions": [U, W, W, G, G, U]},
+	{"id": "p3", "name": "Quartier C", "axis": 1, "branch": 3, "regions": [G, U, U, W, W, G]},
+	{"id": "p4", "name": "Quartier D", "axis": 2, "branch": 4, "regions": [W, U, G, G, U, W]},
+	{"id": "p5", "name": "Quartier E", "axis": 0, "branch": 2, "regions": [G, G, W, W, U, U]},
+	{"id": "p6", "name": "Quartier F", "axis": 1, "branch": 5, "regions": [U, G, W, U, G, W]},
 ]
 
 
@@ -61,9 +62,16 @@ func _save_pattern(spec: Dictionary) -> void:
 		connectors.append(ec[branch])
 
 	# Terrain: road, then one event on a free distance-1 cell, then regions for the rest.
+	# Water is kept to the outer ring so it never appears in the middle of a block.
 	var type_of := {}
 	for cell in cells:
-		type_of[cell] = CellType.Kind.ROUTE if road.has(cell) else regions[_region_of(cell)]
+		if road.has(cell):
+			type_of[cell] = CellType.Kind.ROUTE
+			continue
+		var t: int = regions[_region_of(cell)]
+		if t == CellType.Kind.WATER and HexUtils.distance(CENTER, cell) < RADIUS:
+			t = CellType.Kind.GREEN
+		type_of[cell] = t
 	for d in 6:
 		if not road.has(HexUtils.DIRECTIONS[d]):
 			type_of[HexUtils.DIRECTIONS[d]] = CellType.Kind.EVENT
