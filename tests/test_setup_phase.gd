@@ -14,6 +14,15 @@ func _road_tile() -> BlockDefinition:
 	return b
 
 
+func _bridge() -> BlockDefinition:
+	var b := BlockDefinition.new()
+	b.id = &"bridge"
+	b.cells = BlockDefinition.make_line_cells(3)
+	b.cell_types = [CellType.Kind.WATER, CellType.Kind.ROUTE, CellType.Kind.WATER]
+	b.connectors = [Vector2i(0, 0), Vector2i(2, 0)] as Array[Vector2i]
+	return b
+
+
 func _player(color: int, piece_count: int) -> Player:
 	var p := Player.new(color)
 	for _i in piece_count:
@@ -50,6 +59,30 @@ func test_round_robin_returns_to_first_player() -> void:
 	_phase.try_place(0, Vector2i.ZERO, 0)            # BLUE
 	_phase.try_place(0, Vector2i(1, 0), 0)           # RED, adjacent
 	assert_eq(_phase.current_player().color, PlayerColor.Kind.BLUE, "back to BLUE for round 2")
+
+
+func test_auto_bridge_places_both_and_consumes_the_bridge() -> void:
+	var board := Board.new()
+	var blue := _player(PlayerColor.Kind.BLUE, 1)
+	var red := Player.new(PlayerColor.Kind.RED)
+	red.pieces = [_road_tile(), _bridge()] as Array[BlockDefinition]
+	var phase := SetupPhase.new([blue, red] as Array[Player], board)
+
+	phase.try_place(0, Vector2i.ZERO, 0)              # BLUE road at origin -> RED's turn
+	var bridge := BridgeFinder.find(board, red.pieces[0], Vector2i(4, 0), 0, red.pieces[1])
+	assert_false(bridge.is_empty(), "a linking bridge exists")
+	assert_true(phase.try_place_with_bridge(0, Vector2i(4, 0), 0, bridge["anchor"], bridge["rotation"]))
+	assert_eq(board.pieces().size(), 3, "BLUE road + bridge + RED road")
+	assert_eq(red.pieces.size(), 0, "block and bridge both consumed")
+
+
+func test_auto_bridge_fails_without_a_bridge() -> void:
+	var board := Board.new()
+	var blue := _player(PlayerColor.Kind.BLUE, 1)
+	var red := _player(PlayerColor.Kind.RED, 1)  # only a road, no bridge
+	var phase := SetupPhase.new([blue, red] as Array[Player], board)
+	phase.try_place(0, Vector2i.ZERO, 0)
+	assert_false(phase.try_place_with_bridge(0, Vector2i(4, 0), 0, Vector2i(1, 0), 0))
 
 
 func test_phase_finishes_when_all_pieces_are_placed() -> void:
