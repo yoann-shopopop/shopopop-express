@@ -5,6 +5,8 @@ extends Node3D
 ## [MovementController] for input and a [GameUI]. Mirrors what [Main] does for the setup phase.
 
 const EVENTS_DIR := "res://resources/events/"
+const ENSEIGNES_DIR := "res://resources/enseignes/"
+const DESTINATAIRES_DIR := "res://resources/destinataires/"
 const _REF_SIZE := 30.0  # the camera's default ortho size; overlays scale relative to it
 
 var _board: Board
@@ -15,6 +17,7 @@ var _dice: DiceRoller
 var _events: Deck
 var _ui: GameUI
 var _pawns: Dictionary = {}            # player index -> Pawn
+var _recipient_markers: Dictionary = {}  # Delivery -> Node3D (rebuilt on recycle)
 var _can_roll: bool = true
 var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
@@ -26,7 +29,15 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_players = players
 	_camera = camera
 	var deliveries := DeliverySetup.build(board)
-	_phase = GamePhase.new(players, board, deliveries)
+	# Each tile becomes an enseigne slot clipped with a random destinataire; delivering recycles a new
+	# one until the pool is exhausted (DeliveryGenerator). One slot per deliverable tile.
+	var generator := DeliveryGenerator.new(_load_enseignes(), _load_destinataires(), deliveries.size())
+	var combos := generator.combos()
+	for i in deliveries.size():
+		if i < combos.size():
+			deliveries[i].enseigne = combos[i].enseigne
+			deliveries[i].destinataire = combos[i].destinataire
+	_phase = GamePhase.new(players, board, deliveries, generator)
 	_dice = DiceRoller.new()
 	_events = Deck.new(_load_events())
 	_events.shuffle()
@@ -92,26 +103,83 @@ func _spawn_pawn(player: Player) -> void:
 
 func _build_delivery_markers(deliveries: Array[Delivery]) -> void:
 	for delivery in deliveries:
-		add_child(_marker(delivery.drive_cell, Color("8a8f99"), 0.42))   # drive: grey, square-ish
-		add_child(_marker(delivery.recipient_cell, Color("6aa84f"), 0.3))  # recipient: green dot
+		add_child(_enseigne_marker(delivery.drive_cell, delivery.enseigne))
+		_rebuild_recipient_marker(delivery)
 
 
-func _marker(cell: Vector2i, color: Color, radius: float) -> MeshInstance3D:
-	var inst := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius
-	mesh.bottom_radius = radius
-	mesh.height = 0.12
-	mesh.radial_segments = 6
-	inst.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	inst.material_override = mat
+# The enseigne (pickup) card on the drive cell: a light backing card with the brand logo + name,
+# floating above the tile so it reads as a delivery card. Falls back to a grey card when no logo.
+func _enseigne_marker(cell: Vector2i, enseigne: EnseigneDefinition) -> Node3D:
+	var name := enseigne.display_name if enseigne != null else "?"
+	var root := _card(cell, Color("f3f1ea"), Color("eaf2ff"), name, Color("1a2a44"))
+	if enseigne != null and enseigne.texture != null:
+		var sprite := Sprite3D.new()
+		sprite.texture = enseigne.texture
+		sprite.pixel_size = (1.0 * GameConfig.HEX_SIZE) / maxf(float(enseigne.texture.get_width()), 1.0)
+		sprite.shaded = false
+		sprite.transparent = true
+		sprite.rotation_degrees = Vector3(-90, 0, 0)
+		sprite.position = Vector3(0.0, 0.13, -0.12)  # logo above the card, name shows below it
+		root.add_child(sprite)
+	return root
+
+
+# The recipient card on the green cell: a light card with a colored banner and the recipient name.
+func _destinataire_marker(cell: Vector2i, destinataire: DestinataireDefinition) -> Node3D:
+	var banner := destinataire.color if destinataire != null else Color("5b6470")
+	var name := destinataire.display_name if destinataire != null else "(vide)"
+	return _card(cell, Color("f3f1ea"), banner, name, Color("1a1c22"))
+
+
+# A floating "card": a light slab with a colored top band and a dark name label, raised above the
+# tiles and outlined so it stands out from the artwork below. Lies flat for the top-down camera.
+func _card(cell: Vector2i, body: Color, band: Color, label_text: String, text_color: Color) -> Node3D:
+	var root := Node3D.new()
 	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
-	pos.y = 0.2
-	inst.position = pos
-	return inst
+	pos.y = 0.5  # clearly above the tile artwork (and pawn bases) so the card is unmistakable
+	root.position = pos
+	var card := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(1.55, 0.12, 1.05)
+	card.mesh = box
+	var body_mat := StandardMaterial3D.new()
+	body_mat.albedo_color = body
+	body_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	card.material_override = body_mat
+	root.add_child(card)
+	# Colored banner band across the top edge of the card.
+	var strip := MeshInstance3D.new()
+	var strip_box := BoxMesh.new()
+	strip_box.size = Vector3(1.55, 0.14, 0.34)
+	strip.mesh = strip_box
+	strip.position = Vector3(0.0, 0.01, -0.34)
+	var strip_mat := StandardMaterial3D.new()
+	strip_mat.albedo_color = band
+	strip_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	strip.material_override = strip_mat
+	root.add_child(strip)
+	var label := Label3D.new()
+	label.text = label_text
+	label.font_size = 56
+	label.pixel_size = 0.0026
+	label.width = 520
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.modulate = text_color
+	label.position = Vector3(0.0, 0.08, 0.28)
+	label.rotation_degrees = Vector3(-90, 0, 0)
+	root.add_child(label)
+	return root
+
+
+# (Re)builds the recipient marker for [param delivery], reflecting its current destinataire.
+func _rebuild_recipient_marker(delivery: Delivery) -> void:
+	var existing = _recipient_markers.get(delivery, null)
+	if existing != null and is_instance_valid(existing):
+		existing.queue_free()
+	var marker := _destinataire_marker(delivery.recipient_cell, delivery.destinataire)
+	add_child(marker)
+	_recipient_markers[delivery] = marker
 
 
 func _on_roll() -> void:
@@ -246,7 +314,9 @@ func _on_turn_changed(_player: Player) -> void:
 	_ui.set_status("À toi de jouer — lance les dés.")
 
 
-func _on_delivery_completed(_delivery: Delivery, points: int) -> void:
+func _on_delivery_completed(delivery: Delivery, points: int) -> void:
+	# The destinataire was recycled (or cleared) — refresh that delivery's recipient card.
+	_rebuild_recipient_marker(delivery)
 	_ui.set_status("Livré ! +%d points." % points)
 	_refresh_ui()
 
@@ -267,4 +337,24 @@ func _load_events() -> Array[CardDefinition]:
 		for file in dir.get_files():
 			if file.ends_with(".tres"):
 				result.append(load(EVENTS_DIR + file))
+	return result
+
+
+func _load_enseignes() -> Array[EnseigneDefinition]:
+	var result: Array[EnseigneDefinition] = []
+	var dir := DirAccess.open(ENSEIGNES_DIR)
+	if dir:
+		for file in dir.get_files():
+			if file.ends_with(".tres"):
+				result.append(load(ENSEIGNES_DIR + file))
+	return result
+
+
+func _load_destinataires() -> Array[DestinataireDefinition]:
+	var result: Array[DestinataireDefinition] = []
+	var dir := DirAccess.open(DESTINATAIRES_DIR)
+	if dir:
+		for file in dir.get_files():
+			if file.ends_with(".tres"):
+				result.append(load(DESTINATAIRES_DIR + file))
 	return result

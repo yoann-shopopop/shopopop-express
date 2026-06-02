@@ -30,3 +30,17 @@ func test_starts_unpicked_and_undelivered() -> void:
 	assert_false(d.picked_up)
 	assert_false(d.delivered)
 	assert_eq(d.carrier_index, -1)
+
+
+func test_recycle_clips_a_new_recipient_and_resets_state() -> void:
+	var d := Delivery.new(Vector2i(0, 0), Vector2i(1, 0), [_piece(0)] as Array[PlacedPiece])
+	d.picked_up = true
+	d.delivered = true
+	d.carrier_index = 2
+	var fresh := DestinataireDefinition.new()
+	fresh.id = &"fresh"
+	d.recycle(fresh)
+	assert_eq(d.destinataire, fresh)
+	assert_false(d.picked_up)
+	assert_false(d.delivered)
+	assert_eq(d.carrier_index, -1)

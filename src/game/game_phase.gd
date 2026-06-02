@@ -35,12 +35,14 @@ var _scores: Dictionary = {}           # player index -> total points
 var _carrying: Dictionary = {}         # player index -> the Delivery being carried (or absent)
 var _movement: TurnMovement = null
 var _context: TurnContext = null       # mutable state for the current turn's events/powers
+var _generator: DeliveryGenerator = null  # when set, delivering recycles a new recipient (index-aligned with _deliveries)
 
 
-func _init(players: Array[Player], board: Board, deliveries: Array[Delivery] = []) -> void:
+func _init(players: Array[Player], board: Board, deliveries: Array[Delivery] = [], generator: DeliveryGenerator = null) -> void:
 	_players = players
 	_board = board
 	_deliveries = deliveries
+	_generator = generator
 	for player in players:
 		_positions[player.index] = _absolute_start_cell(player)
 		_scores[player.index] = 0
@@ -199,12 +201,23 @@ func confirm_delivery() -> bool:
 		return false
 	if _movement == null or HexUtils.distance(_movement.current(), delivery.recipient_cell) > 1:
 		return false
-	delivery.delivered = true
 	var points := _score_for(current_player(), delivery)
 	if _context != null and _context.double_score:
 		points *= 2  # Livraison Écologique
 	_scores[_current] += points
 	_carrying.erase(_current)
+	if _generator != null:
+		# Recycle: clip a new recipient onto this tile and make it available again. When the pool is
+		# exhausted (no new recipient), the tile is done for good.
+		var idx := _deliveries.find(delivery)
+		var next: DestinataireDefinition = null
+		if idx >= 0:
+			next = _generator.recycle(idx)
+		delivery.recycle(next)
+		if next == null:
+			delivery.delivered = true
+	else:
+		delivery.delivered = true  # no recycling (one-shot deliveries)
 	delivery_completed.emit(delivery, points)
 	if is_finished():
 		game_finished.emit(scores())

@@ -178,3 +178,59 @@ func test_use_power_applies_once() -> void:
 	assert_true(phase.use_power())
 	assert_eq(phase.movement().remaining(), 4, "bonne marcheuse +2")
 	assert_false(phase.use_power(), "one-shot")
+
+
+# --- Deliveries fed by a DeliveryGenerator (recycling) ----------------------
+
+# One RED tile, delivery drive (1,0) / recipient (2,0), fed by a generator with [param recipient_count]
+# recipients (slot count 1). Returns { "phase", "delivery" }.
+func _phase_with_generator(recipient_count: int) -> Dictionary:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	player.character = _red_character()
+	var piece: PlacedPiece = board.pieces()[0]
+	var enseignes := [EnseigneDefinition.new()] as Array[EnseigneDefinition]
+	var recipients: Array[DestinataireDefinition] = []
+	for i in recipient_count:
+		var d := DestinataireDefinition.new()
+		d.id = StringName("d%d" % i)
+		recipients.append(d)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var generator := DeliveryGenerator.new(enseignes, recipients, 1, rng)
+	var delivery := Delivery.new(Vector2i(1, 0), Vector2i(2, 0), [piece] as Array[PlacedPiece])
+	delivery.enseigne = generator.combos()[0].enseigne
+	delivery.destinataire = generator.combos()[0].destinataire
+	var phase := GamePhase.new([player] as Array[Player], board, [delivery] as Array[Delivery], generator)
+	return {"phase": phase, "delivery": delivery}
+
+
+func _deliver_once(phase: GamePhase) -> bool:
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))
+	phase.confirm_pickup()
+	phase.try_step(Vector2i(2, 0))
+	return phase.confirm_delivery()
+
+
+func test_delivery_recycles_and_game_continues_when_pool_has_spares() -> void:
+	var ctx := _phase_with_generator(2)  # 1 used at init, 1 spare
+	var phase: GamePhase = ctx["phase"]
+	var delivery: Delivery = ctx["delivery"]
+	assert_true(_deliver_once(phase))
+	assert_false(delivery.delivered, "recycled, not permanently delivered")
+	assert_not_null(delivery.destinataire, "a new recipient was clipped")
+	assert_false(phase.is_finished())
+	assert_eq(phase.available_deliveries().size(), 1, "available again")
+
+
+func test_game_finishes_when_the_recipient_pool_is_exhausted() -> void:
+	var ctx := _phase_with_generator(1)  # no spare
+	var phase: GamePhase = ctx["phase"]
+	var delivery: Delivery = ctx["delivery"]
+	assert_true(_deliver_once(phase))
+	assert_true(delivery.delivered, "pool empty -> tile done for good")
+	assert_null(delivery.destinataire)
+	assert_true(phase.is_finished())

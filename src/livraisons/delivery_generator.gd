@@ -27,9 +27,12 @@ func _init(
 		_rng.randomize()
 	_pool = destinataires.duplicate()
 	_shuffle(_pool)
-	var count := mini(slots, enseignes.size())
+	# One combo per slot, capped by the recipient pool (no recipient, no delivery). Enseignes cycle
+	# when there are more slots than brands, so two tiles can share a brand.
+	var count := mini(slots, destinataires.size())
 	for i in count:
-		_combos.append(DeliveryCombo.new(enseignes[i], _draw()))
+		var enseigne: EnseigneDefinition = enseignes[i % enseignes.size()] if not enseignes.is_empty() else null
+		_combos.append(DeliveryCombo.new(enseigne, _draw()))
 
 
 ## The current combos (one per active slot).
@@ -54,14 +57,21 @@ func advance(index: int) -> bool:
 
 ## Completes an EN_COURS combo: removes its recipient and clips a new one (or leaves it empty).
 func complete(index: int) -> bool:
-	var combo := _combos[index]
-	if combo.status != DeliveryStatus.Kind.EN_COURS:
+	if _combos[index].status != DeliveryStatus.Kind.EN_COURS:
 		return false
+	recycle(index)
+	return true
+
+
+## Clips a new recipient onto combo [param index] (regardless of status), or leaves it empty when the
+## pool is exhausted. Returns the new recipient (or null). Used by the board to recycle on delivery.
+func recycle(index: int) -> DestinataireDefinition:
+	var combo := _combos[index]
 	combo.reset(_draw())  # new recipient (or null when the pool is exhausted) + back to DISPONIBLE
 	recycled.emit(index)
 	if combo.destinataire == null:
 		exhausted.emit()
-	return true
+	return combo.destinataire
 
 
 # Pops the top recipient from the (shuffled) pool, or null when empty.

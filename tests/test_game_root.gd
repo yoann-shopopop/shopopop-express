@@ -1,13 +1,15 @@
 extends GutTest
-## Integration smoke test for GameRoot: setting it up wires dice/pawns/UI/controller without error
-## and spawns one pawn view per player. Runs in GUT's SceneTree (nodes allowed).
+## Integration smoke test for GameRoot: setting it up wires dice/pawns/deliveries/UI/controller without
+## error and spawns one pawn view per player. The tile carries a GREEN + URBAN so a delivery (fed by the
+## DeliveryGenerator) is built, exercising the enseigne/destinataire markers too. Runs in GUT's SceneTree.
 
 
 func _tile() -> BlockDefinition:
 	var b := BlockDefinition.new()
 	b.id = &"start_tile"
+	# GREEN (start + recipient), ROUTE, URBAN (drive) -> one deliverable tile.
 	b.cells = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)] as Array[Vector2i]
-	b.cell_types = [CellType.Kind.GREEN, CellType.Kind.ROUTE, CellType.Kind.ROUTE]
+	b.cell_types = [CellType.Kind.GREEN, CellType.Kind.ROUTE, CellType.Kind.URBAN]
 	b.connectors = [Vector2i(1, 0)] as Array[Vector2i]
 	return b
 

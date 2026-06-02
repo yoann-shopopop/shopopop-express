@@ -71,3 +71,18 @@ func test_pool_exhaustion_leaves_an_empty_combo() -> void:
 	gen.advance(0); gen.advance(0)
 	assert_true(gen.complete(0))
 	assert_null(gen.combos()[0].destinataire, "no recipient left to clip")
+
+
+func test_recycle_draws_a_new_recipient_regardless_of_status() -> void:
+	var gen := DeliveryGenerator.new(_enseignes(1), _destinataires(4), 1, _seeded_rng())
+	var old_id := gen.combos()[0].destinataire.id
+	var next := gen.recycle(0)  # no advance/EN_COURS required
+	assert_ne(next, null)
+	assert_ne(gen.combos()[0].destinataire.id, old_id, "a different recipient is clipped")
+
+
+func test_more_slots_than_enseignes_reuses_brands() -> void:
+	# 2 enseignes, 3 slots, 6 recipients -> 3 combos; the 3rd reuses the 1st brand (cycled).
+	var gen := DeliveryGenerator.new(_enseignes(2), _destinataires(6), 3, _seeded_rng())
+	assert_eq(gen.combos().size(), 3)
+	assert_eq(gen.combos()[2].enseigne.id, gen.combos()[0].enseigne.id)
