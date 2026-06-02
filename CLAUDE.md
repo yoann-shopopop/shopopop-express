@@ -14,9 +14,11 @@ couches découplées et des tests unitaires. Voir la section « Architecture imp
 logique de **gameplay** (déplacements sur les routes, dés, livraisons, score, événements) reste à
 construire **au-dessus** de ces fondations, en se référant aux règles.
 
-**La source de vérité du gameplay est `docs/SHOPOPOP-EXPRESS-GAME-RULES.MD`.** Toute logique de jeu
-doit s'y référer. Les règles sont encore en cours de rédaction (voir « Ambiguïtés connues » plus bas) :
-ne pas figer dans le code un comportement issu d'une formulation douteuse sans confirmation.
+**La source de vérité du gameplay est la page Notion « SHOPOPOP Express 2 - LE Retour »**
+(`3732c5c7-9816-8027-bddc-e78f7729d8a5`). `docs/SHOPOPOP-EXPRESS-GAME-RULES.MD` en est une **copie
+synchronisée** (dernière synchro : 2026-06-02) ; en cas de divergence, Notion fait foi. Les règles
+évoluent encore (voir « Points encore ouverts ») : ne pas figer dans le code un comportement issu
+d'une formulation douteuse sans confirmation.
 
 > ⚠️ **Maintenir ce CLAUDE.md à jour avec l'évolution des règles.** Le modèle de domaine et les
 > ambiguïtés décrits ici sont un instantané des règles actuelles. Dès que `SHOPOPOP-EXPRESS-GAME-RULES.MD`
@@ -64,37 +66,43 @@ Concepts clés à modéliser. Les entités forment naturellement des `Resource` 
 - **Plateau** = assemblage de **tuiles** (chaque tuile = un *quartier* avec routes, espaces verts,
   zones grises/urbanisées). Contrainte d'assemblage : deux tuiles ne se joignent que si une route de
   l'une touche une route de l'autre. **Déplacement uniquement sur les routes** (sauf cartes événement).
-- **Carte personnage** : mode de déplacement (**voiture** ou **vélo**), **2 couleurs** = les quartiers
-  de son *trajet régulier* quotidien, et **1 super-pouvoir** utilisable **une seule fois** pour annuler
-  un événement.
+- **Carte personnage** : un **mode de transport** (qui fixe le nombre de dés), **2 couleurs** = les
+  quartiers de son *trajet régulier*, et **1 super-pouvoir propre** utilisable **une seule fois**
+  (les pouvoirs sont variés — pas uniquement « annuler un événement »).
+- **4 modes de transport** → nb de dés : **vélo** (1 dé), **à pied** (1 dé), **voiture** (2 dés),
+  **camion** (2 dés). Certains événements/pouvoirs dépendent du mode (le vélo notamment).
+- **8 personnages** (2 par transport) aux pouvoirs spécifiques : Axel·le (Bouclier Vert), Camille
+  (Habitué·e du Quartier), Gégé (Passage Secret), Dolly (Bonne Marcheuse), Vic (Coup d'Accélérateur),
+  Sam (Dépassement), Margot (Chargement Pro), Charlie (Carnet d'Adresses). → modéliser le pouvoir comme
+  un effet de données par personnage, pas un `if` géant.
+- **4 couleurs de quartier** : 🔴 Rouge, 🟡 Jaune, 🟣 Violet, 🔵 Bleu.
 - **Drive** (point de retrait, zone grise) et **destinataire** (espace vert) sont des **jetons posés sur
   les tuiles-quartiers**, pas des tuiles séparées. Une **livraison** = relier un drive à un destinataire ;
   elle s'étend sur **1 ou 2 tuiles**. Chaque tuile posée porte 1 drive + 1 destinataire, donc
   **nb de livraisons = nb de tuiles posées**.
 - **Effectif & tuiles** : 2 à 6 joueurs. Jusqu'à 3 joueurs → 3 tuiles/joueur ; à partir de 4 →
   2 tuiles/joueur. (2j=6, 3j=9, 4j=8, 5j=10, 6j=12 tuiles = livraisons.)
-- **Tour de jeu** : Planification (choisir une livraison) → Déplacement (**2 dés**, avancer le pion sur
-  les routes) → Événements (case arc-en-ciel = piocher/résoudre une carte) → Prise en charge
-  (**coûte +1 point de déplacement**) → Livraison (**gratuite**). Fin de partie : plus aucune livraison ;
-  jeu **compétitif**, meilleur score gagne.
+- **Tour de jeu** : Planification (choisir une livraison) → Déplacement (dés selon le transport, avancer
+  le pion sur les routes) → Événements (case arc-en-ciel = piocher/résoudre une carte) → Prise en charge
+  (**coûte +1 point de déplacement**) → Livraison (**gratuite**). Fin de partie : plus aucune livraison.
 - **Scoring** : 5 pts de base par livraison ; **+10 pts par tuile de la livraison dont la couleur
   appartient au joueur** ; **exception** : livraison sur une **seule** tuile à soi = **20 pts** (au lieu
   de 10). Donc 2 tuiles à soi (25) = 1 tuile à soi (25).
-- **Cartes événement** : deux familles — **Avantages** (bonus/déplacement supplémentaire, souvent en
-  faveur du vélo) et **Malus** (blocages, retours forcés, fin de tour). Le **vélo** est un thème
-  récurrent (bonus écologiques). Le **pont** (1/joueur) permet de franchir certains obstacles ; fermé par
-  l'événement « Pluies Torrentielles ».
+- **Cartes événement** : deux familles — **Avantages** et **Malus** (blocages, retours forcés, fin de
+  tour). Le **pont** (1/joueur) permet de franchir certains obstacles ; fermé par « Pluies Torrentielles ».
 
 ### Points encore ouverts (ne pas coder en dur sans validation)
 
-Les ambiguïtés majeures ont été levées dans `SHOPOPOP-EXPRESS-GAME-RULES.MD`. Restent ouverts, listés
-dans l'**Annexe « Déséquilibres repérés »** de ce même document (questions d'équilibrage, à arbitrer
-aux tests) :
+Détaillés dans la section « Points ouverts » de `SHOPOPOP-EXPRESS-GAME-RULES.MD` :
 
-- **Mécanique du pont** : définition proposée mais non confirmée par le design d'origine.
-- **Équilibrage vélo/voiture** : fort biais pro-vélo (la voiture n'a presque aucun avantage propre).
-- **Cumul des doublements** de points (ex. *Livraison Écologique*) : ponctuel ou persistant ?
-- **Événements « téléportation »** et **« 5/5 » (+20 pts)** : forte variance.
+- **Nombre de couleurs : 3 vs 4** ⚠️ : les règles Notion citent **4 couleurs** (dont 🟣 Violet), mais
+  les assets/blocs implémentés n'en ont que **3** (B/R/Y, cf. « Blocs ↔ assets »). À réconcilier
+  (ajouter le Violet, ou aligner les cartes personnage sur 3 couleurs).
+- **Objectif coopératif vs compétitif** : intro collective mais score individuel — à trancher.
+- **Capacité de volume** : évoquée par le pouvoir de Margot, jamais définie ailleurs.
+- **Mécanique du pont** : usage non décrit ; recouvre en partie le pouvoir *Passage Secret* de Gégé.
+- **Cumul des doublements** de points (*Livraison Écologique*) : ponctuel ou persistant ?
+- **Variance** : événements « téléportation » et **5/5 (+20 pts)** très swingy.
 - **Score mono-tuile == deux-tuiles** (25 pts) : favorise les livraisons compactes.
 
 ## Conventions Godot
