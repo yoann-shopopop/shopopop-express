@@ -110,11 +110,13 @@ toi) = 5 pts.
 
 - **Prime Gouvernementale** — les joueur·euse·s à vélo lancent un dé supplémentaire pendant un tour.
 - **Faille Spatio-Temporelle** — déplace-toi directement vers n'importe quel autre quartier.
-- **Tous les Feux sont au Vert** — rejoue immédiatement.
+- **Tous les Feux sont au Vert** — rejoue immédiatement ; tu peux réserver une nouvelle livraison.
 - **Escorte Policière** — rends-toi directement à ta destination (point de retrait ou destinataire).
-- **Évaluation Positive** — avance de 5 cases supplémentaires ce tour-ci.
+- **Évaluation Positive** — avance de 5 cases supplémentaires ce tour-ci ; tu peux réserver une
+  nouvelle livraison.
 - **Grand Soleil** — avance de 3 cases supplémentaires.
-- **Parrainage** — double le résultat de ton lancer de dés pour ce tour.
+- **Parrainage** — double le résultat de ton lancer de dés pour ce tour ; tu peux réserver une
+  nouvelle livraison.
 - **Raccourci Secret** — déplace-toi sur n'importe quelle route parallèle à ta position actuelle.
 - **5/5** — ajoute 20 points à ton score final.
 - **Livraison Écologique** — les joueur·euse·s livrant à vélo doublent les points de chacune de leurs
@@ -131,14 +133,16 @@ toi) = 5 pts.
 - **Fuite de Canalisation** — la route est bloquée pour tou·te·s les joueur·euse·s pendant un tour.
 - **Pluies Torrentielles** — tous les ponts sont fermés pendant un tour.
 - **Pic de Pollution** — la zone à faibles émissions est activée : on ne peut entrer dans ce quartier
-  qu'en utilisant un vélo.
+  qu'en utilisant un vélo ; ton tour est instantanément terminé.
 - **Sac Isotherme Oublié** — retourne immédiatement à ton point de départ.
 - **Panne de Véhicule** — ton tour s'arrête immédiatement.
 - **Animal sur la Route** — avance de 2 cases de moins que le résultat de ton lancer de dés.
+- **Prévention de l'Hyperactivité** — le ou la joueur·euse ciblé·e recule de 3 cases.
 
 ## Les 8 personnages (2 par transport)
 
-Couleurs des quartiers : 🔴 Rouge · 🟡 Jaune · 🟣 Violet · 🔵 Bleu.
+**Couleurs officielles des quartiers (4)** : 🔴 Rouge · 🟡 Jaune · 🟣 Violet · 🔵 Bleu (le Violet est
+validé). Chaque personnage possède 2 de ces couleurs comme trajet régulier.
 
 ### 🚲 Vélo
 
@@ -184,8 +188,8 @@ de volume pour ce chargement. *Défausse la carte.*
 
 **CHARLIE** — camion (2 dés) · 🟡 Jaune · 🔵 Bleu.
 Sillonne la région entre sa ferme et les marchés ; profite de son camion plein pour livrer.
-*Pouvoir — Carnet d'Adresses* : pioche 2 cartes événement et garde celle qui t'arrange (défausse
-l'autre). *Défausse la carte.*
+*Pouvoir — Carnet d'Adresses* : une fois dans la partie, quand tu dois piocher une carte événement,
+pioche-en 2 et garde celle qui t'arrange (défausse l'autre). *Défausse la carte.*
 
 ---
 
@@ -205,3 +209,9 @@ l'autre). *Défausse la carte.*
 - **Score mono-tuile = deux-tuiles** (25 pts) : favorise les livraisons compactes.
 - **Variance** : événements « téléportation » (*Faille Spatio-Temporelle*, *Escorte Policière*,
   *Raccourci Secret*) et **5/5 (+20 pts)** très swingy.
+- **Mini-effets de destinataire** : le catalogue des destinataires (sous-page Notion « 📦 Les
+  Destinataires ») prête à chaque nom une « manie » décorative qui pourrait, plus tard, devenir un
+  petit bonus/contrainte à la livraison. Décoratif pour l'instant. La V1 retient **9 destinataires**.
+
+> Contenu d'univers (noms parodiques des destinataires, par familles) : sous-page Notion
+> **« 📦 Les Destinataires »**, enfant de la page de règles. Non recopié ici (catalogue d'idées).
