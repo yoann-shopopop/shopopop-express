@@ -10,14 +10,19 @@ signal rotate_requested
 
 const BUTTON_MIN := Vector2(118, 52)
 
+const PREVIEW_SIZE := Vector2(104, 104)
+
 var _start_panel: Control
 var _game_panel: Control
 var _turn_label: Label
 var _pieces_bar: HBoxContainer
 var _status_label: Label
+var _vp_host: Node  # offscreen holder for the preview SubViewports
 
 
 func _ready() -> void:
+	_vp_host = Node.new()
+	add_child(_vp_host)
 	_build_start_panel()
 	_build_game_panel()
 	_game_panel.hide()
@@ -96,20 +101,24 @@ func _build_game_panel() -> void:
 	bottom.add_child(_pieces_bar)
 
 
-## Refreshes the bar for [param player]'s turn: colored label + a button per remaining piece + rotate.
+## Refreshes the bar for [param player]'s turn: colored label + a tile preview per remaining piece.
 func set_current_player(player: Player) -> void:
 	_turn_label.text = "Tour : %s" % PlayerColor.name_of(player.color)
 	_turn_label.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
-	_status_label.text = "Sélectionne une pièce puis clique pour la poser (R = rotation)"
+	_status_label.text = "Choisis une tuile puis clique pour la poser (R = rotation)"
 
 	for child in _pieces_bar.get_children():
 		child.queue_free()
+	for child in _vp_host.get_children():
+		child.queue_free()
+
 	for i in player.pieces.size():
-		var button := Button.new()
-		button.text = player.pieces[i].display_name
-		button.custom_minimum_size = BUTTON_MIN
-		button.toggle_mode = true
-		button.button_pressed = (i == 0)
+		var button := TextureButton.new()
+		button.texture_normal = TilePreview.build(player.pieces[i], _vp_host)
+		button.ignore_texture_size = true
+		button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		button.custom_minimum_size = PREVIEW_SIZE
+		button.modulate = Color.WHITE if i == 0 else Color(0.55, 0.55, 0.55)
 		button.pressed.connect(_on_piece_pressed.bind(i))
 		_pieces_bar.add_child(button)
 
@@ -131,6 +140,6 @@ func set_finished() -> void:
 func _on_piece_pressed(index: int) -> void:
 	for i in _pieces_bar.get_child_count():
 		var child := _pieces_bar.get_child(i)
-		if child is Button and child.toggle_mode:
-			child.button_pressed = (i == index)
+		if child is TextureButton:
+			child.modulate = Color.WHITE if i == index else Color(0.55, 0.55, 0.55)
 	piece_selected.emit(index)
