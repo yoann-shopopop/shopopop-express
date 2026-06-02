@@ -58,7 +58,7 @@ func draw(count: int) -> Array[CardDefinition]:
 		if _draw_pile.is_empty():
 			if _discard_pile.is_empty():
 				break
-			_reshuffle_discard()
+			reshuffle()
 		result.append(_draw_pile.pop_back())
 	if not result.is_empty():
 		drawn.emit(result)
@@ -71,9 +71,10 @@ func discard(card: CardDefinition) -> void:
 	discarded.emit(card)
 
 
-# Moves the discard pile into the draw pile and shuffles it.
-func _reshuffle_discard() -> void:
-	_draw_pile = _discard_pile
+## Folds the discard pile back into the draw pile and shuffles. Also done automatically by
+## [method draw] when the draw pile empties mid-draw.
+func reshuffle() -> void:
+	_draw_pile.append_array(_discard_pile)
 	_discard_pile = []
 	shuffle()
 	reshuffled.emit()

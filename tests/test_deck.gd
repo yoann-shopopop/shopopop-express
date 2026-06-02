@@ -82,6 +82,19 @@ func test_total_card_count_is_preserved_through_recycle() -> void:
 	assert_eq(deck.draw(3).size(), 3, "all three cards come back after the reshuffle")
 
 
+func test_reshuffle_folds_discard_back_into_draw_pile() -> void:
+	var deck := Deck.new(_cards(4), _seeded(3))
+	for c in deck.draw(2):
+		deck.discard(c)
+	assert_eq(deck.draw_count(), 2)
+	assert_eq(deck.discard_count(), 2)
+	watch_signals(deck)
+	deck.reshuffle()
+	assert_eq(deck.draw_count(), 4, "the whole deck is back in the draw pile")
+	assert_eq(deck.discard_count(), 0)
+	assert_signal_emitted(deck, "reshuffled")
+
+
 func test_shuffle_is_deterministic_for_equal_seeds() -> void:
 	var a := Deck.new(_cards(6), _seeded(42))
 	var b := Deck.new(_cards(6), _seeded(42))
