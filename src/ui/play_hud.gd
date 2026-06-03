@@ -153,7 +153,7 @@ func _build_card_backings() -> void:
 	# The two drawn event cards appear large at screen center during a rainbow event (pinned by GameRoot).
 	var row := HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	row.offset_right = -24
+	row.offset_right = -70
 	row.offset_bottom = -16
 	row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	row.grow_vertical = Control.GROW_DIRECTION_BEGIN

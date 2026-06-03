@@ -26,6 +26,13 @@ func setup(board: Board, players: Array[Player]) -> void:
 	_refresh()
 
 
+## Shows or hides the faint background lattice. Kept for the placement phase (a placing aid), hidden
+## during play so the assembled board reads clearly instead of floating in a sea of empty cells.
+func set_lattice_visible(value: bool) -> void:
+	if _lattice != null:
+		_lattice.visible = value
+
+
 func _refresh() -> void:
 	for child in _tiles_root.get_children():
 		child.queue_free()

@@ -81,7 +81,43 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	if camera_rig != null:
 		_ui.zoom_in_requested.connect(camera_rig.zoom_in)
 		_ui.zoom_out_requested.connect(camera_rig.zoom_out)
+	_fit_camera_to_board()
 	_refresh_ui()
+
+
+# Centers the camera on the placed board and zooms so it fills the framed region at game start (the
+# player can still pan/zoom afterwards). Without this the small board floats in a large empty view.
+func _fit_camera_to_board() -> void:
+	var cells := _board.occupied_cells()
+	if cells.is_empty():
+		return
+	var min_x := INF
+	var min_z := INF
+	var max_x := -INF
+	var max_z := -INF
+	for c in cells:
+		var w := HexUtils.axial_to_world(c, GameConfig.HEX_SIZE)
+		min_x = minf(min_x, w.x); max_x = maxf(max_x, w.x)
+		min_z = minf(min_z, w.z); max_z = maxf(max_z, w.z)
+	var pad := GameConfig.HEX_SIZE * 2.0
+	var board_w := (max_x - min_x) + pad
+	var board_h := (max_z - min_z) + pad
+	var vp := get_viewport().get_visible_rect().size
+	var aspect := vp.aspect() if vp.y > 0.0 else 1.78
+	# The board should occupy roughly the framed region (BOARD_RECT), with a margin.
+	var size_for_h := board_h / 0.58
+	var size_for_w := board_w / (0.62 * aspect)
+	var target := maxf(size_for_h, size_for_w)
+	var rig := _camera as CameraRig
+	if rig != null:
+		target = clampf(target, rig.min_size, rig.max_size)
+	_camera.size = target
+	var half_h := target * 0.5
+	var half_w := half_h * aspect
+	# Place the board center at the frame center on screen (≈ nx 0.25 right, ny 0.26 up).
+	var board_cx := (min_x + max_x) * 0.5
+	var board_cz := (min_z + max_z) * 0.5
+	_camera.position = Vector3(board_cx - 0.25 * half_w, _camera.position.y, board_cz + 0.26 * half_h)
 
 
 # Pins the dice (bottom-left) and the event-card choice (centered) to fixed screen regions, scaled to
@@ -94,19 +130,20 @@ func _process(_delta: float) -> void:
 	var half_w := half_h * get_viewport().get_visible_rect().size.aspect()
 	var center := Vector3(_camera.global_position.x, 0.0, _camera.global_position.z)
 	if _dice_views != null and _dice_views.get_child_count() > 0:
-		_dice_views.position = center + Vector3(-half_w * 0.55, 1.0, half_h * 0.55)
-		_dice_views.scale = Vector3.ONE * 4.5 * zoom
+		_dice_views.position = center + Vector3(-half_w * 0.62, 1.0, half_h * 0.48)
+		_dice_views.scale = Vector3.ONE * 4.0 * zoom
 	if _budget_cubes != null and _budget_cubes.get_child_count() > 0:
-		_budget_cubes.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.66)
-		_budget_cubes.scale = Vector3.ONE * 3.0 * zoom
+		# Just below the die, compact, so it never overlaps the die itself.
+		_budget_cubes.position = center + Vector3(-half_w * 0.66, 1.0, half_h * 0.66)
+		_budget_cubes.scale = Vector3.ONE * 1.6 * zoom
 	if _event_choice != null and is_instance_valid(_event_choice):
 		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
 		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.10)
 		_event_choice.scale = Vector3.ONE * 5.5 * zoom
 	if _delivery_list != null:
-		# Left column: cards stacked down the left edge, scaled up for readability.
-		var left_origin := center + Vector3(-half_w * 0.80, 1.0, -half_h * 0.42)
-		_delivery_list.layout(left_origin, half_h * 0.34 * zoom, 0.95 * zoom)
+		# Left column: compact cards stacked down the left edge (more visible at once).
+		var left_origin := center + Vector3(-half_w * 0.84, 1.0, -half_h * 0.50)
+		_delivery_list.layout(left_origin, half_h * 0.20 * zoom, 0.62 * zoom)
 
 
 func _spawn_pawn(player: Player) -> void:
@@ -202,12 +239,13 @@ func _show_budget(remaining: int) -> void:
 	for i in remaining:
 		var inst := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		box.size = Vector3(0.5, 0.5, 0.5)
+		box.size = Vector3(0.4, 0.4, 0.4)
 		inst.mesh = box
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = Color("e6b800")
 		inst.material_override = mat
-		inst.position = Vector3(i * 0.62, 0.0, 0.0)
+		# Wrap into rows of 3 so a big budget stays a compact little block, not a long line.
+		inst.position = Vector3((i % 3) * 0.55, 0.0, (i / 3) * 0.55)
 		_budget_cubes.add_child(inst)
 
 
