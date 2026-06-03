@@ -1,9 +1,11 @@
 extends SceneTree
-## Generates the block library: hexagon patterns (side-3 = 19 cells) + the bridge.
-## Roads use ONLY the two available textures (straight, T), so each pattern's road is a straight
-## line between two opposite edge-centers (through the center) plus an optional T branch to a third
-## edge-center. Edge-centers carrying a road are the connectors. The rest is water/urban/green by
-## region, with one event cell. Run: godot --headless --path . -s res://tools/generate_block_resources.gd
+## Generates the block library: the 3 board patterns (side-3 = 19 cells) + the bridge.
+## Each pattern reproduces a board asset: roads built from straight segments crossing the centre,
+## which is the SPECIAL (rainbow) cell. Two patterns are a straight road with one bifurcation toward
+## an adjacent edge (Y, mirrored left/right = 3 connectors); one is two straight roads crossing (X =
+## 4 connectors). The other cells (water/urban/green) are generated procedurally per region, always
+## keeping >=2 green and >=1 urban.
+## Run: godot --headless --path . -s res://tools/generate_block_resources.gd
 
 const RADIUS := 2
 const CENTER := Vector2i.ZERO
@@ -12,16 +14,16 @@ const W := CellType.Kind.WATER
 const G := CellType.Kind.GREEN
 const U := CellType.Kind.URBAN
 
-# Road = straight line between opposite edge-centers [axis]/[axis+3] (through the center) + a branch
-# to a 3rd edge-center (T-junction). Every pattern has a bifurcation = 3 road exits (3 connectors).
-# branch must differ from axis and axis+3.
+# The 3 patterns (from assets B1/B2/B3). "roads" is a list of segments (HexUtils corner indices
+# 0..5; corner i = DIRECTIONS[i] * RADIUS): a 2-corner segment [a, b] is a straight road between
+# opposite corners (grain-aligned, perfectly straight through the centre); a 1-corner segment [d] is
+# a bifurcation from the centre out to that corner. p1/p2 = a straight road {0-3} + one fork toward
+# an adjacent corner (1 vs 5 = mirrored Y, fork left/right); p3 = two straight roads crossing
+# {0-3}+{1-4} (X). Every corner touched is a connector (where tiles join road-to-road).
 var _patterns := [
-	{"id": "p1", "name": "Quartier A", "axis": 0, "branch": 1, "regions": [W, W, U, U, G, G]},
-	{"id": "p2", "name": "Quartier B", "axis": 1, "branch": 3, "regions": [U, W, W, G, G, U]},
-	{"id": "p3", "name": "Quartier C", "axis": 2, "branch": 0, "regions": [G, U, U, W, W, G]},
-	{"id": "p4", "name": "Quartier D", "axis": 0, "branch": 2, "regions": [W, U, G, G, U, W]},
-	{"id": "p5", "name": "Quartier E", "axis": 1, "branch": 5, "regions": [G, G, W, W, U, U]},
-	{"id": "p6", "name": "Quartier F", "axis": 2, "branch": 1, "regions": [U, G, W, U, G, W]},
+	{"id": "p1", "name": "Quartier A", "roads": [[0, 3], [1]], "regions": [W, W, U, U, G, G]},
+	{"id": "p2", "name": "Quartier B", "roads": [[0, 3], [5]], "regions": [U, W, W, G, G, U]},
+	{"id": "p3", "name": "Quartier C", "roads": [[0, 3], [1, 4]], "regions": [G, U, U, W, W, G]},
 ]
 
 
@@ -45,34 +47,44 @@ func _region_of(cell: Vector2i) -> int:
 	return best
 
 
-# Guarantees at least one cell of [param kind] by converting a rim cell if none is present.
-func _ensure_present(type_of: Dictionary, cells: Array, kind: int) -> void:
+# Guarantees at least [param count] cells of [param kind], converting rim terrain cells if needed.
+func _ensure_count(type_of: Dictionary, cells: Array, kind: int, count: int) -> void:
+	var have := 0
 	for cell in cells:
 		if type_of[cell] == kind:
-			return
+			have += 1
 	for cell in cells:
-		var t: int = type_of[cell]
-		if t != CellType.Kind.ROUTE and t != CellType.Kind.EVENT and HexUtils.distance(CENTER, cell) == RADIUS:
-			type_of[cell] = kind
+		if have >= count:
 			return
+		var t: int = type_of[cell]
+		if t != CellType.Kind.ROUTE and t != CellType.Kind.EVENT and t != kind and HexUtils.distance(CENTER, cell) == RADIUS:
+			type_of[cell] = kind
+			have += 1
 
 
 func _save_pattern(spec: Dictionary) -> void:
 	var cells := BlockDefinition.make_hexagon_cells(RADIUS + 1)
-	var ec := BlockDefinition.hexagon_edge_centers(RADIUS)
-	var axis: int = spec["axis"]
-	var branch: int = spec["branch"]
+	var roads: Array = spec["roads"]
 	var regions: Array = spec["regions"]
 
-	# Road cells = straight line across + optional T branch from the center.
+	# Road cells from segments, built between the big hexagon's CORNERS (HexUtils.DIRECTIONS[i] * R).
+	# A line between two opposite corners runs along a grid grain axis, so it is perfectly straight;
+	# edge-centers are not grain-aligned and would make the road stagger. A 2-corner segment is a
+	# straight road across; a 1-corner segment is a bifurcation from the centre. Every corner reached
+	# becomes a connector.
 	var road := {}
-	for c in HexUtils.line(ec[axis], ec[(axis + 3) % 6]):
-		road[c] = true
-	var connectors: Array[Vector2i] = [ec[axis], ec[(axis + 3) % 6]]
-	if branch >= 0:
-		for c in HexUtils.line(CENTER, ec[branch]):
+	var connector_set := {}
+	for seg in roads:
+		var a: Vector2i = HexUtils.DIRECTIONS[seg[0]] * RADIUS
+		var b: Vector2i = HexUtils.DIRECTIONS[seg[-1]] * RADIUS
+		var endpoints := HexUtils.line(a, b) if seg.size() == 2 else HexUtils.line(CENTER, a)
+		for c in endpoints:
 			road[c] = true
-		connectors.append(ec[branch])
+		for e in seg:
+			connector_set[HexUtils.DIRECTIONS[e] * RADIUS] = true
+	var connectors: Array[Vector2i] = []
+	for c in connector_set:
+		connectors.append(c)
 
 	# Terrain: road cells, then regions for the rest (water kept to the outer ring so it never
 	# appears in the middle of a block).
@@ -86,15 +98,11 @@ func _save_pattern(spec: Dictionary) -> void:
 			t = CellType.Kind.GREEN
 		type_of[cell] = t
 
-	# The special cell is a ROAD with a unique texture: replace one inner road cell (a spoke next to
-	# the center, never an edge-center connector) by EVENT.
-	for d in 6:
-		if road.has(HexUtils.DIRECTIONS[d]):
-			type_of[HexUtils.DIRECTIONS[d]] = CellType.Kind.EVENT
-			break
+	# The special (rainbow) cell sits at the centre — a ROAD with a unique texture (like the assets).
+	type_of[CENTER] = CellType.Kind.EVENT
 
-	_ensure_present(type_of, cells, CellType.Kind.GREEN)
-	_ensure_present(type_of, cells, CellType.Kind.URBAN)
+	_ensure_count(type_of, cells, CellType.Kind.GREEN, 2)
+	_ensure_count(type_of, cells, CellType.Kind.URBAN, 1)
 
 	var cell_types: Array[int] = []
 	for cell in cells:
@@ -117,7 +125,8 @@ func _save_bridge() -> void:
 	block.color = Color.WHITE
 	block.cells = BlockDefinition.make_line_cells(3)
 	block.cell_types = [CellType.Kind.WATER, CellType.Kind.ROUTE, CellType.Kind.WATER]
-	block.connectors = [Vector2i(0, 0), Vector2i(2, 0)] as Array[Vector2i]
+	# Only the central ROAD cell connects — never the water ends, never along the length.
+	block.connectors = [Vector2i(1, 0)] as Array[Vector2i]
 	_save(block, "res://resources/blocks/bridge.tres")
 
 

@@ -1,17 +1,23 @@
 class_name SetupPhase
 extends RefCounted
-## Drives the turn-by-turn setup placement. On a turn a player MAY first place their bridge (free —
-## it does not end the turn, and must connect to a road), then places a block (which ends the turn).
-## A bridge dropped one cell too far auto-inserts the bridge with the block. When a player has no
-## blocks left they may place their bridge or end (pass). The phase ends once every player is done.
-## Pure logic — no rendering/input.
+## Drives the turn-by-turn setup placement. A turn = place exactly ONE block (which does NOT advance
+## the turn), then optionally place the free bridge, then call [method finish_turn]. While the turn is
+## open the placed block (and bridge) can be removed or rotated; re-positioning is the controller's
+## job (remove + place again). [method finish_turn] is refused until a block is placed; once it runs,
+## the player is done if no blocks remain (a leftover bridge is simply abandoned — a player never gets
+## a turn with only a bridge to place). The phase ends once every player is done. Pure logic.
 
-signal turn_changed(player: Player)
+signal turn_changed(player: Player)        ## a new player's turn begins (or the phase advances)
+signal turn_state_changed(player: Player)  ## within-turn change (place/remove/rotate) — refresh the UI
 signal setup_finished
 
 var _players: Array[Player]
 var _board: Board
 var _current: int = 0
+
+var _turn_block: PlacedPiece = null        ## the block placed this turn (null until one is placed)
+var _turn_block_index: int = -1            ## its original index in the player's tray (for removal)
+var _turn_bridge: PlacedPiece = null       ## the bridge placed this turn, if any
 
 
 func _init(players: Array[Player], board: Board) -> void:
@@ -30,98 +36,126 @@ func is_finished() -> bool:
 	return true
 
 
-## Places the current player's [param block_index] block and ends the turn. Returns success.
+## The block placed during the current turn, or null. Exposed so the controller can anchor the
+## floating controls to it and pick it back up to re-position it.
+func placed_block() -> PlacedPiece:
+	return _turn_block
+
+
+## The bridge placed during the current turn, or null.
+func placed_bridge() -> PlacedPiece:
+	return _turn_bridge
+
+
+## True once a block has been placed this turn — the condition for ending the turn.
+func block_placed_this_turn() -> bool:
+	return _turn_block != null
+
+
+## Places the current player's [param block_index] block. Does NOT advance the turn. Refused if a
+## block is already placed this turn (one block per turn) or the placement is illegal. Returns success.
 func try_place(block_index: int, anchor: Vector2i, rotation: int) -> bool:
+	if _turn_block != null:
+		return false
 	var player := current_player()
 	if block_index < 0 or block_index >= player.pieces.size():
 		return false
 	if not _board.place(player.pieces[block_index], anchor, rotation, player.color):
 		return false
+	_turn_block = _board.pieces().back()
+	_turn_block_index = block_index
 	player.pieces.remove_at(block_index)
-	_update_done(player)
-	_advance()
+	turn_state_changed.emit(player)
 	return true
 
 
-## Places the current player's bridge — FREE: it must connect to a road and does NOT end the turn,
-## unless the player then has nothing left to place (then they're done). Returns success.
+## Takes the placed block back off the board and returns it to the player's tray. Returns success.
+func remove_block() -> bool:
+	if _turn_block == null:
+		return false
+	var player := current_player()
+	_board.remove_piece(_turn_block)
+	player.pieces.insert(mini(_turn_block_index, player.pieces.size()), _turn_block.block_def)
+	_turn_block = null
+	_turn_block_index = -1
+	turn_state_changed.emit(player)
+	return true
+
+
+## Rotates the placed block one 60-degree step in [param dir] (+1 / -1), snapping to the next valid
+## rotation (skipping any that would overlap or break the road link). Returns success.
+func rotate_block(dir: int) -> bool:
+	if _turn_block == null:
+		return false
+	_turn_block = _rotate_in_place(_turn_block, dir)
+	turn_state_changed.emit(current_player())
+	return true
+
+
+## Places the current player's free bridge. Does NOT advance the turn and does NOT mark the player
+## done. Returns success.
 func try_place_bridge(anchor: Vector2i, rotation: int) -> bool:
 	var player := current_player()
-	if player.bridge == null:
+	if player.bridge == null or _turn_bridge != null:
 		return false
 	if not _board.place(player.bridge, anchor, rotation, player.color):
 		return false
+	_turn_bridge = _board.pieces().back()
 	player.bridge = null
+	turn_state_changed.emit(player)
+	return true
+
+
+## Takes the placed bridge back off the board and returns it to the player. Returns success.
+func remove_bridge() -> bool:
+	if _turn_bridge == null:
+		return false
+	var player := current_player()
+	_board.remove_piece(_turn_bridge)
+	player.bridge = _turn_bridge.block_def
+	_turn_bridge = null
+	turn_state_changed.emit(player)
+	return true
+
+
+## Rotates the placed bridge one step in [param dir], snapping to the next valid rotation. Success.
+func rotate_bridge(dir: int) -> bool:
+	if _turn_bridge == null:
+		return false
+	_turn_bridge = _rotate_in_place(_turn_bridge, dir)
+	turn_state_changed.emit(current_player())
+	return true
+
+
+## Ends the current turn. Refused unless a block was placed this turn. The player becomes done when no
+## blocks remain (any unplaced bridge is abandoned), then the phase advances. Returns success.
+func finish_turn() -> bool:
+	if _turn_block == null:
+		return false
+	var player := current_player()
+	_turn_block = null
+	_turn_block_index = -1
+	_turn_bridge = null
 	if player.pieces.is_empty():
 		player.done = true
-		_advance()
-	else:
-		turn_changed.emit(player)  # same turn continues; refresh (bridge consumed)
-	return true
-
-
-## Ends the current player's turn without placing a block — only allowed when they have no blocks
-## left (they keep, or skip, their bridge). Returns success.
-func pass_turn() -> bool:
-	var player := current_player()
-	if not player.pieces.is_empty():
-		return false
-	player.done = true
 	_advance()
 	return true
 
 
-## Auto-bridge: places the bridge + the [param block_index] block in one turn (the bridge bridging an
-## existing road and the block's road). Consumes both and ends the turn.
-func try_place_with_bridge(block_index: int, block_anchor: Vector2i, block_rot: int, bridge_anchor: Vector2i, bridge_rot: int) -> bool:
-	var player := current_player()
-	if block_index < 0 or block_index >= player.pieces.size() or player.bridge == null:
-		return false
-	var block := player.pieces[block_index]
-	var bridge := player.bridge
-
-	for c in bridge.get_cells(bridge_anchor, bridge_rot):
-		if _board.is_occupied(c):
-			return false
-	for c in block.get_cells(block_anchor, block_rot):
-		if _board.is_occupied(c):
-			return false
-	if not _bridge_links(
-			bridge.get_connectors(bridge_anchor, bridge_rot),
-			block.get_connectors(block_anchor, block_rot),
-			_board.connector_cells()):
-		return false
-
-	_board.place(bridge, bridge_anchor, bridge_rot, player.color, false)
-	_board.place(block, block_anchor, block_rot, player.color, false)
-	player.pieces.remove_at(block_index)
-	player.bridge = null
-	_update_done(player)
-	_advance()
-	return true
-
-
-func _update_done(player: Player) -> void:
-	if player.pieces.is_empty() and player.bridge == null:
-		player.done = true
-
-
-# One bridge end touches a board road, the other touches the new block's road.
-func _bridge_links(bridge_ends: Array[Vector2i], block_roads: Array[Vector2i], board_roads: Array[Vector2i]) -> bool:
-	for i in bridge_ends.size():
-		var other := bridge_ends[(i + 1) % bridge_ends.size()]
-		if _connects([bridge_ends[i]] as Array[Vector2i], board_roads) and _connects([other] as Array[Vector2i], block_roads):
-			return true
-	return false
-
-
-# True if any cell in [param a] is a hex-neighbor of any cell in [param b].
-func _connects(a: Array[Vector2i], b: Array[Vector2i]) -> bool:
-	for ca in a:
-		for cb in b:
-			if HexUtils.are_adjacent(ca, cb):
-				return true
-	return false
+# Removes [param piece] and re-places the same block at the first valid rotation found by stepping in
+# [param dir]. The full turn (step 6) returns to the original rotation, which was valid, so this
+# always re-places the piece. Returns the new PlacedPiece.
+func _rotate_in_place(piece: PlacedPiece, dir: int) -> PlacedPiece:
+	var block := piece.block_def
+	var anchor := piece.anchor
+	var owner := piece.owner
+	var current := piece.rotation
+	_board.remove_piece(piece)
+	for step in range(1, 7):
+		var rot := ((current + dir * step) % 6 + 6) % 6
+		if _board.place(block, anchor, rot, owner):
+			return _board.pieces().back()
+	return _board.pieces().back()
 
 
 # Moves to the next player who isn't done, or finishes the phase.

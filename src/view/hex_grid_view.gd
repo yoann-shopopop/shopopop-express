@@ -38,10 +38,11 @@ func _refresh() -> void:
 		child.queue_free()
 	for piece in _board.pieces():
 		var road_cells := TileSprite.road_cells_of(piece.typed_cells)
+		var piece_cells := TileSprite.cells_of(piece.typed_cells)
 		for i in piece.typed_cells.size():
 			var tc: Dictionary = piece.typed_cells[i]
 			var local: Vector2i = piece.block_def.cells[i]
-			_tiles_root.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, local))
+			_tiles_root.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, local, piece_cells))
 	_refresh_outlines()
 	_refresh_markers()
 

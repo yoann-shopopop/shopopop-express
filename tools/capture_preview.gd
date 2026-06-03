@@ -42,8 +42,8 @@ func _place_one() -> void:
 	var target: Vector2i = _target_cell(board, phase.current_player().pieces[0])
 	var screen: Vector2 = _main._camera.unproject_position(HexUtils.axial_to_world(target, 1.0))
 	_main.controller.begin_drag(0)
-	_main.controller._update_pointer(screen)
-	_main.controller._try_place()
+	_main.controller._release(screen)  # place the block (no longer advances the turn)
+	phase.finish_turn()                # end the turn so the next player places
 
 
 func _target_cell(board, block) -> Vector2i:

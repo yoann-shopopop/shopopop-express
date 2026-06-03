@@ -114,3 +114,20 @@ func place(block: BlockDefinition, anchor: Vector2i, rotation: int, owner: int =
 	_pieces.append(piece)
 	changed.emit()
 	return true
+
+
+## Removes [param piece] from the board: frees its cells and drops its connectors. Returns false if
+## the piece is not currently placed. Emits [signal changed] on success. Used to take back a piece
+## placed during the current setup turn (re-position, rotate, or remove).
+func remove_piece(piece: PlacedPiece) -> bool:
+	var idx := _pieces.find(piece)
+	if idx == -1:
+		return false
+	for tc in piece.typed_cells:
+		_index.erase(tc["cell"])
+	for c in piece.connector_cells:
+		_road_connectors.erase(c)  # a connector cell belongs to one piece, so this is exact
+		_bridge_ends.erase(c)
+	_pieces.remove_at(idx)
+	changed.emit()
+	return true

@@ -26,8 +26,9 @@ static func build(block: BlockDefinition, host: Node) -> ViewportTexture:
 
 	var typed := block.get_typed_cells(Vector2i.ZERO, 0)
 	var road_cells := TileSprite.road_cells_of(typed)
+	var piece_cells := TileSprite.cells_of(typed)
 	for i in typed.size():
 		var tc: Dictionary = typed[i]
-		vp.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, 1.0, block.cells[i]))
+		vp.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, 1.0, block.cells[i], piece_cells))
 
 	return vp.get_texture()
