@@ -60,7 +60,7 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_build_delivery_markers(deliveries)
 	_delivery_list = DeliveryListView.new()
 	add_child(_delivery_list)
-	_delivery_list.build(deliveries)
+	_delivery_list.build(deliveries, _players)
 
 	var move_controller := MovementController.new()
 	add_child(move_controller)
@@ -145,8 +145,8 @@ func _process(_delta: float) -> void:
 	if _delivery_list != null:
 		# Left column: big readable cards with a CONSTANT on-screen gap (row_step is constant×zoom, not
 		# size-dependent), stacked down the left edge.
-		var left_origin := center + Vector3(-half_w * 0.84, 1.0, -half_h * 0.55)
-		_delivery_list.layout(left_origin, 2.2 * zoom, 0.9 * zoom)
+		var left_origin := center + Vector3(-half_w * 0.86, 1.0, -half_h * 0.52)
+		_delivery_list.layout(left_origin, 3.0 * zoom, 1.35 * zoom)
 
 
 func _spawn_pawn(player: Player) -> void:

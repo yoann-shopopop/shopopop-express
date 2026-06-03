@@ -137,7 +137,7 @@ func _card_pile(caption: String, color: Color, filled: bool) -> VBoxContainer:
 	col.add_theme_constant_override("separation", 4)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	var card := Panel.new()
-	card.custom_minimum_size = Vector2(82, 116)
+	card.custom_minimum_size = Vector2(132, 188)
 	var style := StyleBoxFlat.new()
 	var body := color
 	if not filled:
@@ -151,7 +151,7 @@ func _card_pile(caption: String, color: Color, filled: bool) -> VBoxContainer:
 	var lbl := Label.new()
 	lbl.text = caption
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 15)
+	lbl.add_theme_font_size_override("font_size", 18)
 	col.add_child(lbl)
 	return col
 

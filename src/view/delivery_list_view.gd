@@ -7,26 +7,36 @@ const VISIBLE_ROWS := 6      # how many rows fit in the left region at once
 
 var _views: Array[ClipCardView] = []
 var _deliveries: Array[Delivery] = []
+var _players: Array[Player] = []
 var _scroll: int = 0         # index of the first visible row
 
 
-## Rebuilds one card per delivery (call once after setup).
-func build(deliveries: Array[Delivery]) -> void:
+## Rebuilds one card per delivery (call once after setup). [param players] resolves the reserving
+## player's color for the status insert.
+func build(deliveries: Array[Delivery], players: Array[Player]) -> void:
 	for v in _views:
 		v.queue_free()
 	_views.clear()
 	_deliveries = deliveries
+	_players = players
 	for delivery in deliveries:
 		var view := ClipCardView.new()
 		add_child(view)
-		view.bind_delivery(delivery)
+		view.bind_delivery(delivery, _reserve_color(delivery))
 		_views.append(view)
 
 
 ## Re-reads every delivery's status (call on any delivery change).
 func refresh_statuses() -> void:
 	for i in _views.size():
-		_views[i].bind_delivery(_deliveries[i])
+		_views[i].bind_delivery(_deliveries[i], _reserve_color(_deliveries[i]))
+
+
+# The reserving player's color for [param delivery], or a neutral tint when unreserved.
+func _reserve_color(delivery: Delivery) -> Color:
+	if delivery.reserved_by < 0 or delivery.reserved_by >= _players.size():
+		return Color("20242c")
+	return PlayerColor.to_color(_players[delivery.reserved_by].color)
 
 
 ## Scrolls the list by [param delta] rows (clamped).
