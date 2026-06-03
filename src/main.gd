@@ -118,7 +118,7 @@ func _load_characters() -> Array[CharacterDefinition]:
 func _build_camera() -> CameraRig:
 	var camera := CameraRig.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 30.0
+	camera.size = 20.0  # ortho vertical span in world units (~2.5 tiles tall); lower = zoomed in
 	camera.position = Vector3(0, 20, 0)
 	camera.rotation_degrees = Vector3(-90, 0, 0)
 	camera.current = true
