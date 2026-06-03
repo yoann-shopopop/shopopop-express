@@ -32,15 +32,12 @@ static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float,
 		var bridge := dirs.is_empty()
 		if bridge:
 			dirs = _piece_dirs(cell, piece_cells)
-		var meta := RoadTiling.classify(dirs)
-		sprite.texture = TileTextures.road(meta["variant"])
-		sprite.flip_h = meta["flip"]
-		yaw = float(meta["steps"]) * PI / 3.0
+		# Only the straight road art exists; every road cell renders as a straight segment along its
+		# main axis (rotations stay multiples of 60° so the hexagon outline keeps tessellating).
+		sprite.texture = TileTextures.road(RoadTiling.STRAIGHT)
+		yaw = float(RoadTiling.straight_steps(dirs)) * PI / 3.0
 		if bridge:
 			yaw += PI / 2.0
-		# The new road art draws its markings horizontally (E-W); the tiling convention expects the
-		# straight base along N-S. Rotate the texture 90° so markings line up across tiles.
-		yaw += PI / 2.0
 	elif type == CellType.Kind.URBAN and is_drive:
 		# The pickup point's urban cell shows the DRIVE storefront art (the enseigne jeton sits on top).
 		var drives := TileTextures.drive_variants()
