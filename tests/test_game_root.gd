@@ -41,4 +41,6 @@ func test_setup_spawns_one_pawn_view_per_player_without_error() -> void:
 	for child in root.get_children():
 		if child is PawnView:
 			pawn_views += 1
-	assert_eq(pawn_views, 2, "one pawn view per player")
+	# 2 cotransporter pawns (one per player) + 2 tokens per delivery (drive + recipient).
+	# The test tile has 1 deliverable pair (URBAN drive + GREEN recipient) → 2 + 2 = 4.
+	assert_eq(pawn_views, 4, "2 pawn views per player + 2 token views per delivery")

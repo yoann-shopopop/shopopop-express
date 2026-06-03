@@ -108,83 +108,43 @@ func _spawn_pawn(player: Player) -> void:
 
 func _build_delivery_markers(deliveries: Array[Delivery]) -> void:
 	for delivery in deliveries:
-		add_child(_enseigne_marker(delivery.drive_cell, delivery.enseigne))
+		add_child(_drive_token(delivery))
 		_rebuild_recipient_marker(delivery)
 
 
-# The enseigne (pickup) card on the drive cell: a light backing card with the brand logo + name,
-# floating above the tile so it reads as a delivery card. Falls back to a grey card when no logo.
-func _enseigne_marker(cell: Vector2i, enseigne: EnseigneDefinition) -> Node3D:
-	var name := enseigne.display_name if enseigne != null else "?"
-	var root := _card(cell, Color("f3f1ea"), Color("eaf2ff"), name, Color("1a2a44"))
-	if enseigne != null and enseigne.texture != null:
-		var sprite := Sprite3D.new()
-		sprite.texture = enseigne.texture
-		sprite.pixel_size = (1.0 * GameConfig.HEX_SIZE) / maxf(float(enseigne.texture.get_width()), 1.0)
-		sprite.shaded = false
-		sprite.transparent = true
-		sprite.rotation_degrees = Vector3(-90, 0, 0)
-		sprite.position = Vector3(0.0, 0.13, -0.12)  # logo above the card, name shows below it
-		root.add_child(sprite)
-	return root
+# A drive token: a PawnView in DRIVE token-mode carrying the enseigne logo, placed on the drive cell.
+func _drive_token(delivery: Delivery) -> PawnView:
+	var def := PawnDefinition.new()
+	def.type = PawnDefinition.PawnType.DRIVE
+	def.texture = delivery.enseigne.texture if delivery.enseigne != null else null
+	return _token_at(def, delivery.drive_cell)
 
 
-# The recipient card on the green cell: a light card with a colored banner and the recipient name.
-func _destinataire_marker(cell: Vector2i, destinataire: DestinataireDefinition) -> Node3D:
-	var banner := destinataire.color if destinataire != null else Color("5b6470")
-	var name := destinataire.display_name if destinataire != null else "(vide)"
-	return _card(cell, Color("f3f1ea"), banner, name, Color("1a1c22"))
+# A recipient token: a PawnView in RECIPIENT token-mode carrying the destinataire portrait.
+func _destinataire_token(delivery: Delivery) -> PawnView:
+	var def := PawnDefinition.new()
+	def.type = PawnDefinition.PawnType.RECIPIENT
+	def.texture = delivery.destinataire.texture if delivery.destinataire != null else null
+	return _token_at(def, delivery.recipient_cell)
 
 
-# A floating "card": a light slab with a colored top band and a dark name label, raised above the
-# tiles and outlined so it stands out from the artwork below. Lies flat for the top-down camera.
-func _card(cell: Vector2i, body: Color, band: Color, label_text: String, text_color: Color) -> Node3D:
-	var root := Node3D.new()
-	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
-	pos.y = 0.5  # clearly above the tile artwork (and pawn bases) so the card is unmistakable
-	root.position = pos
-	var card := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(1.55, 0.12, 1.05)
-	card.mesh = box
-	var body_mat := StandardMaterial3D.new()
-	body_mat.albedo_color = body
-	body_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	card.material_override = body_mat
-	root.add_child(card)
-	# Colored banner band across the top edge of the card.
-	var strip := MeshInstance3D.new()
-	var strip_box := BoxMesh.new()
-	strip_box.size = Vector3(1.55, 0.14, 0.34)
-	strip.mesh = strip_box
-	strip.position = Vector3(0.0, 0.01, -0.34)
-	var strip_mat := StandardMaterial3D.new()
-	strip_mat.albedo_color = band
-	strip_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	strip.material_override = strip_mat
-	root.add_child(strip)
-	var label := Label3D.new()
-	label.text = label_text
-	label.font_size = 56
-	label.pixel_size = 0.0026
-	label.width = 520
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.modulate = text_color
-	label.position = Vector3(0.0, 0.08, 0.28)
-	label.rotation_degrees = Vector3(-90, 0, 0)
-	root.add_child(label)
-	return root
+# Builds a fixed (non-mobile) PawnView bound to a one-shot Pawn placed on [param cell].
+func _token_at(def: PawnDefinition, cell: Vector2i) -> PawnView:
+	var pawn := Pawn.new(def)
+	var view := PawnView.new()
+	view.bind(pawn)
+	pawn.place(cell)
+	return view
 
 
-# (Re)builds the recipient marker for [param delivery], reflecting its current destinataire.
+# (Re)builds the recipient token for [param delivery], reflecting its current destinataire.
 func _rebuild_recipient_marker(delivery: Delivery) -> void:
 	var existing = _recipient_markers.get(delivery, null)
 	if existing != null and is_instance_valid(existing):
 		existing.queue_free()
-	var marker := _destinataire_marker(delivery.recipient_cell, delivery.destinataire)
-	add_child(marker)
-	_recipient_markers[delivery] = marker
+	var token := _destinataire_token(delivery)
+	add_child(token)
+	_recipient_markers[delivery] = token
 
 
 func _on_roll() -> void:
