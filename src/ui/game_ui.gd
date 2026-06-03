@@ -1,13 +1,12 @@
 class_name GameUI
 extends CanvasLayer
 ## Play-phase UI: a compact turn-order strip (top center), whose turn it is + their score, a
-## rebuildable action bar (roll dice, pick up, deliver, power, end turn) and the live status line.
+## rebuildable action bar (lancer les dés, réserver, pouvoir, fin de tour) and the live status line.
 ## A final panel shows the scores. Emits intents; GameRoot acts. Stays dumb.
 
 signal roll_requested
 signal end_turn_requested
-signal pickup_requested
-signal deliver_requested
+signal reserve_requested
 signal power_requested
 
 const _CHIP := Vector2(26, 26)
@@ -81,7 +80,7 @@ func setup_players(players: Array[Player]) -> void:
 
 
 ## Rebuilds the action bar for a turn and highlights the current player in the strip.
-func refresh(player: Player, score: int, can_roll: bool, carrying: Delivery) -> void:
+func refresh(player: Player, score: int, can_roll: bool, can_reserve: bool) -> void:
 	var who := PlayerColor.name_of(player.color)
 	if player.character != null:
 		who = "%s (%s)" % [player.character.display_name, who]
@@ -98,14 +97,10 @@ func refresh(player: Player, score: int, can_roll: bool, carrying: Delivery) -> 
 	roll.pressed.connect(func() -> void: roll_requested.emit())
 	_actions.add_child(roll)
 
-	if carrying == null:
-		var pickup := _button("Prendre", Vector2(120, 48))
-		pickup.pressed.connect(func() -> void: pickup_requested.emit())
-		_actions.add_child(pickup)
-	else:
-		var deliver := _button("Livrer", Vector2(120, 48))
-		deliver.pressed.connect(func() -> void: deliver_requested.emit())
-		_actions.add_child(deliver)
+	var reserve := _button("Réserver", Vector2(120, 48))
+	reserve.disabled = not can_reserve
+	reserve.pressed.connect(func() -> void: reserve_requested.emit())
+	_actions.add_child(reserve)
 
 	if player.character != null and not player.power_used:
 		var power := _button("Pouvoir : %s" % _power_name(player.character.power_id), Vector2(180, 48))
