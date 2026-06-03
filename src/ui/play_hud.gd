@@ -1,9 +1,10 @@
 class_name PlayHud
 extends CanvasLayer
-## 2D chrome for the play phase: a framed board window (title bar carrying turn/score, the player-order
-## strip and the zoom +/- buttons), a contextual primary action button + a power button (bottom-left),
-## and the bottom event-card slot backings (DECK / two slots / DÉFAUSSE). Emits intents; GameRoot acts
-## and pins the 3D pieces (delivery list, dice, cards) into the regions this frame defines.
+## 2D chrome for the play phase: a board window with a filled title bar (game name, turn/score, the
+## player-order strip and the zoom +/- buttons), a contextual primary action button + a power button
+## (bottom-left), and the always-visible DECK / DÉFAUSSE card piles (bottom-right). Emits intents;
+## GameRoot acts and pins the 3D pieces (delivery list, dice, drawn cards) into the regions this frame
+## defines.
 
 signal roll_requested
 signal reserve_requested
@@ -58,38 +59,62 @@ func _build_frame() -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(1, 1, 1, 0.0)  # transparent body (board shows through)
 	style.set_border_width_all(3)
-	style.border_color = Color("3a4252")
-	style.set_corner_radius_all(6)
+	style.border_color = Color("4a5468")
+	style.set_corner_radius_all(8)
+	style.shadow_size = 8
+	style.shadow_color = Color(0, 0, 0, 0.35)
 	frame.add_theme_stylebox_override("panel", style)
 	add_child(frame)
 
 
 func _build_title_bar() -> void:
+	# A filled title bar across the top of the board window, so the frame reads as an app window.
+	var bar_panel := Panel.new()
+	bar_panel.name = "TitleBar"
+	bar_panel.anchor_left = BOARD_RECT.position.x
+	bar_panel.anchor_right = BOARD_RECT.position.x + BOARD_RECT.size.x
+	bar_panel.anchor_top = BOARD_RECT.position.y
+	bar_panel.anchor_bottom = BOARD_RECT.position.y
+	bar_panel.offset_top = 0
+	bar_panel.offset_bottom = 42
+	var bar_style := StyleBoxFlat.new()
+	bar_style.bg_color = Color("2a3340")
+	bar_style.corner_radius_top_left = 8
+	bar_style.corner_radius_top_right = 8
+	bar_panel.add_theme_stylebox_override("panel", bar_style)
+	add_child(bar_panel)
+
 	var bar := HBoxContainer.new()
-	bar.name = "TitleBar"
-	bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	bar.anchor_left = BOARD_RECT.position.x
-	bar.anchor_right = BOARD_RECT.position.x + BOARD_RECT.size.x
-	bar.offset_top = 4
-	bar.offset_left = 10
+	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bar.offset_left = 14
 	bar.offset_right = -10
+	bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	bar.add_theme_constant_override("separation", 12)
-	add_child(bar)
+	bar_panel.add_child(bar)
+
+	var title := Label.new()
+	title.text = "Shopopop Express"
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", Color("eaf2ff"))
+	bar.add_child(title)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.add_child(spacer)
 
 	_turn_label = Label.new()
-	_turn_label.add_theme_font_size_override("font_size", 18)
+	_turn_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_turn_label.add_theme_font_size_override("font_size", 20)
 	bar.add_child(_turn_label)
 
 	_order_bar = HBoxContainer.new()
 	_order_bar.add_theme_constant_override("separation", 4)
 	bar.add_child(_order_bar)
 
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(spacer)
-
 	_score_label = Label.new()
-	_score_label.add_theme_font_size_override("font_size", 18)
+	_score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_score_label.add_theme_font_size_override("font_size", 20)
 	bar.add_child(_score_label)
 
 	var zoom_out := _small_button("－")
@@ -124,19 +149,44 @@ func _build_actions() -> void:
 
 
 func _build_card_backings() -> void:
-	# DECK / two slots / DÉFAUSSE labels along the bottom (purely visual anchors).
+	# DECK (face-down pile) and DÉFAUSSE, always visible at the bottom-right as card-shaped backings.
+	# The two drawn event cards appear large at screen center during a rainbow event (pinned by GameRoot).
 	var row := HBoxContainer.new()
-	row.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	row.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	row.offset_bottom = -8
-	row.add_theme_constant_override("separation", 40)
+	row.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	row.offset_right = -24
+	row.offset_bottom = -16
+	row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	row.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	row.add_theme_constant_override("separation", 18)
 	add_child(row)
-	for caption in ["DECK", "", "", "DÉFAUSSE"]:
-		var lbl := Label.new()
-		lbl.text = caption
-		lbl.custom_minimum_size = Vector2(90, 0)
-		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		row.add_child(lbl)
+	row.add_child(_card_pile("DECK", Color("2d3a55"), true))
+	row.add_child(_card_pile("DÉFAUSSE", Color("23262d"), false))
+
+
+# A card-shaped backing with a caption under it. [param filled] gives the deck a solid "back" look;
+# otherwise (DÉFAUSSE) the body is an empty outlined slot.
+func _card_pile(caption: String, color: Color, filled: bool) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	var card := Panel.new()
+	card.custom_minimum_size = Vector2(82, 116)
+	var style := StyleBoxFlat.new()
+	var body := color
+	if not filled:
+		body.a = 0.0
+	style.bg_color = body
+	style.set_corner_radius_all(8)
+	style.set_border_width_all(2)
+	style.border_color = Color("6a7488")
+	card.add_theme_stylebox_override("panel", style)
+	col.add_child(card)
+	var lbl := Label.new()
+	lbl.text = caption
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 15)
+	col.add_child(lbl)
+	return col
 
 
 func _small_button(text: String) -> Button:

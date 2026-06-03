@@ -94,18 +94,19 @@ func _process(_delta: float) -> void:
 	var half_w := half_h * get_viewport().get_visible_rect().size.aspect()
 	var center := Vector3(_camera.global_position.x, 0.0, _camera.global_position.z)
 	if _dice_views != null and _dice_views.get_child_count() > 0:
-		_dice_views.position = center + Vector3(-half_w * 0.58, 1.0, half_h * 0.58)
-		_dice_views.scale = Vector3.ONE * 3.1 * zoom
+		_dice_views.position = center + Vector3(-half_w * 0.55, 1.0, half_h * 0.55)
+		_dice_views.scale = Vector3.ONE * 4.5 * zoom
 	if _budget_cubes != null and _budget_cubes.get_child_count() > 0:
-		_budget_cubes.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.50)
-		_budget_cubes.scale = Vector3.ONE * 2.2 * zoom
+		_budget_cubes.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.66)
+		_budget_cubes.scale = Vector3.ONE * 3.0 * zoom
 	if _event_choice != null and is_instance_valid(_event_choice):
-		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.74)
-		_event_choice.scale = Vector3.ONE * 3.0 * zoom
+		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
+		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.10)
+		_event_choice.scale = Vector3.ONE * 5.5 * zoom
 	if _delivery_list != null:
-		# Left column: centered horizontally on x≈-0.82*half_w, top near +0.5*half_h, rows going down (+z).
-		var left_origin := center + Vector3(-half_w * 0.82, 1.0, -half_h * 0.46)
-		_delivery_list.layout(left_origin, half_h * 0.30 * zoom, 0.55 * zoom)
+		# Left column: cards stacked down the left edge, scaled up for readability.
+		var left_origin := center + Vector3(-half_w * 0.80, 1.0, -half_h * 0.42)
+		_delivery_list.layout(left_origin, half_h * 0.34 * zoom, 0.95 * zoom)
 
 
 func _spawn_pawn(player: Player) -> void:
