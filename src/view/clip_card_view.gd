@@ -12,8 +12,9 @@ const STATUS_H := 0.55                 # depth of the status banner along the to
 const PAD := 0.20                      # backing margin around the slabs
 const THICK := 0.08
 const IMG_FRAC := 0.62                 # image square as a fraction of the slab depth
-const _NEUTRAL := Color("20242c")
-const _BACKING := Color(0.10, 0.12, 0.16, 0.97)
+const _NEUTRAL := Color("232838")
+const _BACKING := Color(0.11, 0.13, 0.19, 0.98)
+const _SOFT_BASE := Color("1b2030")    # raw brand colors are muted toward this calm slate
 
 var _enseigne: EnseigneDefinition
 var _destinataire: DestinataireDefinition
@@ -68,7 +69,7 @@ func refresh() -> void:
 	var z := -(CARD.y * 0.5) + STATUS_H * 0.5
 	_insert = _make_slab(Vector3(0.0, 0.05, z), Vector2(_card_w + PAD * 1.4, STATUS_H), _reserve_color)
 	var text_color := Color.BLACK if _reserve_color.get_luminance() > 0.5 else Color.WHITE
-	var label := _make_label(DeliveryStatus.label(_status), text_color, _card_w, 40)
+	var label := _make_label(DeliveryStatus.label(_status), text_color, _card_w, 44)
 	label.position = Vector3(0.0, THICK * 0.5 + 0.012, 0.0)
 	_insert.add_child(label)
 	add_child(_insert)
@@ -81,13 +82,19 @@ func has_status_insert() -> bool:
 
 # One slab (enseigne or destinataire): image on the left, name on the right.
 func _add_card(at: Vector3, color: Color, label_text: String, texture: Texture2D) -> void:
-	var slab := _make_slab(at, CARD, color)
+	var slab := _make_slab(at, CARD, _soften(color))
 	if texture != null:
 		slab.add_child(_make_image(texture))
-	var label := _make_label(label_text, Color("0d0f14"), CARD.x * 0.52, 40)
+	var label := _make_label(label_text, Color.WHITE, CARD.x * 0.52, 46)
 	label.position = Vector3(CARD.x * 0.22, THICK * 0.5 + 0.006, 0.0)  # right of the image
 	slab.add_child(label)
 	add_child(slab)
+
+
+# Mutes a raw brand color toward a deep slate, so saturated logos/portraits read calmly behind the
+# white name and the card feels cohesive rather than garish.
+func _soften(color: Color) -> Color:
+	return color.lerp(_SOFT_BASE, 0.58)
 
 
 func _make_slab(at: Vector3, size: Vector2, color: Color) -> MeshInstance3D:
@@ -127,8 +134,9 @@ func _make_label(text: String, color: Color, wrap_world: float, font: int) -> La
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.outline_size = 6
-	label.outline_modulate = Color(0, 0, 0, 0.5) if color.get_luminance() > 0.5 else Color(1, 1, 1, 0.45)
+	# Heavy contrasting outline so the name stays legible over any softened slab tint.
+	label.outline_size = 11
+	label.outline_modulate = Color(0, 0, 0, 0.8) if color.get_luminance() > 0.5 else Color(1, 1, 1, 0.55)
 	label.modulate = color
 	label.rotation_degrees = Vector3(-90, 0, 0)
 	return label

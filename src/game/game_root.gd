@@ -143,10 +143,10 @@ func _process(_delta: float) -> void:
 		_event_choice.scale = Vector3.ONE * 5.5 * zoom
 	if _delivery_list != null:
 		# Left column: big readable cards with a CONSTANT on-screen gap (row_step is constant×zoom, not
-		# size-dependent), stacked down the left edge. Pushed flush left so the cards sit ~16 px from the
-		# screen edge, mirroring the character card's right padding.
-		var left_origin := center + Vector3(-half_w * 0.86, 1.0, -half_h * 0.55)
-		_delivery_list.layout(left_origin, 3.9 * zoom, 1.4 * zoom)
+		# size-dependent), stacked down the left edge. Anchor pulled back to 0.83 so the wider cards
+		# (scale 1.7) still sit ~16 px from the screen edge instead of clipping off-screen.
+		var left_origin := center + Vector3(-half_w * 0.83, 1.0, -half_h * 0.58)
+		_delivery_list.layout(left_origin, 4.6 * zoom, 1.7 * zoom)
 
 
 func _spawn_pawn(player: Player) -> void:
