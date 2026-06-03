@@ -19,6 +19,15 @@ const BUTTON_MIN := Vector2(118, 52)
 const PREVIEW_SIZE := Vector2(104, 104)
 const CONTROL_BTN := Vector2(60, 60)
 
+## 1-based placement-turn number for the header's "Tour X/Y". [param total] is the player's initial
+## tile count, [param remaining] the tiles still in their tray, [param block_placed] whether this
+## turn's block is already down (placing removes it from the tray, so we add it back here). Clamped
+## to >= 1. Pure — no state, unit-tested.
+static func compute_turn_index(total: int, remaining: int, block_placed: bool) -> int:
+	var index := total - remaining + (0 if block_placed else 1)
+	return maxi(index, 1)
+
+
 var _start_panel: Control
 var _game_panel: Control
 var _turn_label: Label
