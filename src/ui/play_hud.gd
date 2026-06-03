@@ -25,7 +25,6 @@ const _ACTION_LABEL := {
 # pieces, so the 2D chrome and the 3D content stay visually aligned. Tune together.
 const BOARD_RECT := Rect2(0.27, 0.04, 0.71, 0.66)   # x, y, w, h (fractions)
 const LEFT_RECT := Rect2(0.01, 0.06, 0.24, 0.62)
-const CARDS_Y := 0.80                                # vertical fraction of the card row
 
 var _turn_label: Label
 var _score_label: Label

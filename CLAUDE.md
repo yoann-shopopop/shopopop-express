@@ -201,10 +201,12 @@ src/game/       character_definition.gd        CharacterDefinition (Resource) : 
                 score_calculator.gd             5 + 10 (tuile drive à ma couleur) + 10 (tuile destinataire à ma couleur)
                 turn_context.gd (TurnContext)   état mutable du tour (effets events/pouvoirs)
                 event_resolver.gd / power_resolver.gd  effets data-driven (match, pas de if géant)
-                game_root.gd (GameRoot)         composition root du jeu : pions, dés, deck, UI, contrôleur
+                game_root.gd (GameRoot)         composition root du jeu : pions, jetons drive/dest, dés+cubes, deck, HUD, contrôleur
 src/cards/      event_card_definition.gd        EventCardDefinition : effect/amount/condition/is_malus
 src/interaction/movement_controller.gd          clic/tap → case → GamePhase.try_step
-src/ui/         game_ui.gd (GameUI)             tour, score, lancer dés, réserver, pouvoir, fin
+src/view/       clip_card_view.gd (ClipCardView) carte 3D enseigne/statut/destinataire (bind combo OU Delivery)
+                delivery_list_view.gd (DeliveryListView) colonne gauche défilable : 1 ClipCardView par Delivery
+src/ui/         play_hud.gd (PlayHud)           HUD de jeu (CanvasLayer) : cadre plateau, barre titre (tour/score/ordre + zoom ±), bouton d'action contextuel + pouvoir, emplacements DECK/cartes/DÉFAUSSE
 resources/characters/*.tres   8 personnages   ·  resources/events/*.tres   ~22 cartes (outil generate_event_cards.gd)
 ```
 
