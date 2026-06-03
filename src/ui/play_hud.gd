@@ -1,10 +1,10 @@
 class_name PlayHud
 extends CanvasLayer
-## 2D chrome for the play phase: a board window with a filled title bar (game name, turn/score, the
-## player-order strip and the zoom +/- buttons), a contextual primary action button + a power button
-## (bottom-left), and the always-visible DECK / DÉFAUSSE card piles (bottom-right). Emits intents;
-## GameRoot acts and pins the 3D pieces (delivery list, dice, drawn cards) into the regions this frame
-## defines.
+## 2D chrome for the play phase: a thin top bar (game name, turn/score, the player-order strip and the
+## zoom +/- buttons), a contextual primary action button + a power button (bottom-left), and the
+## always-visible DECK / DÉFAUSSE card piles (bottom-right). No board frame — the board fills the view
+## and only the terrain reacts to zoom. Emits intents; GameRoot acts and pins the 3D pieces (delivery
+## list, dice, drawn cards) at fixed screen positions independent of zoom.
 
 signal roll_requested
 signal reserve_requested
@@ -22,11 +22,6 @@ const _ACTION_LABEL := {
 	Action.END_TURN: "Fin de tour",
 }
 
-# Screen fractions (0..1 of the viewport) the frame occupies; GameRoot mirrors these to place the 3D
-# pieces, so the 2D chrome and the 3D content stay visually aligned. Tune together.
-const BOARD_RECT := Rect2(0.27, 0.04, 0.71, 0.66)   # x, y, w, h (fractions)
-const LEFT_RECT := Rect2(0.01, 0.06, 0.24, 0.62)
-
 var _turn_label: Label
 var _score_label: Label
 var _order_bar: HBoxContainer
@@ -39,48 +34,20 @@ var _action: int = Action.ROLL
 
 
 func _ready() -> void:
-	_build_frame()
 	_build_title_bar()
 	_build_actions()
 	_build_card_backings()
 
 
-# A thin window frame around the board region (visual only).
-func _build_frame() -> void:
-	var frame := Panel.new()
-	frame.name = "BoardFrame"
-	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
-	frame.anchor_left = BOARD_RECT.position.x
-	frame.anchor_top = BOARD_RECT.position.y
-	frame.anchor_right = BOARD_RECT.position.x + BOARD_RECT.size.x
-	frame.anchor_bottom = BOARD_RECT.position.y + BOARD_RECT.size.y
-	frame.offset_left = 0; frame.offset_top = 0; frame.offset_right = 0; frame.offset_bottom = 0
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE  # let clicks reach the 3D board
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(1, 1, 1, 0.0)  # transparent body (board shows through)
-	style.set_border_width_all(3)
-	style.border_color = Color("4a5468")
-	style.set_corner_radius_all(8)
-	style.shadow_size = 8
-	style.shadow_color = Color(0, 0, 0, 0.35)
-	frame.add_theme_stylebox_override("panel", style)
-	add_child(frame)
-
-
 func _build_title_bar() -> void:
-	# A filled title bar across the top of the board window, so the frame reads as an app window.
+	# A thin status bar across the very top of the screen (no board-enclosing frame).
 	var bar_panel := Panel.new()
-	bar_panel.name = "TitleBar"
-	bar_panel.anchor_left = BOARD_RECT.position.x
-	bar_panel.anchor_right = BOARD_RECT.position.x + BOARD_RECT.size.x
-	bar_panel.anchor_top = BOARD_RECT.position.y
-	bar_panel.anchor_bottom = BOARD_RECT.position.y
+	bar_panel.name = "TopBar"
+	bar_panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	bar_panel.offset_top = 0
 	bar_panel.offset_bottom = 42
 	var bar_style := StyleBoxFlat.new()
 	bar_style.bg_color = Color("2a3340")
-	bar_style.corner_radius_top_left = 8
-	bar_style.corner_radius_top_right = 8
 	bar_panel.add_theme_stylebox_override("panel", bar_style)
 	add_child(bar_panel)
 

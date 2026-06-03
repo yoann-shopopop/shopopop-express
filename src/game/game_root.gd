@@ -129,21 +129,24 @@ func _process(_delta: float) -> void:
 	var half_h := _camera.size * 0.5
 	var half_w := half_h * get_viewport().get_visible_rect().size.aspect()
 	var center := Vector3(_camera.global_position.x, 0.0, _camera.global_position.z)
+	# All HUD overlays use a constant world-scale × zoom and screen-edge anchoring, so they keep a fixed
+	# on-screen size/position: zooming only changes the terrain, never the side elements.
 	if _dice_views != null and _dice_views.get_child_count() > 0:
-		_dice_views.position = center + Vector3(-half_w * 0.62, 1.0, half_h * 0.48)
-		_dice_views.scale = Vector3.ONE * 4.0 * zoom
+		_dice_views.position = center + Vector3(-half_w * 0.70, 1.0, half_h * 0.42)
+		_dice_views.scale = Vector3.ONE * 3.2 * zoom
 	if _budget_cubes != null and _budget_cubes.get_child_count() > 0:
-		# Just below the die, compact, so it never overlaps the die itself.
-		_budget_cubes.position = center + Vector3(-half_w * 0.66, 1.0, half_h * 0.66)
-		_budget_cubes.scale = Vector3.ONE * 1.6 * zoom
+		# Clearly to the right of the die, never overlapping it.
+		_budget_cubes.position = center + Vector3(-half_w * 0.46, 1.0, half_h * 0.50)
+		_budget_cubes.scale = Vector3.ONE * 1.5 * zoom
 	if _event_choice != null and is_instance_valid(_event_choice):
 		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
 		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.10)
 		_event_choice.scale = Vector3.ONE * 5.5 * zoom
 	if _delivery_list != null:
-		# Left column: compact cards stacked down the left edge (more visible at once).
-		var left_origin := center + Vector3(-half_w * 0.84, 1.0, -half_h * 0.50)
-		_delivery_list.layout(left_origin, half_h * 0.20 * zoom, 0.62 * zoom)
+		# Left column: big readable cards with a CONSTANT on-screen gap (row_step is constant×zoom, not
+		# size-dependent), stacked down the left edge.
+		var left_origin := center + Vector3(-half_w * 0.84, 1.0, -half_h * 0.55)
+		_delivery_list.layout(left_origin, 2.2 * zoom, 0.9 * zoom)
 
 
 func _spawn_pawn(player: Player) -> void:
