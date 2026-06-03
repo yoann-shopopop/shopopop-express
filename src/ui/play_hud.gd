@@ -31,12 +31,34 @@ var _end_panel: Control
 var _players: Array[Player] = []
 var _chips: Array[Panel] = []
 var _action: int = Action.ROLL
+var _char_frame: Panel       # framed character card of the current player (right of the board)
+var _char_card: TextureRect
 
 
 func _ready() -> void:
 	_build_title_bar()
 	_build_actions()
 	_build_card_backings()
+	_build_char_card()
+
+
+# The current player's character card, framed in their color, on the right edge (whose-turn-it-is).
+func _build_char_card() -> void:
+	_char_frame = Panel.new()
+	_char_frame.anchor_left = 1.0
+	_char_frame.anchor_right = 1.0
+	_char_frame.anchor_top = 0.5
+	_char_frame.anchor_bottom = 0.5
+	_char_frame.offset_left = -244
+	_char_frame.offset_right = -16
+	_char_frame.offset_top = -158
+	_char_frame.offset_bottom = 158
+	add_child(_char_frame)
+	_char_card = TextureRect.new()
+	_char_card.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_char_card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_char_card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_char_frame.add_child(_char_card)
 
 
 func _build_title_bar() -> void:
@@ -224,6 +246,25 @@ func refresh(player: Player, score: int) -> void:
 			style.set_border_width_all(2)
 			style.border_color = Color.WHITE
 		_chips[i].add_theme_stylebox_override("panel", style)
+	_refresh_char_card(player)
+
+
+# Shows the current player's character card, framed in their color (hidden if no character/texture).
+func _refresh_char_card(player: Player) -> void:
+	var has_card: bool = player.character != null and player.character.texture != null
+	_char_frame.visible = has_card
+	if not has_card:
+		return
+	_char_card.texture = player.character.texture
+	var frame := StyleBoxFlat.new()
+	frame.bg_color = UITheme.PANEL_DARK
+	frame.set_corner_radius_all(10)
+	frame.set_border_width_all(4)
+	frame.border_color = PlayerColor.to_color(player.color)
+	frame.set_content_margin_all(6)
+	frame.shadow_color = UITheme.SHADOW
+	frame.shadow_size = 5
+	_char_frame.add_theme_stylebox_override("panel", frame)
 
 
 func set_status(_text: String) -> void:
