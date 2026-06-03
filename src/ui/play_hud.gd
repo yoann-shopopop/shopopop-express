@@ -111,10 +111,10 @@ func _build_title_bar() -> void:
 	_score_label.add_theme_color_override("font_color", UITheme.TEXT)
 	bar.add_child(_score_label)
 
-	var zoom_out := _small_button("－")
+	var zoom_out := _small_button("−")  # U+2212 minus (renders cleanly, unlike fullwidth －)
 	zoom_out.pressed.connect(func() -> void: zoom_out_requested.emit())
 	bar.add_child(zoom_out)
-	var zoom_in := _small_button("＋")
+	var zoom_in := _small_button("+")
 	zoom_in.pressed.connect(func() -> void: zoom_in_requested.emit())
 	bar.add_child(zoom_in)
 
@@ -193,9 +193,11 @@ func _card_pile(caption: String, accent: Color, active: bool) -> VBoxContainer:
 func _small_button(text: String) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(34, 30)
+	b.custom_minimum_size = Vector2(40, 34)
 	b.focus_mode = Control.FOCUS_NONE
-	_theme_button(b, UITheme.PANEL_DARK)
+	b.add_theme_font_size_override("font_size", 24)
+	# A lighter slate than the bar so the +/- read clearly on the dark header.
+	_theme_button(b, Color("3c4858"))
 	return b
 
 
@@ -223,9 +225,10 @@ func setup_players(players: Array[Player]) -> void:
 	for child in _order_bar.get_children():
 		child.queue_free()
 	_chips.clear()
+	_order_bar.add_theme_constant_override("separation", 7)
 	for player in players:
 		var chip := Panel.new()
-		chip.custom_minimum_size = Vector2(20, 20)
+		chip.custom_minimum_size = Vector2(26, 26)
 		_order_bar.add_child(chip)
 		_chips.append(chip)
 
@@ -240,12 +243,16 @@ func refresh(player: Player, score: int) -> void:
 		var color := PlayerColor.to_color(_players[i].color)
 		var is_current := _players[i].index == player.index
 		var style := StyleBoxFlat.new()
-		style.bg_color = color if is_current else color.darkened(0.35)
-		style.set_corner_radius_all(4)
+		style.bg_color = color if is_current else color.darkened(0.45)
+		style.set_corner_radius_all(13)  # circular dots
+		style.shadow_color = UITheme.SHADOW
+		style.shadow_size = 2
 		if is_current:
-			style.set_border_width_all(2)
+			style.set_border_width_all(3)
 			style.border_color = Color.WHITE
 		_chips[i].add_theme_stylebox_override("panel", style)
+		# The active player's dot is a touch bigger, so it pops out of the row.
+		_chips[i].custom_minimum_size = Vector2(30, 30) if is_current else Vector2(24, 24)
 	_refresh_char_card(player)
 
 
