@@ -18,6 +18,8 @@ signal remove_requested            ## floating toolbar: take the placed piece ba
 const BUTTON_MIN := Vector2(118, 52)
 const PREVIEW_SIZE := Vector2(104, 104)
 const CONTROL_BTN := Vector2(56, 56)
+const HEX_PER_TILE := 19  # cells in one district tile (drives the "19 Hex" label)
+const BRIDGE_TINT := Color("8fd0ec")  # tray-card accent for the free bridge
 const TEAM_NAMES := {
 	PlayerColor.Kind.BLUE: "Équipe Bleue",
 	PlayerColor.Kind.RED: "Équipe Rouge",
@@ -111,6 +113,7 @@ func _build_game_panel() -> void:
 	var top := VBoxContainer.new()
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	top.alignment = BoxContainer.ALIGNMENT_CENTER
+	top.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	top.add_theme_constant_override("separation", 6)
 	_game_panel.add_child(top)
 
@@ -138,7 +141,7 @@ func _build_game_panel() -> void:
 	_game_panel.add_child(bottom)
 
 	_hex_label = Label.new()
-	_hex_label.text = "19 Hex"
+	_hex_label.text = "%d Hex" % HEX_PER_TILE
 	_hex_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hex_label.add_theme_color_override("font_color", UITheme.TEXT)
 	bottom.add_child(_hex_label)
@@ -244,7 +247,7 @@ func set_current_player(player: Player, block_placed: bool, turn_index: int = 0,
 	if player.bridge != null:
 		_pieces_bar.add_child(_make_tray_card(
 			TilePreview.build(player.bridge, _vp_host),
-			"Pont", Color("8fd0ec"), false, false,
+			"Pont", BRIDGE_TINT, false, false,
 			func() -> void: bridge_drag_started.emit()))
 
 	_validate_button.disabled = not block_placed
@@ -268,6 +271,7 @@ func _make_tray_card(tex: Texture2D, caption: String, accent: Color, selected: b
 	button.modulate = Color(0.45, 0.45, 0.45) if disabled else Color.WHITE
 	button.button_down.connect(on_down)
 	box.add_child(button)
+	frame.set_meta("tex_button", button)
 
 	var caption_label := Label.new()
 	caption_label.text = caption
@@ -297,17 +301,18 @@ func set_finished() -> void:
 	_subline_label.add_theme_color_override("font_color", UITheme.TEXT)
 	_controls.hide()
 	_tray_rotate.hide()
+	_validate_button.disabled = true
 	for child in _pieces_bar.get_children():
 		child.queue_free()
 
 
 func _on_piece_pressed(index: int) -> void:
+	# Brighten the pressed tile and dim the others (preserves the pre-redesign selection feedback;
+	# the bridge card, added after the blocks, is dimmed like any non-selected tile).
 	var i := 0
 	for child in _pieces_bar.get_children():
-		if child is PanelContainer:
-			# Only the player's own tiles count for selection accent; the bridge stays neutral.
-			var tex_button := child.get_child(0).get_child(0)
-			if tex_button is TextureButton:
-				tex_button.modulate = Color.WHITE if i == index else Color(0.55, 0.55, 0.55)
+		if child.has_meta("tex_button"):
+			var tex_button: TextureButton = child.get_meta("tex_button")
+			tex_button.modulate = Color.WHITE if i == index else Color(0.55, 0.55, 0.55)
 			i += 1
 	piece_drag_started.emit(index)
