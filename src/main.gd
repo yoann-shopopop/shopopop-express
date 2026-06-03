@@ -38,6 +38,11 @@ func _ready() -> void:
 	add_child(_ui)
 	_ui.player_count_chosen.connect(_on_player_count_chosen)
 
+	# Opening title screen (above everything); dismissing it reveals the player-count chooser.
+	var title := TitleScreen.new()
+	add_child(title)
+	title.start_requested.connect(func() -> void: title.queue_free())
+
 
 ## Starts a game with [param count] players. [param rng_seed] >= 0 makes the draw deterministic.
 func start_game(count: int, rng_seed: int = -1) -> void:
