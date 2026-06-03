@@ -100,8 +100,8 @@ func _process(_delta: float) -> void:
 		_budget_cubes.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.50)
 		_budget_cubes.scale = Vector3.ONE * 2.2 * zoom
 	if _event_choice != null and is_instance_valid(_event_choice):
-		_event_choice.position = center + Vector3(0.0, 1.0, -half_h * 0.05)
-		_event_choice.scale = Vector3.ONE * 4.0 * zoom
+		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.74)
+		_event_choice.scale = Vector3.ONE * 3.0 * zoom
 	if _delivery_list != null:
 		# Left column: centered horizontally on x≈-0.82*half_w, top near +0.5*half_h, rows going down (+z).
 		var left_origin := center + Vector3(-half_w * 0.82, 1.0, -half_h * 0.46)
@@ -305,8 +305,7 @@ func _on_event_triggered(cell: Vector2i) -> void:
 	_event_choice = EventCardChoice.new()
 	add_child(_event_choice)
 	_event_choice.resolved.connect(_on_event_resolved)
-	var anchor := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE) + Vector3(0.0, 1.0, 0.0)
-	_event_choice.present(drawn, _camera, anchor)
+	_event_choice.present(drawn, _camera, Vector3.ZERO)  # position pinned each frame by _process
 	_ui.set_status("Événement ! Choisis une carte, puis clique-la pour l'activer.")
 
 
