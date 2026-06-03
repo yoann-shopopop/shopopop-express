@@ -1,25 +1,32 @@
 class_name PlacementUI
 extends CanvasLayer
-## Setup-phase UI: a start screen to pick the player count, then a bar showing whose turn it is, the
-## current player's remaining pieces (selectable), and a rotate button. Lives in a CanvasLayer so it
-## stays the home of the future game UI (cards, dice, scores). Emits intents; the controller acts.
+## Setup-phase UI: a start screen to pick the player count, then a bar showing whose turn it is and
+## the current player's remaining pieces (draggable previews). Placing a block does not end the turn;
+## a floating toolbar (rotate left / remove / rotate right) hovers over the piece just placed so it
+## can be adjusted, and "Terminer" (enabled only once a block is placed) ends the turn. Lives in a
+## CanvasLayer so it stays the home of the future game UI. Emits intents; the controller acts.
 
 signal player_count_chosen(count: int)
 signal piece_drag_started(index: int)
 signal bridge_drag_started
-signal pass_requested
-signal rotate_requested
+signal finish_requested
+signal rotate_requested            ## cycle the magnet's candidate orientation while dragging
+signal rotate_left_requested       ## floating toolbar: rotate the placed piece counter-clockwise
+signal rotate_right_requested      ## floating toolbar: rotate the placed piece clockwise
+signal remove_requested            ## floating toolbar: take the placed piece back to the tray
 
 const BUTTON_MIN := Vector2(118, 52)
-
 const PREVIEW_SIZE := Vector2(104, 104)
+const CONTROL_BTN := Vector2(60, 60)
 
 var _start_panel: Control
 var _game_panel: Control
 var _turn_label: Label
 var _pieces_bar: HBoxContainer
 var _status_label: Label
-var _vp_host: Node  # offscreen holder for the preview SubViewports
+var _finish_button: Button
+var _controls: HBoxContainer       # floating, world-anchored toolbar for the active piece
+var _vp_host: Node                 # offscreen holder for the preview SubViewports
 
 
 func _ready() -> void:
@@ -27,6 +34,7 @@ func _ready() -> void:
 	add_child(_vp_host)
 	_build_start_panel()
 	_build_game_panel()
+	_build_controls()
 	_game_panel.hide()
 
 
@@ -78,6 +86,7 @@ func _build_game_panel() -> void:
 	_game_panel.add_theme_constant_override("margin_right", 16)
 	_game_panel.add_theme_constant_override("margin_top", 16)
 	_game_panel.add_theme_constant_override("margin_bottom", 16)
+	_game_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE  # let board presses through empty areas
 	add_child(_game_panel)
 
 	_turn_label = Label.new()
@@ -103,11 +112,40 @@ func _build_game_panel() -> void:
 	bottom.add_child(_pieces_bar)
 
 
-## Refreshes the bar for [param player]'s turn: colored label + a tile preview per remaining piece.
-func set_current_player(player: Player) -> void:
+# Floating toolbar shown above the piece just placed: rotate left, remove, rotate right (in order).
+func _build_controls() -> void:
+	_controls = HBoxContainer.new()
+	_controls.add_theme_constant_override("separation", 8)
+	_controls.top_level = true
+	_controls.hide()
+	add_child(_controls)
+
+	var rot_left := Button.new()
+	rot_left.text = "⟲"
+	rot_left.custom_minimum_size = CONTROL_BTN
+	rot_left.pressed.connect(func() -> void: rotate_left_requested.emit())
+	_controls.add_child(rot_left)
+
+	var remove := Button.new()
+	remove.text = "✕"
+	remove.custom_minimum_size = CONTROL_BTN
+	remove.pressed.connect(func() -> void: remove_requested.emit())
+	_controls.add_child(remove)
+
+	var rot_right := Button.new()
+	rot_right.text = "⟳"
+	rot_right.custom_minimum_size = CONTROL_BTN
+	rot_right.pressed.connect(func() -> void: rotate_right_requested.emit())
+	_controls.add_child(rot_right)
+
+
+## Refreshes the bar for [param player]'s turn. While [param block_placed] is true the tray blocks are
+## locked (one block per turn) and "Terminer" is enabled; otherwise the reverse.
+func set_current_player(player: Player, block_placed: bool) -> void:
 	_turn_label.text = "Tour : %s" % PlayerColor.name_of(player.color)
 	_turn_label.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
-	_status_label.text = "Choisis une tuile puis clique pour la poser (R = rotation)"
+	_status_label.text = "Pose une tuile, ajuste-la (boutons au-dessus), puis Terminer." if block_placed \
+		else "Choisis une tuile et glisse-la sur le plateau pour la poser."
 
 	for child in _pieces_bar.get_children():
 		child.queue_free()
@@ -120,17 +158,19 @@ func set_current_player(player: Player) -> void:
 		button.ignore_texture_size = true
 		button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		button.custom_minimum_size = PREVIEW_SIZE
-		button.button_down.connect(_on_piece_pressed.bind(i))  # press = start dragging the tile
+		button.disabled = block_placed  # only one block may be placed per turn
+		button.modulate = Color(0.45, 0.45, 0.45) if block_placed else Color.WHITE
+		button.button_down.connect(_on_piece_pressed.bind(i))
 		_pieces_bar.add_child(button)
 
-	# The free bridge, if still held — draggable like a piece.
+	# The free bridge, if still held — draggable any time during the turn.
 	if player.bridge != null:
 		var bridge_btn := TextureButton.new()
 		bridge_btn.texture_normal = TilePreview.build(player.bridge, _vp_host)
 		bridge_btn.ignore_texture_size = true
 		bridge_btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		bridge_btn.custom_minimum_size = PREVIEW_SIZE
-		bridge_btn.modulate = Color(0.8, 0.95, 1.0)  # slight tint to read as the (free) bridge
+		bridge_btn.modulate = Color(0.8, 0.95, 1.0)
 		bridge_btn.button_down.connect(func() -> void: bridge_drag_started.emit())
 		_pieces_bar.add_child(bridge_btn)
 
@@ -140,19 +180,26 @@ func set_current_player(player: Player) -> void:
 	rotate.pressed.connect(func() -> void: rotate_requested.emit())
 	_pieces_bar.add_child(rotate)
 
-	# When no blocks remain, allow ending the turn (keeping or skipping the bridge).
-	if player.pieces.is_empty():
-		var finish := Button.new()
-		finish.text = "Terminer"
-		finish.custom_minimum_size = Vector2(110, 52)
-		finish.pressed.connect(func() -> void: pass_requested.emit())
-		_pieces_bar.add_child(finish)
+	_finish_button = Button.new()
+	_finish_button.text = "Terminer"
+	_finish_button.custom_minimum_size = Vector2(110, 52)
+	_finish_button.disabled = not block_placed
+	_finish_button.pressed.connect(func() -> void: finish_requested.emit())
+	_pieces_bar.add_child(_finish_button)
+
+
+## Positions (and shows/hides) the floating toolbar over the active piece.
+func update_controls(shown: bool, screen_pos: Vector2) -> void:
+	_controls.visible = shown
+	if shown:
+		_controls.position = screen_pos - _controls.size * 0.5
 
 
 func set_finished() -> void:
 	_turn_label.text = "Mise en place terminée"
 	_turn_label.add_theme_color_override("font_color", Color.WHITE)
 	_status_label.text = "Tous les blocs sont posés."
+	_controls.hide()
 	for child in _pieces_bar.get_children():
 		child.queue_free()
 

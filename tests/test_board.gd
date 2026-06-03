@@ -111,3 +111,34 @@ func test_piece_at_returns_the_piece_covering_a_cell() -> void:
 
 func test_piece_at_returns_null_on_an_empty_cell() -> void:
 	assert_null(_board.piece_at(Vector2i(5, 5)))
+
+
+func test_remove_piece_frees_its_cells() -> void:
+	_board.place(_road_tile(), Vector2i.ZERO, 0, BLUE)
+	assert_true(_board.remove_piece(_board.pieces()[0]))
+	assert_true(_board.is_empty())
+	assert_false(_board.is_occupied(Vector2i.ZERO))
+	assert_eq(_board.cell_type_at(Vector2i.ZERO), -1)
+
+
+func test_remove_piece_clears_its_connector_so_the_cell_is_reusable() -> void:
+	_board.place(_road_tile(), Vector2i.ZERO, 0, BLUE)
+	_board.place(_road_tile(), Vector2i(1, 0), 0, RED)
+	assert_true(_board.remove_piece(_board.pieces()[1]))
+	assert_eq(_board.pieces().size(), 1)
+	# (1,0) is free again and still links road-to-road to the remaining tile at (0,0).
+	assert_true(_board.can_place(_road_tile(), Vector2i(1, 0), 0))
+
+
+func test_remove_piece_not_on_board_returns_false() -> void:
+	_board.place(_road_tile(), Vector2i.ZERO, 0, BLUE)
+	var ghost := PlacedPiece.new(_road_tile(), Vector2i(5, 5), 0, RED)
+	assert_false(_board.remove_piece(ghost))
+	assert_eq(_board.pieces().size(), 1)
+
+
+func test_remove_piece_emits_changed() -> void:
+	_board.place(_road_tile(), Vector2i.ZERO, 0, BLUE)
+	watch_signals(_board)
+	_board.remove_piece(_board.pieces()[0])
+	assert_signal_emitted(_board, "changed")

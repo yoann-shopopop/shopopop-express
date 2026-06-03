@@ -112,7 +112,7 @@ src/blocks/     cell_type.gd (CellType)       enum Route/Vert/Urbain/Eau/Événe
                 block_definition.gd           BlockDefinition (Resource) : cases + types + connecteurs
 src/game/       player_color.gd / player.gd   4 couleurs (Bleu/Rouge/Violet/Jaune) + modèle joueur
                 setup_distributor.gd          tire 3 patterns partagés, recolore, assigne le départ
-                setup_phase.gd                tours round-robin (pont manuel gratuit + pass)
+                setup_phase.gd                tours round-robin : 1 bloc/tour (sans auto-avance) ajustable (retrait/rotation) + pont gratuit, fin via finish_turn
 src/pawns/      pawn_definition.gd / pawn.gd  PawnDefinition (Resource) + Pawn (état : position + steps)
 src/cards/      card_definition.gd / deck.gd  CardDefinition (Resource) + Deck (pioche/défausse, RNG)
 src/movement/   movement.gd (Movement)        marche auto-évitante sur un set de cases injecté
@@ -154,15 +154,25 @@ Apportés par la fusion de `main` ; chacun ignore les autres et le `Board`, bran
 conventions Red Blob Games. `HexUtils` : voisins, distance, rotation 60°, `line()`, case↔monde (plan XZ).
 
 **Blocs & types** : `BlockDefinition` = `cells` + `cell_types` (parallèle) + `connectors`. Tuile quartier
-= hexagone **côté 3 = 19 cases** (les **3 patterns** des assets B1/B2/B3 : route en croix/T par le centre,
-**case spéciale au centre**, + eau/urbain/vert procéduraux avec **≥2 vert et ≥1 urbain**). **Pont** =
+= hexagone **côté 3 = 19 cases** (les **3 patterns** des assets B1/B2/B3, routes en segments **droits
+alignés sur la grille** = reliant les **coins** du grand hexagone, `coin i = DIRECTIONS[i]·R` ; relier
+des centres d'arête ferait zigzaguer la route). **2 en Y** = une droite traversante `{0-3}` + une
+bifurcation vers un coin adjacent (miroir gauche/droite, 3 connecteurs) et **1 en croix** = deux droites
+croisées `{0-3}+{1-4}` (4 connecteurs). Les **connecteurs sont les coins atteints** (jonction
+route-à-route, tuiles assemblées en quinconce). **Case spéciale au centre**, + eau/urbain/vert
+procéduraux avec **≥2 vert et ≥1 urbain**. **Pont** =
 `Eau–Route–Eau` dont **seule la case centrale (route)** connecte. `SetupDistributor` tire les 3 patterns
 (partagés), recolore par joueur, + 1 pont + un **départ** (case verte en bord de route).
 
 **Placement (route-à-route)** : `Board` indexe des `PlacedPiece`. `can_place()` = pas de chevauchement +
 (1ʳᵉ pièce libre, sinon **un connecteur de la nouvelle pièce voisin d'un connecteur ROUTE existant**).
-Connecteurs = cases route (centres d'arête des hexagones ; **case centrale du pont uniquement**).
-`SetupPhase` enchaîne les tours ; le pont est posé à la main, **gratuit** (n'avance pas le tour).
+Connecteurs = cases route atteintes en bord de tuile (**coins** du grand hexagone ; **case centrale du
+pont uniquement**) ; `Board.remove_piece()` permet de reprendre une pièce posée. **Modèle de tour
+`SetupPhase`** : poser un bloc **n'avance pas** le tour ; le bloc posé est ajustable (`remove_block` /
+`rotate_block` qui snappe à la rotation valide, ou repositionné en le glissant) ; le **pont** reste
+gratuit (`try_place_bridge`, mêmes ajustements). `finish_turn()` clôt le tour, **refusé tant qu'aucun
+bloc n'est posé** ; le joueur est `done` quand `pieces` est vide (un pont non posé est **abandonné** —
+jamais de tour avec seulement un pont).
 
 **Rendu** : scène 3D, **caméra ortho top-down**, chaque case = **Sprite3D texturé** posé à plat (base
 388px sur l'hexagone, décor débordant au Nord, tri Sud-sur-Nord), routes orientées via `RoadTiling`,
@@ -170,6 +180,9 @@ Connecteurs = cases route (centres d'arête des hexagones ; **case centrale du p
 
 **Interaction** : pointeur souris/tactile ; **magnet** snappe le fantôme à la pose légale la plus proche
 (auto-rotation, rotation = cycle des candidats) ; on glisse blocs et pont ; fantôme **rouge** si invalide.
+Après pose, **barre flottante** ancrée au-dessus de la pièce active (⟲ rotation gauche · ✕ retirer · ⟳
+rotation droite) ; glisser la pièce posée la reprend (repose ou restaure si drop invalide). Tray verrouillé
+tant qu'un bloc est posé (1/tour) ; **"Terminer"** activé seulement une fois un bloc posé.
 
 ### Couche de gameplay intégrée (au-dessus du socle plateau)
 

@@ -58,24 +58,33 @@ func start_game(count: int, rng_seed: int = -1) -> void:
 	controller.setup(_camera, board, _ghost, phase)
 
 	phase.turn_changed.connect(_on_turn_changed)
+	phase.turn_state_changed.connect(_on_turn_changed)
 	phase.setup_finished.connect(_on_setup_finished)
 	_ui.piece_drag_started.connect(controller.begin_drag)
 	_ui.bridge_drag_started.connect(controller.begin_bridge_drag)
-	_ui.pass_requested.connect(_on_pass_requested)
+	_ui.finish_requested.connect(_on_finish_requested)
 	_ui.rotate_requested.connect(controller.rotate_current)
-	_ui.set_current_player(phase.current_player())
+	_ui.rotate_left_requested.connect(func() -> void: controller.rotate_active(-1))
+	_ui.rotate_right_requested.connect(func() -> void: controller.rotate_active(1))
+	_ui.remove_requested.connect(controller.remove_active)
+	controller.controls_changed.connect(_ui.update_controls)
+	_refresh_ui()
 
 
 func _on_player_count_chosen(count: int) -> void:
 	start_game(count)
 
 
-func _on_turn_changed(player: Player) -> void:
-	_ui.set_current_player(player)
+func _on_turn_changed(_player: Player) -> void:
+	_refresh_ui()
 
 
-func _on_pass_requested() -> void:
-	phase.pass_turn()
+func _refresh_ui() -> void:
+	_ui.set_current_player(phase.current_player(), phase.block_placed_this_turn())
+
+
+func _on_finish_requested() -> void:
+	phase.finish_turn()
 
 
 func _on_setup_finished() -> void:
