@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+[gd_resource type="Resource" script_class="DestinataireDefinition" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_y7cpp"]
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+[ext_resource type="Texture2D" path="res://assets/player-token/cartes shopopop express21.jpg" id="2_img"]
 
 [resource]
-script = ExtResource("1_y7cpp")
+script = ExtResource("1_dest")
 id = &"soa_de_muse"
 display_name = "Soa de Muse"
 color = Color(0.1764706, 0.49019608, 0.8235294, 1)
+texture = ExtResource("2_img")

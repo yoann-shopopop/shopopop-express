@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+[gd_resource type="Resource" script_class="DestinataireDefinition" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_lk1ue"]
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+[ext_resource type="Texture2D" path="res://assets/player-token/cartes shopopop express19.jpg" id="2_img"]
 
 [resource]
-script = ExtResource("1_lk1ue")
+script = ExtResource("1_dest")
 id = &"punani"
 display_name = "Punani"
 color = Color(0.78039217, 0.49019608, 1, 1)
+texture = ExtResource("2_img")
