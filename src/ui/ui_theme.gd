@@ -71,17 +71,3 @@ static func tray_card_style(accent: Color, selected: bool) -> StyleBoxFlat:
 	sb.shadow_offset = Vector2(0, 1)
 	sb.set_content_margin_all(6)
 	return sb
-
-
-## A vertical two-stop gradient texture (top -> bottom). Used for the full-screen backdrop.
-static func vertical_gradient(top: Color, bottom: Color) -> GradientTexture2D:
-	var grad := Gradient.new()
-	grad.set_color(0, top)
-	grad.set_color(1, bottom)
-	var tex := GradientTexture2D.new()
-	tex.gradient = grad
-	tex.fill_from = Vector2(0, 0)
-	tex.fill_to = Vector2(0, 1)
-	tex.width = 16
-	tex.height = 256
-	return tex
