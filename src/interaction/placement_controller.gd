@@ -12,6 +12,7 @@ extends Node
 ## interaction uses [method _unhandled_input] so UI button presses never reach it.
 
 signal controls_changed(shown: bool, screen_pos: Vector2)  # floating toolbar follow / show-hide
+signal drag_changed(active: bool)          # drag started / ended — for drag-only UI affordances
 
 const BOARD_PLANE := Plane(Vector3.UP, 0.0)
 const MAGNET_RADIUS := 1
@@ -116,6 +117,7 @@ func _start_drag(bridge: bool, index: int) -> void:
 	_ghost.set_rotation_steps(0)
 	_ghost.set_valid(false)
 	_ghost.visible = true
+	drag_changed.emit(true)
 
 
 func rotate_current() -> void:
@@ -194,6 +196,7 @@ func _end_drag() -> void:
 	_rotation = 0
 	_ghost.visible = false
 	_ghost.set_block(null)
+	drag_changed.emit(false)
 
 
 func _update_pointer(screen_pos: Vector2) -> void:

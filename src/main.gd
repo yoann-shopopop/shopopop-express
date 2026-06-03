@@ -19,6 +19,7 @@ var _characters: Array[CharacterDefinition] = []
 var _bridge: BlockDefinition
 var _players: Array[Player] = []
 var _game_root: GameRoot
+var _initial_piece_counts: Dictionary = {}  # Player -> initial tile count, for the "Tour X/Y" header
 
 
 func _ready() -> void:
@@ -41,6 +42,9 @@ func start_game(count: int, rng_seed: int = -1) -> void:
 	else:
 		rng.randomize()
 	_players = SetupDistributor.build_players(count, _library, _bridge, rng, _characters)
+	_initial_piece_counts.clear()
+	for p in _players:
+		_initial_piece_counts[p] = p.pieces.size()
 	_ui.begin_game()
 
 	board = Board.new()
@@ -68,6 +72,7 @@ func start_game(count: int, rng_seed: int = -1) -> void:
 	_ui.rotate_right_requested.connect(func() -> void: controller.rotate_active(1))
 	_ui.remove_requested.connect(controller.remove_active)
 	controller.controls_changed.connect(_ui.update_controls)
+	controller.drag_changed.connect(_ui.set_dragging)
 	_refresh_ui()
 
 
@@ -80,7 +85,11 @@ func _on_turn_changed(_player: Player) -> void:
 
 
 func _refresh_ui() -> void:
-	_ui.set_current_player(phase.current_player(), phase.block_placed_this_turn())
+	var player := phase.current_player()
+	var total: int = _initial_piece_counts.get(player, player.pieces.size())
+	var index := PlacementUI.compute_turn_index(total, player.pieces.size(), phase.block_placed_this_turn())
+	_ui.set_current_player(player, phase.block_placed_this_turn(), index, total)
+	_ui.set_dragging(false)
 
 
 func _on_finish_requested() -> void:
@@ -140,12 +149,24 @@ func _build_light() -> void:
 
 
 func _build_environment() -> void:
+	# Light, airy backdrop (mockup feel). A full-screen gradient on a background CanvasLayer sits behind
+	# the 3D board; the 3D environment itself stays transparent-ish via a matching flat clear color.
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("1b2330")
+	env.background_color = Color("c3d2df")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("8090a0")
-	env.ambient_light_energy = 0.6
+	env.ambient_light_color = Color("dfe7ef")
+	env.ambient_light_energy = 0.8
 	var holder := WorldEnvironment.new()
 	holder.environment = env
 	add_child(holder)
+
+	# Vertical gradient drawn behind everything (light top -> slightly deeper bottom).
+	var bg_layer := CanvasLayer.new()
+	bg_layer.layer = -100
+	add_child(bg_layer)
+	var rect := TextureRect.new()
+	rect.texture = UITheme.vertical_gradient(Color("dCe8f2"), Color("aebfd0"))
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg_layer.add_child(rect)
