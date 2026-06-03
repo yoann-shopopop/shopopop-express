@@ -204,20 +204,22 @@ src/game/       character_definition.gd        CharacterDefinition (Resource) : 
                 game_root.gd (GameRoot)         composition root du jeu : pions, dés, deck, UI, contrôleur
 src/cards/      event_card_definition.gd        EventCardDefinition : effect/amount/condition/is_malus
 src/interaction/movement_controller.gd          clic/tap → case → GamePhase.try_step
-src/ui/         game_ui.gd (GameUI)             tour, score, lancer dés, livraisons, prendre/livrer, pouvoir, fin
+src/ui/         game_ui.gd (GameUI)             tour, score, lancer dés, réserver, pouvoir, fin
 resources/characters/*.tres   8 personnages   ·  resources/events/*.tres   ~22 cartes (outil generate_event_cards.gd)
 ```
 
-**Boucle de tour** (`GamePhase`, round-robin) : PLANIFICATION (`select_delivery`) → DEPLACEMENT
-(`begin_movement(budget)` depuis `DiceRoller`, puis `try_step` sur les **routes uniquement**) →
-EVENEMENT (case arc-en-ciel → `apply_event`) → PRISE_EN_CHARGE (`confirm_pickup`, **−1 déplacement**)
-→ LIVRAISON (`confirm_delivery`, **gratuit**, score). Fin de partie quand toutes les livraisons sont
-faites. Pouvoir une seule fois (`use_power`).
+**Boucle de tour** (`GamePhase`, round-robin) : PLANIFICATION (`begin_movement(budget)` depuis
+`DiceRoller`) → DEPLACEMENT (`try_step` sur les **routes uniquement** ; pendant le déplacement,
+`reserve_delivery()` sur la tuile d'un drive disponible — **2 max** par joueur) → EVENEMENT (case
+arc-en-ciel → `apply_event`). Les transitions de livraison sont **automatiques** et **gratuites** :
+sur la case du drive → EN_COURS ; sur la case du destinataire → livrée (score + recyclage du
+destinataire via `DeliveryGenerator`). Fin de partie quand plus aucune livraison n'est actionnable.
+Pouvoir une seule fois (`use_power`).
 
 ⚠️ `Movement` (auto-évitant, démo) **n'est pas** réutilisé en jeu : `TurnMovement` autorise revisite,
-budget ajustable (events ±, prise en charge +1) et téléportation (cartes). « Tuile à moi » = la
-**couleur de quartier** (`PlacedPiece.owner`) appartient au **personnage** (`character.owns_color`),
-jamais l'identité du joueur (`Player.index`).
+budget ajustable (events ±) et téléportation (cartes). « Tuile à moi » = la **couleur de quartier**
+(`PlacedPiece.owner`) égale la **couleur du joueur** (`Player.color`) — l'identité de score, pas les
+2 couleurs du personnage.
 
 **Points laissés en STUB (V1, points ouverts non tranchés)** : téléportation « quartier »/« parallèle »,
 Manifestation/Fuite/Pluies (effets persistants), capacité de volume (Margot), pont en jeu, coop vs

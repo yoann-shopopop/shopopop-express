@@ -250,7 +250,7 @@ func _on_budget_changed(remaining: int) -> void:
 	if remaining > 0:
 		_ui.set_status("Déplacement restant : %d" % remaining)
 	else:
-		_ui.set_status("Déplacement terminé — prends/livre ou Fin de tour.")
+		_ui.set_status("Déplacement terminé — réserve si possible, ou Fin de tour.")
 
 
 func _on_reserve() -> void:
