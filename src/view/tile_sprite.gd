@@ -4,10 +4,10 @@ extends RefCounted
 ## overflowing north, roads oriented via RoadTiling. Shared by the board view, the ghost and the
 ## UI previews so they all look identical.
 
-const TEX_W := 450.0
-const TEX_H := 500.0
-const BASE_PX := 388.0
-const OFFSET_Y_PX := (TEX_H - BASE_PX) / 2.0      # center the base region on the hex
+const TEX_W := 248.0                              # new art = flat-top hex bounding box (≈248×215)
+const TEX_H := 215.0
+const BASE_PX := 215.0                            # the art fills the hex; no northward overflow
+const OFFSET_Y_PX := (TEX_H - BASE_PX) / 2.0      # 0 — kept as a formula for clarity
 const SORT_K := 0.01                              # south-over-north depth nudge
 const FLAT := Basis(Vector3(1, 0, 0), -PI / 2.0)  # lay flat, texture-up = north
 
@@ -16,7 +16,7 @@ const FLAT := Basis(Vector3(1, 0, 0), -PI / 2.0)  # lay flat, texture-up = north
 ## keyed by Vector2i) of road cells in the same piece, used to orient roads. [param variant_seed]
 ## is the cell's LOCAL offset within its block, so the random texture variant stays stable wherever
 ## the block is previewed, placed or rotated.
-static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float, variant_seed: Vector2i, piece_cells: Dictionary = {}) -> Sprite3D:
+static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float, variant_seed: Vector2i, piece_cells: Dictionary = {}, is_drive: bool = false) -> Sprite3D:
 	var sprite := Sprite3D.new()
 	sprite.pixel_size = (2.0 * size) / TEX_W
 	sprite.offset = Vector2(0, OFFSET_Y_PX)
@@ -38,6 +38,10 @@ static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float,
 		yaw = float(meta["steps"]) * PI / 3.0
 		if bridge:
 			yaw += PI / 2.0
+	elif type == CellType.Kind.URBAN and is_drive:
+		# The pickup point's urban cell shows the DRIVE storefront art (the enseigne jeton sits on top).
+		var drives := TileTextures.drive_variants()
+		sprite.texture = drives[_variant_of(variant_seed, drives.size())]
 	else:
 		var variants := TileTextures.variants(type)
 		sprite.texture = variants[_variant_of(variant_seed, variants.size())]

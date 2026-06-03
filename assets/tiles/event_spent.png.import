@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://duhxw7n0tmg0n"
-path="res://.godot/imported/3.png-b8224ea552029ff441facf75fad856a0.ctex"
+uid="uid://deqhtbl1yhjnp"
+path="res://.godot/imported/event_spent.png-172f9dae62a1732033a7c9d61e7f8e3e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/tiles/urban/3.png"
-dest_files=["res://.godot/imported/3.png-b8224ea552029ff441facf75fad856a0.ctex"]
+source_file="res://assets/tiles/event_spent.png"
+dest_files=["res://.godot/imported/event_spent.png-172f9dae62a1732033a7c9d61e7f8e3e.ctex"]
 
 [params]
 

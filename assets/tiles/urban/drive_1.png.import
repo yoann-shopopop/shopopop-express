@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://crpc4ko3hg171"
-path="res://.godot/imported/4.png-ddf48ea4bf44e833d94c81362f4ec36a.ctex"
+uid="uid://crd3a3hjrt121"
+path="res://.godot/imported/drive_1.png-700fc9cbc6812f06a0c12bed00918cf5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/tiles/green/4.png"
-dest_files=["res://.godot/imported/4.png-ddf48ea4bf44e833d94c81362f4ec36a.ctex"]
+source_file="res://assets/tiles/urban/drive_1.png"
+dest_files=["res://.godot/imported/drive_1.png-700fc9cbc6812f06a0c12bed00918cf5.ctex"]
 
 [params]
 

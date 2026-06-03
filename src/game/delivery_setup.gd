@@ -12,12 +12,18 @@ extends RefCounted
 static func build(board: Board) -> Array[Delivery]:
 	var deliveries: Array[Delivery] = []
 	for piece in board.pieces():
-		var drive = _first_cell_of_type(piece, CellType.Kind.URBAN)
+		var drive = drive_cell_of(piece)
 		var recipient = _first_cell_of_type(piece, CellType.Kind.GREEN)
 		if drive == null or recipient == null:
 			continue  # not a deliverable tile (e.g. a bridge)
 		deliveries.append(Delivery.new(drive, recipient, [piece] as Array[PlacedPiece]))
 	return deliveries
+
+
+## The drive (pickup) cell of [param piece]: its first URBAN cell, or null if it has none. Single
+## source of the "drive = first urban cell" rule, shared with the tile rendering (DRIVE storefront art).
+static func drive_cell_of(piece: PlacedPiece):
+	return _first_cell_of_type(piece, CellType.Kind.URBAN)
 
 
 # The first absolute cell of [param piece] whose terrain is [param kind], or null if none.
