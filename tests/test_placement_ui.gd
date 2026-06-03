@@ -23,6 +23,10 @@ func test_last_turn_after_placing() -> void:
 	assert_eq(PlacementUI.compute_turn_index(3, 0, true), 3)
 
 
+func test_last_turn_nothing_placed() -> void:
+	assert_eq(PlacementUI.compute_turn_index(3, 1, false), 3)
+
+
 func test_clamped_to_at_least_one() -> void:
 	# Defensive: never report turn 0 or negative.
 	assert_eq(PlacementUI.compute_turn_index(0, 0, false), 1)

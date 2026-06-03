@@ -21,7 +21,8 @@ const CONTROL_BTN := Vector2(60, 60)
 
 ## 1-based placement-turn number for the header's "Tour X/Y". [param total] is the player's initial
 ## tile count, [param remaining] the tiles still in their tray, [param block_placed] whether this
-## turn's block is already down (placing removes it from the tray, so we add it back here). Clamped
+## turn's block is already down. When no block is placed yet we add 1 so the counter reads the
+## current turn (not the next), since placing a block removes it from [param remaining]. Clamped
 ## to >= 1. Pure — no state, unit-tested.
 static func compute_turn_index(total: int, remaining: int, block_placed: bool) -> int:
 	var index := total - remaining + (0 if block_placed else 1)
