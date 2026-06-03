@@ -9,8 +9,8 @@ extends Node3D
 
 ## Extra height above the tile surface so the token never z-fights with the board.
 const SPRITE_LIFT := 0.1
-## Radius of the chip, in world units (a bit under the hexagon circumradius of 1.0).
-const CHIP_RADIUS := 0.55
+## Radius of the chip, in world units — nearly fills the cell (its inscribed circle radius is ~0.87).
+const CHIP_RADIUS := 0.82
 ## Thickness of the chip — enough relief to read as a token under the top-down light.
 const CHIP_HEIGHT := 0.18
 ## Neutral chip body color; the image on top carries the identity.
@@ -36,13 +36,9 @@ void fragment() {
 }"
 
 
-## Binds this view to [param pawn]: builds its figure/token and follows its position via signals.
-## A pawn with a texture (a player persona token, or a drive/recipient) renders as a flat image chip;
-## a textureless mobile pawn falls back to the classic colored figure.
+## Binds this view to [param pawn]: builds its figure and follows its position via signals.
 func bind(pawn: Pawn) -> void:
-	if pawn.definition.texture != null:
-		_build_token(pawn.definition.texture)
-	elif pawn.definition.is_mobile():
+	if pawn.definition.is_mobile():
 		_build_figure(pawn.definition.color)
 	else:
 		_build_token(pawn.definition.texture)

@@ -7,7 +7,6 @@ extends Node3D
 const EVENTS_DIR := "res://resources/events/"
 const ENSEIGNES_DIR := "res://resources/enseignes/"
 const DESTINATAIRES_DIR := "res://resources/destinataires/"
-const PLAYER_TOKENS_DIR := "res://assets/player-token/"
 const _REF_SIZE := 30.0  # the camera's default ortho size; overlays scale relative to it
 
 var _board: Board
@@ -18,7 +17,6 @@ var _dice: DiceRoller
 var _events: Deck
 var _ui: PlayHud
 var _pawns: Dictionary = {}            # player index -> Pawn
-var _player_tokens: Array = []         # persona token textures, one assigned per player (by seat)
 var _recipient_markers: Dictionary = {}  # Delivery -> Node3D (rebuilt on recycle)
 var _status_rings: Dictionary = {}     # Delivery -> Node3D (status disc on the drive cell)
 var _can_roll: bool = true
@@ -57,7 +55,6 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_highlights = Node3D.new()
 	add_child(_highlights)
 
-	_player_tokens = _load_player_tokens()
 	for player in players:
 		_spawn_pawn(player)
 	_build_delivery_markers(deliveries)
@@ -158,9 +155,6 @@ func _spawn_pawn(player: Player) -> void:
 	var def := PawnDefinition.new()
 	def.type = PawnDefinition.PawnType.COTRANSPORTER
 	def.color = PlayerColor.to_color(player.color)
-	# Each player gets a distinct persona token from the pool (same image-chip process as the drives).
-	if not _player_tokens.is_empty():
-		def.texture = _player_tokens[player.index % _player_tokens.size()]
 	var pawn := Pawn.new(def)
 	var view := PawnView.new()
 	add_child(view)
@@ -444,20 +438,6 @@ func _load_events() -> Array[CardDefinition]:
 		for file in dir.get_files():
 			if file.ends_with(".tres"):
 				result.append(load(EVENTS_DIR + file))
-	return result
-
-
-# The pool of player persona token images (assets/player-token/*.jpg), sorted for a stable per-seat
-# assignment.
-func _load_player_tokens() -> Array:
-	var result: Array = []
-	var dir := DirAccess.open(PLAYER_TOKENS_DIR)
-	if dir:
-		var files := dir.get_files()
-		files.sort()
-		for file in files:
-			if file.ends_with(".jpg") or file.ends_with(".png"):
-				result.append(load(PLAYER_TOKENS_DIR + file))
 	return result
 
 
