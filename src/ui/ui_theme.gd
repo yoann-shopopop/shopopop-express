@@ -6,7 +6,6 @@ extends RefCounted
 
 const RADIUS := 9
 const SHADOW := Color(0, 0, 0, 0.30)
-const HIGHLIGHT := Color(1, 1, 1, 0.28)  # faux top-bevel via a light top border
 const PANEL_DARK := Color("2b3440")
 const PANEL_BORDER := Color("5a6675")
 const TEXT := Color("f2f5f8")

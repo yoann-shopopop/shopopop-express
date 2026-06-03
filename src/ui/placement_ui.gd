@@ -3,7 +3,7 @@ extends CanvasLayer
 ## Setup-phase UI: a start screen to pick the player count, then a bar showing whose turn it is and
 ## the current player's remaining pieces (draggable previews). Placing a block does not end the turn;
 ## a floating toolbar (rotate left / remove / rotate right) hovers over the piece just placed so it
-## can be adjusted, and "Terminer" (enabled only once a block is placed) ends the turn. Lives in a
+## can be adjusted, and "Valider le placement" (enabled only once a block is placed) ends the turn. Lives in a
 ## CanvasLayer so it stays the home of the future game UI. Emits intents; the controller acts.
 
 signal player_count_chosen(count: int)
@@ -43,7 +43,7 @@ var _header_label: Label          # "PHASE DE PLACEMENT | Équipe ... · Tour X/
 var _subline_label: Label         # "J1 : Équipe ..."
 var _hex_label: Label             # "19 Hex"
 var _tray_rotate: Button          # cycles magnet orientation; only visible while dragging
-var _validate_button: Button      # "VALIDER LE PLACEMENT" (was _finish_button)
+var _validate_button: Button      # "VALIDER LE PLACEMENT" — ends the turn (emits finish_requested)
 var _pieces_bar: HBoxContainer
 var _controls: HBoxContainer       # floating, world-anchored toolbar for the active piece
 var _vp_host: Node                 # offscreen holder for the preview SubViewports
