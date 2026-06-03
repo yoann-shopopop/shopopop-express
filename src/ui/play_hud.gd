@@ -185,7 +185,7 @@ func _card_pile(caption: String, accent: Color, active: bool) -> VBoxContainer:
 	lbl.text = caption
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", 18)
-	lbl.add_theme_color_override("font_color", UITheme.PANEL_DARK)  # dark text on the light backdrop
+	lbl.add_theme_color_override("font_color", UITheme.TEXT)  # light text on the dark backdrop
 	col.add_child(lbl)
 	return col
 

@@ -147,8 +147,8 @@ func _process(_delta: float) -> void:
 	if _delivery_list != null:
 		# Left column: big readable cards with a CONSTANT on-screen gap (row_step is constant×zoom, not
 		# size-dependent), stacked down the left edge.
-		var left_origin := center + Vector3(-half_w * 0.72, 1.0, -half_h * 0.55)
-		_delivery_list.layout(left_origin, 3.5 * zoom, 1.25 * zoom)
+		var left_origin := center + Vector3(-half_w * 0.70, 1.0, -half_h * 0.55)
+		_delivery_list.layout(left_origin, 3.9 * zoom, 1.4 * zoom)
 
 
 func _spawn_pawn(player: Player) -> void:

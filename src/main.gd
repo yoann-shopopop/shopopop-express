@@ -155,16 +155,16 @@ func _build_light() -> void:
 
 
 func _build_environment() -> void:
-	# Light, airy backdrop (mockup feel). The gradient must live in the 3D world, BEHIND the board:
+	# Dark, soft backdrop (easy on the eyes). The gradient must live in the 3D world, BEHIND the board:
 	# a CanvasLayer (even at a negative layer) always draws on top of the 3D viewport, which would hide
 	# the board and the placement ghost. So we use a large unshaded ground plane below the tiles; the
 	# top-down ortho camera renders it as the background. The flat env clear color matches its bottom.
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("c2d2e0")  # matches the gradient's bottom, for any pan past the plane
+	env.background_color = Color("161b26")  # matches the gradient's bottom, for any pan past the plane
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("eaf1f8")
-	env.ambient_light_energy = 0.8
+	env.ambient_light_color = Color("8a94a8")
+	env.ambient_light_energy = 0.75
 	var holder := WorldEnvironment.new()
 	holder.environment = env
 	add_child(holder)
@@ -184,7 +184,7 @@ func _build_environment() -> void:
 		+ "void fragment() { ALBEDO = mix(top_color, bottom_color, UV.y); }"
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
-	mat.set_shader_parameter("top_color", Color("eaf1f8"))
-	mat.set_shader_parameter("bottom_color", Color("c2d2e0"))
+	mat.set_shader_parameter("top_color", Color("28324a"))
+	mat.set_shader_parameter("bottom_color", Color("161b26"))
 	backdrop.material_override = mat
 	add_child(backdrop)
