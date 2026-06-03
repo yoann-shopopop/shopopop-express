@@ -188,6 +188,7 @@ func _release(screen_pos: Vector2) -> void:
 
 
 func _end_drag() -> void:
+	var was_dragging := _dragging
 	_dragging = false
 	_dragging_bridge = false
 	_reposition = false
@@ -196,7 +197,8 @@ func _end_drag() -> void:
 	_rotation = 0
 	_ghost.visible = false
 	_ghost.set_block(null)
-	drag_changed.emit(false)
+	if was_dragging:
+		drag_changed.emit(false)
 
 
 func _update_pointer(screen_pos: Vector2) -> void:

@@ -163,10 +163,10 @@ func _build_environment() -> void:
 
 	# Vertical gradient drawn behind everything (light top -> slightly deeper bottom).
 	var bg_layer := CanvasLayer.new()
-	bg_layer.layer = -100
+	bg_layer.layer = -100  # behind PlacementUI (layer 1) and the default layer (0)
 	add_child(bg_layer)
 	var rect := TextureRect.new()
-	rect.texture = UITheme.vertical_gradient(Color("dCe8f2"), Color("aebfd0"))
+	rect.texture = UITheme.vertical_gradient(Color("dce8f2"), Color("aebfd0"))
 	rect.stretch_mode = TextureRect.STRETCH_SCALE
 	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg_layer.add_child(rect)
