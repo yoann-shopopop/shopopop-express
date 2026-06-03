@@ -18,6 +18,12 @@ signal remove_requested            ## floating toolbar: take the placed piece ba
 const BUTTON_MIN := Vector2(118, 52)
 const PREVIEW_SIZE := Vector2(104, 104)
 const CONTROL_BTN := Vector2(56, 56)
+const TEAM_NAMES := {
+	PlayerColor.Kind.BLUE: "Équipe Bleue",
+	PlayerColor.Kind.RED: "Équipe Rouge",
+	PlayerColor.Kind.PURPLE: "Équipe Violette",
+	PlayerColor.Kind.YELLOW: "Équipe Jaune",
+}
 
 ## 1-based placement-turn number for the header's "Tour X/Y". [param total] is the player's initial
 ## tile count, [param remaining] the tiles still in their tray, [param block_placed] whether this
@@ -31,10 +37,12 @@ static func compute_turn_index(total: int, remaining: int, block_placed: bool) -
 
 var _start_panel: Control
 var _game_panel: Control
-var _turn_label: Label
+var _header_label: Label          # "PHASE DE PLACEMENT | Équipe ... · Tour X/Y"
+var _subline_label: Label         # "J1 : Équipe ..."
+var _hex_label: Label             # "19 Hex"
+var _tray_rotate: Button          # cycles magnet orientation; only visible while dragging
+var _validate_button: Button      # "VALIDER LE PLACEMENT" (was _finish_button)
 var _pieces_bar: HBoxContainer
-var _status_label: Label
-var _finish_button: Button
 var _controls: HBoxContainer       # floating, world-anchored toolbar for the active piece
 var _vp_host: Node                 # offscreen holder for the preview SubViewports
 
@@ -99,27 +107,85 @@ func _build_game_panel() -> void:
 	_game_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE  # let board presses through empty areas
 	add_child(_game_panel)
 
-	_turn_label = Label.new()
-	_turn_label.add_theme_font_size_override("font_size", 24)
-	_turn_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	_turn_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_game_panel.add_child(_turn_label)
+	# --- Top-center header: pill + player sub-line -------------------------
+	var top := VBoxContainer.new()
+	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	top.alignment = BoxContainer.ALIGNMENT_CENTER
+	top.add_theme_constant_override("separation", 6)
+	_game_panel.add_child(top)
 
+	var pill := PanelContainer.new()
+	pill.add_theme_stylebox_override("panel", UITheme.pill_style())
+	pill.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	top.add_child(pill)
+
+	_header_label = Label.new()
+	_header_label.add_theme_font_size_override("font_size", 20)
+	_header_label.add_theme_color_override("font_color", UITheme.TEXT)
+	pill.add_child(_header_label)
+
+	_subline_label = Label.new()
+	_subline_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_subline_label.add_theme_font_size_override("font_size", 15)
+	top.add_child(_subline_label)
+
+	# --- Bottom: 19 Hex + tray + Valider -----------------------------------
 	var bottom := VBoxContainer.new()
 	bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.size_flags_vertical = Control.SIZE_SHRINK_END
 	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
-	bottom.add_theme_constant_override("separation", 8)
+	bottom.add_theme_constant_override("separation", 6)
 	_game_panel.add_child(bottom)
 
-	_status_label = Label.new()
-	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	bottom.add_child(_status_label)
+	_hex_label = Label.new()
+	_hex_label.text = "19 Hex"
+	_hex_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hex_label.add_theme_color_override("font_color", UITheme.TEXT)
+	bottom.add_child(_hex_label)
+
+	# A row that holds (left spacer) | centered tray | right-aligned Valider.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	bottom.add_child(row)
+
+	var left_spacer := Control.new()
+	left_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(left_spacer)
 
 	_pieces_bar = HBoxContainer.new()
 	_pieces_bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	_pieces_bar.add_theme_constant_override("separation", 10)
-	bottom.add_child(_pieces_bar)
+	row.add_child(_pieces_bar)
+
+	# Drag-time rotate (cycles magnet orientation) — hidden unless dragging.
+	_tray_rotate = Button.new()
+	_tray_rotate.text = "⟳"
+	_tray_rotate.custom_minimum_size = Vector2(52, 52)
+	_tray_rotate.add_theme_font_size_override("font_size", 20)
+	_tray_rotate.add_theme_color_override("font_color", UITheme.TEXT)
+	_tray_rotate.add_theme_stylebox_override("normal", UITheme.button_style(UITheme.PANEL_DARK))
+	_tray_rotate.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.PANEL_DARK, 1.6))
+	_tray_rotate.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.PANEL_DARK))
+	_tray_rotate.hide()
+	_tray_rotate.pressed.connect(func() -> void: rotate_requested.emit())
+	row.add_child(_tray_rotate)
+
+	var right := HBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.alignment = BoxContainer.ALIGNMENT_END
+	row.add_child(right)
+
+	_validate_button = Button.new()
+	_validate_button.text = "VALIDER\nLE PLACEMENT"
+	_validate_button.custom_minimum_size = Vector2(150, 64)
+	_validate_button.add_theme_font_size_override("font_size", 15)
+	_validate_button.add_theme_color_override("font_color", UITheme.TEXT)
+	_validate_button.add_theme_stylebox_override("normal", UITheme.button_style(UITheme.BLUE))
+	_validate_button.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.BLUE, 1.6))
+	_validate_button.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.BLUE))
+	_validate_button.add_theme_stylebox_override("disabled", UITheme.button_style_pressed(UITheme.PANEL_BORDER))
+	_validate_button.pressed.connect(func() -> void: finish_requested.emit())
+	right.add_child(_validate_button)
 
 
 # Floating toolbar shown above the piece just placed: rotate left, remove, rotate right (in order).
@@ -151,12 +217,17 @@ func _make_control_button(glyph: String, accent: Color, on_press: Callable) -> B
 
 
 ## Refreshes the bar for [param player]'s turn. While [param block_placed] is true the tray blocks are
-## locked (one block per turn) and "Terminer" is enabled; otherwise the reverse.
-func set_current_player(player: Player, block_placed: bool) -> void:
-	_turn_label.text = "Tour : %s" % PlayerColor.name_of(player.color)
-	_turn_label.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
-	_status_label.text = "Pose une tuile, ajuste-la (boutons au-dessus), puis Terminer." if block_placed \
-		else "Choisis une tuile et glisse-la sur le plateau pour la poser."
+## locked (one block per turn) and "Valider" is enabled; otherwise the reverse. [param turn_index] /
+## [param turn_total] feed the header's "Tour X/Y" (display only; default 0 hides it).
+func set_current_player(player: Player, block_placed: bool, turn_index: int = 0, turn_total: int = 0) -> void:
+	var team: String = TEAM_NAMES.get(player.color, PlayerColor.name_of(player.color))
+	var team_color := PlayerColor.to_color(player.color)
+	var turn_suffix := ""
+	if turn_total > 0:
+		turn_suffix = " · Tour %d/%d" % [turn_index, turn_total]
+	_header_label.text = "PHASE DE PLACEMENT  |  %s%s" % [team, turn_suffix]
+	_subline_label.text = "J%d : %s" % [player.index + 1, team]
+	_subline_label.add_theme_color_override("font_color", team_color)
 
 	for child in _pieces_bar.get_children():
 		child.queue_free()
@@ -164,39 +235,48 @@ func set_current_player(player: Player, block_placed: bool) -> void:
 		child.queue_free()
 
 	for i in player.pieces.size():
-		var button := TextureButton.new()
-		button.texture_normal = TilePreview.build(player.pieces[i], _vp_host)
-		button.ignore_texture_size = true
-		button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-		button.custom_minimum_size = PREVIEW_SIZE
-		button.disabled = block_placed  # only one block may be placed per turn
-		button.modulate = Color(0.45, 0.45, 0.45) if block_placed else Color.WHITE
-		button.button_down.connect(_on_piece_pressed.bind(i))
-		_pieces_bar.add_child(button)
+		_pieces_bar.add_child(_make_tray_card(
+			TilePreview.build(player.pieces[i], _vp_host),
+			"Block %d" % (i + 1), team_color, false, block_placed,
+			_on_piece_pressed.bind(i)))
 
 	# The free bridge, if still held — draggable any time during the turn.
 	if player.bridge != null:
-		var bridge_btn := TextureButton.new()
-		bridge_btn.texture_normal = TilePreview.build(player.bridge, _vp_host)
-		bridge_btn.ignore_texture_size = true
-		bridge_btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-		bridge_btn.custom_minimum_size = PREVIEW_SIZE
-		bridge_btn.modulate = Color(0.8, 0.95, 1.0)
-		bridge_btn.button_down.connect(func() -> void: bridge_drag_started.emit())
-		_pieces_bar.add_child(bridge_btn)
+		_pieces_bar.add_child(_make_tray_card(
+			TilePreview.build(player.bridge, _vp_host),
+			"Pont", Color("8fd0ec"), false, false,
+			func() -> void: bridge_drag_started.emit()))
 
-	var rotate := Button.new()
-	rotate.text = "⟳"
-	rotate.custom_minimum_size = Vector2(52, 52)
-	rotate.pressed.connect(func() -> void: rotate_requested.emit())
-	_pieces_bar.add_child(rotate)
+	_validate_button.disabled = not block_placed
 
-	_finish_button = Button.new()
-	_finish_button.text = "Terminer"
-	_finish_button.custom_minimum_size = Vector2(110, 52)
-	_finish_button.disabled = not block_placed
-	_finish_button.pressed.connect(func() -> void: finish_requested.emit())
-	_pieces_bar.add_child(_finish_button)
+
+# Builds one labeled tray card: a textured tile button over a small caption, in a styled frame.
+func _make_tray_card(tex: Texture2D, caption: String, accent: Color, selected: bool, disabled: bool, on_down: Callable) -> Control:
+	var frame := PanelContainer.new()
+	frame.add_theme_stylebox_override("panel", UITheme.tray_card_style(accent, selected))
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	frame.add_child(box)
+
+	var button := TextureButton.new()
+	button.texture_normal = tex
+	button.ignore_texture_size = true
+	button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	button.custom_minimum_size = PREVIEW_SIZE
+	button.disabled = disabled
+	button.modulate = Color(0.45, 0.45, 0.45) if disabled else Color.WHITE
+	button.button_down.connect(on_down)
+	box.add_child(button)
+
+	var caption_label := Label.new()
+	caption_label.text = caption
+	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	caption_label.add_theme_font_size_override("font_size", 12)
+	caption_label.add_theme_color_override("font_color", UITheme.TEXT)
+	box.add_child(caption_label)
+
+	return frame
 
 
 ## Positions (and shows/hides) the floating toolbar over the active piece.
@@ -206,18 +286,28 @@ func update_controls(shown: bool, screen_pos: Vector2) -> void:
 		_controls.position = screen_pos - _controls.size * 0.5
 
 
+## Shows/hides the drag-time magnet-rotate button (visible only while a piece is being dragged).
+func set_dragging(dragging: bool) -> void:
+	_tray_rotate.visible = dragging
+
+
 func set_finished() -> void:
-	_turn_label.text = "Mise en place terminée"
-	_turn_label.add_theme_color_override("font_color", Color.WHITE)
-	_status_label.text = "Tous les blocs sont posés."
+	_header_label.text = "MISE EN PLACE TERMINÉE"
+	_subline_label.text = "Tous les blocs sont posés."
+	_subline_label.add_theme_color_override("font_color", UITheme.TEXT)
 	_controls.hide()
+	_tray_rotate.hide()
 	for child in _pieces_bar.get_children():
 		child.queue_free()
 
 
 func _on_piece_pressed(index: int) -> void:
-	for i in _pieces_bar.get_child_count():
-		var child := _pieces_bar.get_child(i)
-		if child is TextureButton:
-			child.modulate = Color.WHITE if i == index else Color(0.55, 0.55, 0.55)
+	var i := 0
+	for child in _pieces_bar.get_children():
+		if child is PanelContainer:
+			# Only the player's own tiles count for selection accent; the bridge stays neutral.
+			var tex_button := child.get_child(0).get_child(0)
+			if tex_button is TextureButton:
+				tex_button.modulate = Color.WHITE if i == index else Color(0.55, 0.55, 0.55)
+			i += 1
 	piece_drag_started.emit(index)
