@@ -17,7 +17,7 @@ signal remove_requested            ## floating toolbar: take the placed piece ba
 
 const BUTTON_MIN := Vector2(118, 52)
 const PREVIEW_SIZE := Vector2(104, 104)
-const CONTROL_BTN := Vector2(60, 60)
+const CONTROL_BTN := Vector2(56, 56)
 
 ## 1-based placement-turn number for the header's "Tour X/Y". [param total] is the player's initial
 ## tile count, [param remaining] the tiles still in their tray, [param block_placed] whether this
@@ -125,28 +125,29 @@ func _build_game_panel() -> void:
 # Floating toolbar shown above the piece just placed: rotate left, remove, rotate right (in order).
 func _build_controls() -> void:
 	_controls = HBoxContainer.new()
-	_controls.add_theme_constant_override("separation", 8)
+	_controls.add_theme_constant_override("separation", 10)
 	_controls.top_level = true
 	_controls.hide()
 	add_child(_controls)
 
-	var rot_left := Button.new()
-	rot_left.text = "⟲"
-	rot_left.custom_minimum_size = CONTROL_BTN
-	rot_left.pressed.connect(func() -> void: rotate_left_requested.emit())
-	_controls.add_child(rot_left)
+	_controls.add_child(_make_control_button("⟲", UITheme.ORANGE, func() -> void: rotate_left_requested.emit()))
+	_controls.add_child(_make_control_button("✕", UITheme.RED, func() -> void: remove_requested.emit()))
+	_controls.add_child(_make_control_button("⟳", UITheme.BLUE, func() -> void: rotate_right_requested.emit()))
 
-	var remove := Button.new()
-	remove.text = "✕"
-	remove.custom_minimum_size = CONTROL_BTN
-	remove.pressed.connect(func() -> void: remove_requested.emit())
-	_controls.add_child(remove)
 
-	var rot_right := Button.new()
-	rot_right.text = "⟳"
-	rot_right.custom_minimum_size = CONTROL_BTN
-	rot_right.pressed.connect(func() -> void: rotate_right_requested.emit())
-	_controls.add_child(rot_right)
+# A single round-ish accent button for the floating toolbar.
+func _make_control_button(glyph: String, accent: Color, on_press: Callable) -> Button:
+	var b := Button.new()
+	b.text = glyph
+	b.custom_minimum_size = CONTROL_BTN
+	b.add_theme_font_size_override("font_size", 22)
+	b.add_theme_color_override("font_color", UITheme.TEXT)
+	b.add_theme_stylebox_override("normal", UITheme.button_style(accent))
+	b.add_theme_stylebox_override("hover", UITheme.button_style(accent, 1.6))
+	b.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(accent))
+	b.add_theme_stylebox_override("focus", UITheme.button_style(accent))
+	b.pressed.connect(on_press)
+	return b
 
 
 ## Refreshes the bar for [param player]'s turn. While [param block_placed] is true the tray blocks are
