@@ -21,6 +21,7 @@ var _recipient_markers: Dictionary = {}  # Delivery -> Node3D (rebuilt on recycl
 var _status_rings: Dictionary = {}     # Delivery -> Node3D (status disc on the drive cell)
 var _can_roll: bool = true
 var _dice_views: Node3D                 # holder for the rolled 3D dice
+var _budget_cubes: Node3D               # holder for the remaining movement budget cubes
 var _highlights: Node3D                 # holder for the reachable-cell markers
 var _event_choice: EventCardChoice      # active card choice, if any
 var _delivery_list: DeliveryListView
@@ -49,6 +50,8 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_ui.setup_players(players)
 	_dice_views = Node3D.new()
 	add_child(_dice_views)
+	_budget_cubes = Node3D.new()
+	add_child(_budget_cubes)
 	_highlights = Node3D.new()
 	add_child(_highlights)
 
@@ -93,6 +96,9 @@ func _process(_delta: float) -> void:
 	if _dice_views != null and _dice_views.get_child_count() > 0:
 		_dice_views.position = center + Vector3(-half_w * 0.58, 1.0, half_h * 0.58)
 		_dice_views.scale = Vector3.ONE * 3.1 * zoom
+	if _budget_cubes != null and _budget_cubes.get_child_count() > 0:
+		_budget_cubes.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.50)
+		_budget_cubes.scale = Vector3.ONE * 2.2 * zoom
 	if _event_choice != null and is_instance_valid(_event_choice):
 		_event_choice.position = center + Vector3(0.0, 1.0, -half_h * 0.05)
 		_event_choice.scale = Vector3.ONE * 4.0 * zoom
@@ -162,6 +168,7 @@ func _on_roll() -> void:
 	var dice_count := player.character.dice_count() if player.character != null else 2
 	_dice.roll(dice_count)
 	_phase.begin_movement(_dice.total())
+	_show_budget(_dice.total())
 	_phase.movement().step_budget_changed.connect(_on_budget_changed)
 	_can_roll = false
 	_show_dice(_dice.values())
@@ -184,6 +191,23 @@ func _show_dice(values: Array) -> void:
 func _clear_dice() -> void:
 	for child in _dice_views.get_children():
 		child.queue_free()
+	_show_budget(0)
+
+
+## Shows [param remaining] little cubes = remaining movement budget.
+func _show_budget(remaining: int) -> void:
+	for child in _budget_cubes.get_children():
+		child.queue_free()
+	for i in remaining:
+		var inst := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.5, 0.5, 0.5)
+		inst.mesh = box
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color("e6b800")
+		inst.material_override = mat
+		inst.position = Vector3(i * 0.62, 0.0, 0.0)
+		_budget_cubes.add_child(inst)
 
 
 # Green markers on the cells the current pawn can step onto right now (empty outside movement).
@@ -218,10 +242,7 @@ func _highlight_marker(cell: Vector2i) -> MeshInstance3D:
 
 
 func _on_budget_changed(remaining: int) -> void:
-	if remaining > 0:
-		_ui.set_status("Déplacement restant : %d" % remaining)
-	else:
-		_ui.set_status("Déplacement terminé — réserve si possible, ou Fin de tour.")
+	_show_budget(remaining)
 
 
 func _on_reserve() -> void:
@@ -318,6 +339,7 @@ func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
 func _on_turn_changed(_player: Player) -> void:
 	_can_roll = true
 	_clear_dice()
+	_show_budget(0)
 	_refresh_highlights()
 	_refresh_ui()
 	_ui.set_status("À toi de jouer — lance les dés.")
