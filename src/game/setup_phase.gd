@@ -1,10 +1,9 @@
 class_name SetupPhase
 extends RefCounted
 ## Drives the turn-by-turn setup placement. On a turn a player MAY first place their bridge (free —
-## it does not end the turn, and must connect to a road), then places a block (which ends the turn).
-## A bridge dropped one cell too far auto-inserts the bridge with the block. When a player has no
-## blocks left they may place their bridge or end (pass). The phase ends once every player is done.
-## Pure logic — no rendering/input.
+## it does not end the turn, and connects to a road via its central road cell only), then places a
+## block (which ends the turn). When a player has no blocks left they may place their bridge or end
+## (pass). The phase ends once every player is done. Pure logic — no rendering/input.
 
 signal turn_changed(player: Player)
 signal setup_finished
@@ -71,57 +70,9 @@ func pass_turn() -> bool:
 	return true
 
 
-## Auto-bridge: places the bridge + the [param block_index] block in one turn (the bridge bridging an
-## existing road and the block's road). Consumes both and ends the turn.
-func try_place_with_bridge(block_index: int, block_anchor: Vector2i, block_rot: int, bridge_anchor: Vector2i, bridge_rot: int) -> bool:
-	var player := current_player()
-	if block_index < 0 or block_index >= player.pieces.size() or player.bridge == null:
-		return false
-	var block := player.pieces[block_index]
-	var bridge := player.bridge
-
-	for c in bridge.get_cells(bridge_anchor, bridge_rot):
-		if _board.is_occupied(c):
-			return false
-	for c in block.get_cells(block_anchor, block_rot):
-		if _board.is_occupied(c):
-			return false
-	if not _bridge_links(
-			bridge.get_connectors(bridge_anchor, bridge_rot),
-			block.get_connectors(block_anchor, block_rot),
-			_board.connector_cells()):
-		return false
-
-	_board.place(bridge, bridge_anchor, bridge_rot, player.color, false)
-	_board.place(block, block_anchor, block_rot, player.color, false)
-	player.pieces.remove_at(block_index)
-	player.bridge = null
-	_update_done(player)
-	_advance()
-	return true
-
-
 func _update_done(player: Player) -> void:
 	if player.pieces.is_empty() and player.bridge == null:
 		player.done = true
-
-
-# One bridge end touches a board road, the other touches the new block's road.
-func _bridge_links(bridge_ends: Array[Vector2i], block_roads: Array[Vector2i], board_roads: Array[Vector2i]) -> bool:
-	for i in bridge_ends.size():
-		var other := bridge_ends[(i + 1) % bridge_ends.size()]
-		if _connects([bridge_ends[i]] as Array[Vector2i], board_roads) and _connects([other] as Array[Vector2i], block_roads):
-			return true
-	return false
-
-
-# True if any cell in [param a] is a hex-neighbor of any cell in [param b].
-func _connects(a: Array[Vector2i], b: Array[Vector2i]) -> bool:
-	for ca in a:
-		for cb in b:
-			if HexUtils.are_adjacent(ca, cb):
-				return true
-	return false
 
 
 # Moves to the next player who isn't done, or finishes the phase.

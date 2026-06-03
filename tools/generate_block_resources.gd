@@ -117,7 +117,8 @@ func _save_bridge() -> void:
 	block.color = Color.WHITE
 	block.cells = BlockDefinition.make_line_cells(3)
 	block.cell_types = [CellType.Kind.WATER, CellType.Kind.ROUTE, CellType.Kind.WATER]
-	block.connectors = [Vector2i(0, 0), Vector2i(2, 0)] as Array[Vector2i]
+	# Only the central ROAD cell connects — never the water ends, never along the length.
+	block.connectors = [Vector2i(1, 0)] as Array[Vector2i]
 	_save(block, "res://resources/blocks/bridge.tres")
 
 

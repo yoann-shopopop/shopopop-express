@@ -13,7 +13,6 @@ var grid_view: HexGridView
 
 var _camera: CameraRig
 var _ghost: BlockGhost
-var _bridge_ghost: BlockGhost
 var _ui: PlacementUI
 var _library: Array[BlockDefinition] = []
 var _characters: Array[CharacterDefinition] = []
@@ -53,12 +52,10 @@ func start_game(count: int, rng_seed: int = -1) -> void:
 
 	_ghost = BlockGhost.new()
 	add_child(_ghost)
-	_bridge_ghost = BlockGhost.new()
-	add_child(_bridge_ghost)
 
 	controller = PlacementController.new()
 	add_child(controller)
-	controller.setup(_camera, board, _ghost, _bridge_ghost, phase)
+	controller.setup(_camera, board, _ghost, phase)
 
 	phase.turn_changed.connect(_on_turn_changed)
 	phase.setup_finished.connect(_on_setup_finished)

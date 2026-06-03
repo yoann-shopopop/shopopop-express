@@ -19,7 +19,7 @@ func _bridge() -> BlockDefinition:
 	b.id = &"bridge"
 	b.cells = BlockDefinition.make_line_cells(3)
 	b.cell_types = [CellType.Kind.WATER, CellType.Kind.ROUTE, CellType.Kind.WATER]
-	b.connectors = [Vector2i(0, 0), Vector2i(2, 0)] as Array[Vector2i]
+	b.connectors = [Vector2i(1, 0)] as Array[Vector2i]  # only the central road cell connects
 	return b
 
 
@@ -61,22 +61,6 @@ func test_round_robin_returns_to_first_player() -> void:
 	assert_eq(_phase.current_player().color, PlayerColor.Kind.BLUE, "back to BLUE for round 2")
 
 
-func test_auto_bridge_places_both_and_consumes_the_bridge() -> void:
-	var board := Board.new()
-	var blue := _player(PlayerColor.Kind.BLUE, 1)
-	var red := _player(PlayerColor.Kind.RED, 1)
-	red.bridge = _bridge()
-	var phase := SetupPhase.new([blue, red] as Array[Player], board)
-
-	phase.try_place(0, Vector2i.ZERO, 0)              # BLUE road at origin -> RED's turn
-	var bridge := BridgeFinder.find(board, red.pieces[0], Vector2i(4, 0), 0, red.bridge)
-	assert_false(bridge.is_empty(), "a linking bridge exists")
-	assert_true(phase.try_place_with_bridge(0, Vector2i(4, 0), 0, bridge["anchor"], bridge["rotation"]))
-	assert_eq(board.pieces().size(), 3, "BLUE road + bridge + RED road")
-	assert_eq(red.pieces.size(), 0, "block consumed")
-	assert_null(red.bridge, "bridge consumed")
-
-
 func test_placing_a_bridge_is_free_and_keeps_the_turn() -> void:
 	var board := Board.new()
 	var blue := _player(PlayerColor.Kind.BLUE, 1)
@@ -84,10 +68,22 @@ func test_placing_a_bridge_is_free_and_keeps_the_turn() -> void:
 	red.bridge = _bridge()
 	var phase := SetupPhase.new([blue, red] as Array[Player], board)
 	phase.try_place(0, Vector2i.ZERO, 0)              # BLUE road at origin -> RED's turn
-	# RED places its bridge touching the road: free, so it stays RED's turn.
-	assert_true(phase.try_place_bridge(Vector2i(1, 0), 0))
+	# Bridge anchored so its CENTRAL road cell (0,1) touches the road at (0,0): free -> stays RED.
+	assert_true(phase.try_place_bridge(Vector2i(-1, 1), 0))
 	assert_eq(phase.current_player().color, PlayerColor.Kind.RED, "still RED's turn (bridge is free)")
 	assert_null(red.bridge, "bridge consumed")
+
+
+func test_a_bridge_must_connect_via_its_central_road() -> void:
+	var board := Board.new()
+	var blue := _player(PlayerColor.Kind.BLUE, 1)
+	var red := _player(PlayerColor.Kind.RED, 1)
+	red.bridge = _bridge()
+	var phase := SetupPhase.new([blue, red] as Array[Player], board)
+	phase.try_place(0, Vector2i.ZERO, 0)
+	# Here only a WATER end would touch the road (center is two cells away) -> rejected.
+	assert_false(phase.try_place_bridge(Vector2i(1, 0), 0))
+	assert_not_null(red.bridge, "bridge not consumed on an illegal placement")
 
 
 func test_pass_is_blocked_while_blocks_remain() -> void:
@@ -105,15 +101,6 @@ func test_pass_when_only_the_bridge_is_left_finishes() -> void:
 	assert_false(phase.is_finished())
 	assert_true(phase.pass_turn(), "with no blocks left, the player may end")
 	assert_true(phase.is_finished())
-
-
-func test_auto_bridge_fails_without_a_bridge() -> void:
-	var board := Board.new()
-	var blue := _player(PlayerColor.Kind.BLUE, 1)
-	var red := _player(PlayerColor.Kind.RED, 1)  # only a road, no bridge
-	var phase := SetupPhase.new([blue, red] as Array[Player], board)
-	phase.try_place(0, Vector2i.ZERO, 0)
-	assert_false(phase.try_place_with_bridge(0, Vector2i(4, 0), 0, Vector2i(1, 0), 0))
 
 
 func test_phase_finishes_when_all_pieces_are_placed() -> void:

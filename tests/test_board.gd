@@ -37,7 +37,7 @@ func _bridge() -> BlockDefinition:
 	b.id = &"bridge"
 	b.cells = BlockDefinition.make_line_cells(3)
 	b.cell_types = [CellType.Kind.WATER, CellType.Kind.ROUTE, CellType.Kind.WATER]
-	b.connectors = [Vector2i(0, 0), Vector2i(2, 0)] as Array[Vector2i]
+	b.connectors = [Vector2i(1, 0)] as Array[Vector2i]  # only the central road cell connects
 	return b
 
 
@@ -79,10 +79,12 @@ func test_connector_present_but_not_adjacent_is_rejected() -> void:
 	assert_false(_board.can_place(_road_tile(), Vector2i(2, 0), 0))
 
 
-func test_bridge_end_can_connect_to_a_road() -> void:
+func test_bridge_connects_only_via_its_central_road() -> void:
 	_board.place(_road_tile(), Vector2i.ZERO, 0, BLUE)
-	# Bridge placed so its near end (connector at (1,0)) is adjacent to the road connector (0,0).
-	assert_true(_board.can_place(_bridge(), Vector2i(1, 0), 0))
+	# Central road cell (0,1) touches the road connector (0,0) -> OK.
+	assert_true(_board.can_place(_bridge(), Vector2i(-1, 1), 0))
+	# Here only a water end would touch the road (center two cells away) -> rejected.
+	assert_false(_board.can_place(_bridge(), Vector2i(1, 0), 0))
 
 
 func test_place_returns_false_and_does_not_mutate_when_invalid() -> void:
