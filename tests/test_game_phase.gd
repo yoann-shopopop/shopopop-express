@@ -167,6 +167,32 @@ func test_cannot_reserve_more_than_two_in_flight() -> void:
 	assert_false(phase.reserve_delivery())
 
 
+# The drive sits on an URBAN cell and the recipient on a GREEN cell — neither is a road. The pawn must
+# still be able to step onto them (off the road) to pick up / deliver. Regression: with a roads-only
+# walkable set they were unreachable, so EN_COURS/LIVREE never triggered in the real game.
+func test_pawn_can_reach_a_drive_cell_off_the_road() -> void:
+	var board := Board.new()
+	var b := BlockDefinition.new()
+	b.id = &"drive_tile"
+	b.cells = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)] as Array[Vector2i]
+	b.cell_types = [CellType.Kind.GREEN, CellType.Kind.ROUTE, CellType.Kind.URBAN]
+	b.connectors = [Vector2i(1, 0)] as Array[Vector2i]
+	board.place(b, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, b)
+	player.character = _red_character()
+	var piece: PlacedPiece = board.pieces()[0]
+	# drive on the urban cell (2,0) — off the road; recipient on the green start (0,0).
+	var delivery := Delivery.new(Vector2i(2, 0), Vector2i(0, 0), [piece] as Array[PlacedPiece])
+	delivery.destinataire = DestinataireDefinition.new()
+	var phase := GamePhase.new([player] as Array[Player], board, [delivery] as Array[Delivery])
+	phase.begin_movement(3)
+	phase.reserve_delivery()  # pawn on the green start (0,0), which belongs to the tile
+	assert_true(phase.try_step(Vector2i(1, 0)), "step onto the road")
+	assert_true(phase.try_step(Vector2i(2, 0)), "the urban drive cell must be reachable")
+	assert_eq(phase.deliveries_in_flight(0)[0].status, DeliveryStatus.Kind.EN_COURS,
+		"reaching the drive cell sets EN_COURS")
+
+
 # --- Events & powers --------------------------------------------------------
 
 # A tile with an EVENT (rainbow) cell at (2,0), reachable by road from the green start.

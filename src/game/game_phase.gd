@@ -78,6 +78,11 @@ func begin_movement(budget: int) -> void:
 	if _subphase != SubPhase.PLANIFICATION:
 		return
 	var walkable := RoadNetwork.walkable_from_board(_board)
+	# Movement is roads-only, but the drive (urban) and recipient (green) cells of every delivery are
+	# reachable destinations: the pawn must be able to step onto them (off the road) to pick up/deliver.
+	for delivery in _deliveries:
+		walkable[delivery.drive_cell] = true
+		walkable[delivery.recipient_cell] = true
 	_movement = TurnMovement.new(walkable, position_of(current_player()), budget)
 	_context = TurnContext.new(_movement, current_player())
 	_context.current_delivery = _primary_delivery(_current)
