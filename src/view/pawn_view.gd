@@ -36,9 +36,13 @@ void fragment() {
 }"
 
 
-## Binds this view to [param pawn]: builds its figure and follows its position via signals.
+## Binds this view to [param pawn]: builds its figure/token and follows its position via signals.
+## A pawn with a texture (a player persona token, or a drive/recipient) renders as a flat image chip;
+## a textureless mobile pawn falls back to the classic colored figure.
 func bind(pawn: Pawn) -> void:
-	if pawn.definition.is_mobile():
+	if pawn.definition.texture != null:
+		_build_token(pawn.definition.texture)
+	elif pawn.definition.is_mobile():
 		_build_figure(pawn.definition.color)
 	else:
 		_build_token(pawn.definition.texture)
