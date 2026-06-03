@@ -18,6 +18,7 @@ var _events: Deck
 var _ui: GameUI
 var _pawns: Dictionary = {}            # player index -> Pawn
 var _recipient_markers: Dictionary = {}  # Delivery -> Node3D (rebuilt on recycle)
+var _status_rings: Dictionary = {}     # Delivery -> Node3D (status disc on the drive cell)
 var _can_roll: bool = true
 var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
@@ -65,8 +66,9 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_phase.event_triggered.connect(_on_event_triggered)
 	_ui.roll_requested.connect(_on_roll)
 	_ui.end_turn_requested.connect(_phase.end_turn)
-	_ui.pickup_requested.connect(_on_pickup)
-	_ui.deliver_requested.connect(_on_deliver)
+	_ui.reserve_requested.connect(_on_reserve)
+	_phase.delivery_reserved.connect(_on_delivery_changed)
+	_phase.delivery_in_progress.connect(_on_delivery_changed)
 	_ui.power_requested.connect(_on_power)
 	_refresh_ui()
 	_ui.set_status("À toi de jouer — lance les dés.")
@@ -251,19 +253,52 @@ func _on_budget_changed(remaining: int) -> void:
 		_ui.set_status("Déplacement terminé — prends/livre ou Fin de tour.")
 
 
-func _on_pickup() -> void:
-	if _phase.confirm_pickup():
-		_ui.set_status("Pris en charge au drive (-1 déplacement).")
+func _on_reserve() -> void:
+	if _phase.reserve_delivery():
+		_ui.set_status("Livraison réservée.")
 	else:
-		_ui.set_status("Approche-toi du drive (case grise) pour prendre la livraison.")
+		_ui.set_status("Aucune livraison à réserver sur cette tuile.")
 	_refresh_highlights()
 	_refresh_ui()
 
 
-func _on_deliver() -> void:
-	if not _phase.confirm_delivery():
-		_ui.set_status("Approche-toi du destinataire (case verte), livraison en main.")
+# A delivery's status changed (reserved / en cours): refresh its status disc and the action bar.
+func _on_delivery_changed(delivery: Delivery) -> void:
+	_update_status_ring(delivery)
 	_refresh_ui()
+
+
+# A small disc on the drive cell echoing the delivery status: the reserving player's color when
+# RESERVE, a brighter accent when EN_COURS, removed otherwise.
+func _update_status_ring(delivery: Delivery) -> void:
+	var existing = _status_rings.get(delivery, null)
+	if existing != null and is_instance_valid(existing):
+		existing.queue_free()
+		_status_rings.erase(delivery)
+	var color: Color
+	match delivery.status:
+		DeliveryStatus.Kind.RESERVE:
+			color = PlayerColor.to_color(_players[delivery.reserved_by].color)
+			color.a = 0.55
+		DeliveryStatus.Kind.EN_COURS:
+			color = Color(1.0, 0.95, 0.4, 0.85)
+		_:
+			return  # DISPONIBLE / LIVREE: no ring
+	var inst := MeshInstance3D.new()
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = GameConfig.HEX_SIZE * 0.42
+	mesh.outer_radius = GameConfig.HEX_SIZE * 0.6
+	inst.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	inst.material_override = mat
+	var pos := HexUtils.axial_to_world(delivery.drive_cell, GameConfig.HEX_SIZE)
+	pos.y = GameConfig.TILE_HEIGHT + 0.08
+	inst.position = pos
+	add_child(inst)
+	_status_rings[delivery] = inst
 
 
 func _on_event_triggered(cell: Vector2i) -> void:
@@ -304,6 +339,7 @@ func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
 	var pawn: Pawn = _pawns[player.index]
 	pawn.move_to(to)
 	_refresh_highlights()
+	_refresh_ui()
 
 
 func _on_turn_changed(_player: Player) -> void:
@@ -315,8 +351,9 @@ func _on_turn_changed(_player: Player) -> void:
 
 
 func _on_delivery_completed(delivery: Delivery, points: int) -> void:
-	# The destinataire was recycled (or cleared) — refresh that delivery's recipient card.
+	# The destinataire was recycled (or cleared) — refresh that delivery's recipient card + status.
 	_rebuild_recipient_marker(delivery)
+	_update_status_ring(delivery)  # back to DISPONIBLE -> ring removed
 	_ui.set_status("Livré ! +%d points." % points)
 	_refresh_ui()
 
@@ -327,7 +364,7 @@ func _on_game_finished(scores: Dictionary) -> void:
 
 func _refresh_ui() -> void:
 	var player := _phase.current_player()
-	_ui.refresh(player, _phase.score_of(player), _can_roll, _phase.current_delivery())
+	_ui.refresh(player, _phase.score_of(player), _can_roll, _phase.reservable_delivery() != null)
 
 
 func _load_events() -> Array[CardDefinition]:
