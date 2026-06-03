@@ -2,7 +2,7 @@ class_name GameRoot
 extends Node3D
 ## Composition root for the play phase, taking over once setup is finished. Wires the pure [GamePhase]
 ## to the world: a [DiceRoller], one [Pawn] + [PawnView] per player, drive/recipient markers, a
-## [MovementController] for input and a [GameUI]. Mirrors what [Main] does for the setup phase.
+## [MovementController] for input and a [PlayHud]. Mirrors what [Main] does for the setup phase.
 
 const EVENTS_DIR := "res://resources/events/"
 const ENSEIGNES_DIR := "res://resources/enseignes/"
@@ -15,7 +15,7 @@ var _camera: Camera3D
 var _phase: GamePhase
 var _dice: DiceRoller
 var _events: Deck
-var _ui: GameUI
+var _ui: PlayHud
 var _pawns: Dictionary = {}            # player index -> Pawn
 var _recipient_markers: Dictionary = {}  # Delivery -> Node3D (rebuilt on recycle)
 var _status_rings: Dictionary = {}     # Delivery -> Node3D (status disc on the drive cell)
@@ -43,7 +43,7 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_events = Deck.new(_load_events())
 	_events.shuffle()
 
-	_ui = GameUI.new()
+	_ui = PlayHud.new()
 	add_child(_ui)
 	_ui.setup_players(players)
 	_dice_views = Node3D.new()
@@ -62,16 +62,19 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_phase.pawn_moved.connect(_on_pawn_moved)
 	_phase.turn_changed.connect(_on_turn_changed)
 	_phase.delivery_completed.connect(_on_delivery_completed)
+	_phase.delivery_reserved.connect(_on_delivery_changed)
+	_phase.delivery_in_progress.connect(_on_delivery_changed)
 	_phase.game_finished.connect(_on_game_finished)
 	_phase.event_triggered.connect(_on_event_triggered)
 	_ui.roll_requested.connect(_on_roll)
 	_ui.end_turn_requested.connect(_phase.end_turn)
 	_ui.reserve_requested.connect(_on_reserve)
-	_phase.delivery_reserved.connect(_on_delivery_changed)
-	_phase.delivery_in_progress.connect(_on_delivery_changed)
 	_ui.power_requested.connect(_on_power)
+	var camera_rig := camera as CameraRig
+	if camera_rig != null:
+		_ui.zoom_in_requested.connect(camera_rig.zoom_in)
+		_ui.zoom_out_requested.connect(camera_rig.zoom_out)
 	_refresh_ui()
-	_ui.set_status("À toi de jouer — lance les dés.")
 
 
 # Pins the dice (bottom-left) and the event-card choice (centered) to fixed screen regions, scaled to
@@ -364,7 +367,19 @@ func _on_game_finished(scores: Dictionary) -> void:
 
 func _refresh_ui() -> void:
 	var player := _phase.current_player()
-	_ui.refresh(player, _phase.score_of(player), _can_roll, _phase.reservable_delivery() != null)
+	_ui.refresh(player, _phase.score_of(player))
+	_ui.set_power_available(player.character != null and not player.power_used)
+	_ui.set_action(_current_action())
+
+
+# The contextual primary action: ROLL while planning, RESERVE when standing on a reservable tile,
+# else END_TURN (movement spent / nothing to reserve).
+func _current_action() -> int:
+	if _phase.current_subphase() == GamePhase.SubPhase.PLANIFICATION and _can_roll:
+		return PlayHud.Action.ROLL
+	if _phase.current_subphase() == GamePhase.SubPhase.DEPLACEMENT and _phase.reservable_delivery() != null:
+		return PlayHud.Action.RESERVE
+	return PlayHud.Action.END_TURN
 
 
 func _load_events() -> Array[CardDefinition]:

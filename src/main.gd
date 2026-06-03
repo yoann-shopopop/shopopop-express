@@ -91,6 +91,7 @@ func _on_setup_finished() -> void:
 	# which owns the moving pawns, dice, movement input and the in-game UI.
 	_ui.queue_free()
 	controller.queue_free()
+	_zoom_controls.hide()  # PlayHud owns zoom controls in the title bar during play
 	_game_root = GameRoot.new()
 	add_child(_game_root)
 	_game_root.setup(board, _players, _camera)
