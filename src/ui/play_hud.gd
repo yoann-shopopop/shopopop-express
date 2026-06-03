@@ -47,7 +47,11 @@ func _build_title_bar() -> void:
 	bar_panel.offset_top = 0
 	bar_panel.offset_bottom = 42
 	var bar_style := StyleBoxFlat.new()
-	bar_style.bg_color = Color("2a3340")
+	bar_style.bg_color = UITheme.PANEL_DARK
+	bar_style.border_width_bottom = 2
+	bar_style.border_color = UITheme.PANEL_BORDER
+	bar_style.shadow_color = UITheme.SHADOW
+	bar_style.shadow_size = 4
 	bar_panel.add_theme_stylebox_override("panel", bar_style)
 	add_child(bar_panel)
 
@@ -63,7 +67,7 @@ func _build_title_bar() -> void:
 	title.text = "Shopopop Express"
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color("eaf2ff"))
+	title.add_theme_color_override("font_color", UITheme.TEXT)
 	bar.add_child(title)
 
 	var spacer := Control.new()
@@ -82,6 +86,7 @@ func _build_title_bar() -> void:
 	_score_label = Label.new()
 	_score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_score_label.add_theme_font_size_override("font_size", 20)
+	_score_label.add_theme_color_override("font_color", UITheme.TEXT)
 	bar.add_child(_score_label)
 
 	var zoom_out := _small_button("－")
@@ -103,6 +108,7 @@ func _build_actions() -> void:
 	_action_btn = Button.new()
 	_action_btn.custom_minimum_size = Vector2(190, 64)
 	_action_btn.add_theme_font_size_override("font_size", 24)
+	_theme_button(_action_btn, UITheme.BLUE)
 	_action_btn.pressed.connect(_on_action_pressed)
 	box.add_child(_action_btn)
 
@@ -110,9 +116,21 @@ func _build_actions() -> void:
 	_power_btn.text = "⚡"
 	_power_btn.custom_minimum_size = Vector2(64, 64)
 	_power_btn.add_theme_font_size_override("font_size", 24)
+	_theme_button(_power_btn, UITheme.ORANGE)
 	_power_btn.pressed.connect(func() -> void: power_requested.emit())
 	box.add_child(_power_btn)
 	set_action(Action.ROLL)
+
+
+# Applies the shared UITheme look to a button (normal/hover/pressed/disabled states + text color).
+func _theme_button(btn: Button, base: Color) -> void:
+	btn.add_theme_stylebox_override("normal", UITheme.button_style(base))
+	btn.add_theme_stylebox_override("hover", UITheme.button_style(base, 1.6))
+	btn.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(base))
+	btn.add_theme_stylebox_override("disabled", UITheme.button_style(base.darkened(0.3)))
+	btn.add_theme_stylebox_override("focus", UITheme.button_style(base))
+	btn.add_theme_color_override("font_color", UITheme.TEXT)
+	btn.add_theme_color_override("font_disabled_color", UITheme.TEXT.darkened(0.35))
 
 
 func _build_card_backings() -> void:
@@ -126,32 +144,26 @@ func _build_card_backings() -> void:
 	row.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	row.add_theme_constant_override("separation", 18)
 	add_child(row)
-	row.add_child(_card_pile("DECK", Color("2d3a55"), true))
-	row.add_child(_card_pile("DÉFAUSSE", Color("23262d"), false))
+	# DECK reads as the active pile (blue accent), DÉFAUSSE as a neutral one.
+	row.add_child(_card_pile("DECK", UITheme.BLUE, true))
+	row.add_child(_card_pile("DÉFAUSSE", UITheme.PANEL_BORDER, false))
 
 
-# A card-shaped backing with a caption under it. [param filled] gives the deck a solid "back" look;
-# otherwise (DÉFAUSSE) the body is an empty outlined slot.
-func _card_pile(caption: String, color: Color, filled: bool) -> VBoxContainer:
+# A card-shaped backing (shared UITheme tray look) with a caption under it. [param accent] colors the
+# border; [param active] thickens it (DECK vs DÉFAUSSE).
+func _card_pile(caption: String, accent: Color, active: bool) -> VBoxContainer:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	var card := Panel.new()
 	card.custom_minimum_size = Vector2(132, 188)
-	var style := StyleBoxFlat.new()
-	var body := color
-	if not filled:
-		body.a = 0.0
-	style.bg_color = body
-	style.set_corner_radius_all(8)
-	style.set_border_width_all(2)
-	style.border_color = Color("6a7488")
-	card.add_theme_stylebox_override("panel", style)
+	card.add_theme_stylebox_override("panel", UITheme.tray_card_style(accent, active))
 	col.add_child(card)
 	var lbl := Label.new()
 	lbl.text = caption
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", 18)
+	lbl.add_theme_color_override("font_color", UITheme.PANEL_DARK)  # dark text on the light backdrop
 	col.add_child(lbl)
 	return col
 
@@ -161,6 +173,7 @@ func _small_button(text: String) -> Button:
 	b.text = text
 	b.custom_minimum_size = Vector2(34, 30)
 	b.focus_mode = Control.FOCUS_NONE
+	_theme_button(b, UITheme.PANEL_DARK)
 	return b
 
 
