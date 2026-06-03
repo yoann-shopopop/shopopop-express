@@ -24,7 +24,6 @@ var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
 var _active_marker: Node3D              # ring under the active pawn + floating steps badge above it
 var _event_choice: EventCardChoice      # active card choice, if any
-var _pulse_t: float = 0.0               # time accumulator for the reachable-cell pulse
 var _delivery_list: DeliveryListView
 
 
@@ -138,10 +137,6 @@ func _process(_delta: float) -> void:
 	if _dice_views != null and _dice_views.get_child_count() > 0:
 		_dice_views.position = center + Vector3(-half_w * 0.70, 1.0, half_h * 0.42)
 		_dice_views.scale = Vector3.ONE * 3.2 * zoom
-	# Gentle pulse on the reachable-cell markers so they read as "you can go here".
-	_pulse_t += _delta
-	if _highlights != null:
-		_highlights.scale = Vector3.ONE * (1.0 + 0.08 * sin(_pulse_t * 4.0))
 	if _event_choice != null and is_instance_valid(_event_choice):
 		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
 		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.10)
