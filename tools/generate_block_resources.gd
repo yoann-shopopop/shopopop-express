@@ -1,9 +1,9 @@
 extends SceneTree
-## Generates the block library: hexagon patterns (side-3 = 19 cells) + the bridge.
-## Roads use ONLY the two available textures (straight, T), so each pattern's road is a straight
-## line between two opposite edge-centers (through the center) plus an optional T branch to a third
-## edge-center. Edge-centers carrying a road are the connectors. The rest is water/urban/green by
-## region, with one event cell. Run: godot --headless --path . -s res://tools/generate_block_resources.gd
+## Generates the block library: the 3 board patterns (side-3 = 19 cells) + the bridge.
+## Each pattern reproduces a board asset: a road crossing the centre with a branch (3 road exits =
+## 3 connectors) and the SPECIAL (rainbow) cell at the centre. The other cells (water/urban/green)
+## are generated procedurally per region, always keeping >=2 green and >=1 urban zones.
+## Run: godot --headless --path . -s res://tools/generate_block_resources.gd
 
 const RADIUS := 2
 const CENTER := Vector2i.ZERO
@@ -12,16 +12,12 @@ const W := CellType.Kind.WATER
 const G := CellType.Kind.GREEN
 const U := CellType.Kind.URBAN
 
-# Road = straight line between opposite edge-centers [axis]/[axis+3] (through the center) + a branch
-# to a 3rd edge-center (T-junction). Every pattern has a bifurcation = 3 road exits (3 connectors).
-# branch must differ from axis and axis+3.
+# The 3 patterns (from assets B1/B2/B3): road = straight line between opposite edge-centers
+# [axis]/[axis+3] through the centre + a branch to a 3rd edge-center. Special = centre cell.
 var _patterns := [
-	{"id": "p1", "name": "Quartier A", "axis": 0, "branch": 1, "regions": [W, W, U, U, G, G]},
+	{"id": "p1", "name": "Quartier A", "axis": 0, "branch": 2, "regions": [W, W, U, U, G, G]},
 	{"id": "p2", "name": "Quartier B", "axis": 1, "branch": 3, "regions": [U, W, W, G, G, U]},
-	{"id": "p3", "name": "Quartier C", "axis": 2, "branch": 0, "regions": [G, U, U, W, W, G]},
-	{"id": "p4", "name": "Quartier D", "axis": 0, "branch": 2, "regions": [W, U, G, G, U, W]},
-	{"id": "p5", "name": "Quartier E", "axis": 1, "branch": 5, "regions": [G, G, W, W, U, U]},
-	{"id": "p6", "name": "Quartier F", "axis": 2, "branch": 1, "regions": [U, G, W, U, G, W]},
+	{"id": "p3", "name": "Quartier C", "axis": 2, "branch": 5, "regions": [G, U, U, W, W, G]},
 ]
 
 
@@ -45,16 +41,19 @@ func _region_of(cell: Vector2i) -> int:
 	return best
 
 
-# Guarantees at least one cell of [param kind] by converting a rim cell if none is present.
-func _ensure_present(type_of: Dictionary, cells: Array, kind: int) -> void:
+# Guarantees at least [param count] cells of [param kind], converting rim terrain cells if needed.
+func _ensure_count(type_of: Dictionary, cells: Array, kind: int, count: int) -> void:
+	var have := 0
 	for cell in cells:
 		if type_of[cell] == kind:
-			return
+			have += 1
 	for cell in cells:
-		var t: int = type_of[cell]
-		if t != CellType.Kind.ROUTE and t != CellType.Kind.EVENT and HexUtils.distance(CENTER, cell) == RADIUS:
-			type_of[cell] = kind
+		if have >= count:
 			return
+		var t: int = type_of[cell]
+		if t != CellType.Kind.ROUTE and t != CellType.Kind.EVENT and t != kind and HexUtils.distance(CENTER, cell) == RADIUS:
+			type_of[cell] = kind
+			have += 1
 
 
 func _save_pattern(spec: Dictionary) -> void:
@@ -86,15 +85,11 @@ func _save_pattern(spec: Dictionary) -> void:
 			t = CellType.Kind.GREEN
 		type_of[cell] = t
 
-	# The special cell is a ROAD with a unique texture: replace one inner road cell (a spoke next to
-	# the center, never an edge-center connector) by EVENT.
-	for d in 6:
-		if road.has(HexUtils.DIRECTIONS[d]):
-			type_of[HexUtils.DIRECTIONS[d]] = CellType.Kind.EVENT
-			break
+	# The special (rainbow) cell sits at the centre — a ROAD with a unique texture (like the assets).
+	type_of[CENTER] = CellType.Kind.EVENT
 
-	_ensure_present(type_of, cells, CellType.Kind.GREEN)
-	_ensure_present(type_of, cells, CellType.Kind.URBAN)
+	_ensure_count(type_of, cells, CellType.Kind.GREEN, 2)
+	_ensure_count(type_of, cells, CellType.Kind.URBAN, 1)
 
 	var cell_types: Array[int] = []
 	for cell in cells:

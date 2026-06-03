@@ -112,8 +112,7 @@ src/blocks/     cell_type.gd (CellType)       enum Route/Vert/Urbain/Eau/Événe
                 block_definition.gd           BlockDefinition (Resource) : cases + types + connecteurs
 src/game/       player_color.gd / player.gd   4 couleurs (Bleu/Rouge/Violet/Jaune) + modèle joueur
                 setup_distributor.gd          tire 3 patterns partagés, recolore, assigne le départ
-                setup_phase.gd                tours round-robin (+ pose atomique pont+bloc)
-                bridge_finder.gd              trouve un pont reliant un bloc « une case trop loin »
+                setup_phase.gd                tours round-robin (pont manuel gratuit + pass)
 src/pawns/      pawn_definition.gd / pawn.gd  PawnDefinition (Resource) + Pawn (état : position + steps)
 src/cards/      card_definition.gd / deck.gd  CardDefinition (Resource) + Deck (pioche/défausse, RNG)
 src/movement/   movement.gd (Movement)        marche auto-évitante sur un set de cases injecté
@@ -127,7 +126,7 @@ src/view/       hex_grid_view.gd              assemble lattice + tuiles + outlin
                 card_view.gd (CardView)       carte 3D : face placeholder, dos logo + CARD_TYPE
                 die_view.gd (DieView)         dé 3D à points, orienté sur la valeur
                 hex_mesh_factory.gd / game_config.gd
-src/interaction/placement_controller.gd      magnet auto-rotation + auto-pont
+src/interaction/placement_controller.gd      magnet auto-rotation (blocs + pont manuel)
                 camera_rig.gd                 pan/zoom (molette + clic-droit, pinch + 2 doigts)
 src/ui/         placement_ui.gd               écran 2–4 joueurs + barre (joueur, previews de tuiles)
 src/main.gd     scenes/main.tscn              composition root
@@ -155,22 +154,22 @@ Apportés par la fusion de `main` ; chacun ignore les autres et le `Board`, bran
 conventions Red Blob Games. `HexUtils` : voisins, distance, rotation 60°, `line()`, case↔monde (plan XZ).
 
 **Blocs & types** : `BlockDefinition` = `cells` + `cell_types` (parallèle) + `connectors`. Tuile quartier
-= hexagone **côté 3 = 19 cases** ; **pont** = `Eau–Route–Eau`. Patterns générés avec route en **ligne
-droite + branche T** (uniquement les 2 textures de route). Bibliothèque → **3 patterns tirés, partagés**
-(`SetupDistributor`) ; chaque joueur (2–4) reçoit les 3 dans sa couleur + 1 pont + un **départ** (case
-verte aléatoire).
+= hexagone **côté 3 = 19 cases** (les **3 patterns** des assets B1/B2/B3 : route en croix/T par le centre,
+**case spéciale au centre**, + eau/urbain/vert procéduraux avec **≥2 vert et ≥1 urbain**). **Pont** =
+`Eau–Route–Eau` dont **seule la case centrale (route)** connecte. `SetupDistributor` tire les 3 patterns
+(partagés), recolore par joueur, + 1 pont + un **départ** (case verte en bord de route).
 
 **Placement (route-à-route)** : `Board` indexe des `PlacedPiece`. `can_place()` = pas de chevauchement +
-(1ʳᵉ pièce libre, sinon **un connecteur de la nouvelle pièce voisin d'un connecteur existant**).
-Connecteurs = routes en centre d'arête (hexagone) / extrémités (pont). `SetupPhase` enchaîne les tours.
+(1ʳᵉ pièce libre, sinon **un connecteur de la nouvelle pièce voisin d'un connecteur ROUTE existant**).
+Connecteurs = cases route (centres d'arête des hexagones ; **case centrale du pont uniquement**).
+`SetupPhase` enchaîne les tours ; le pont est posé à la main, **gratuit** (n'avance pas le tour).
 
 **Rendu** : scène 3D, **caméra ortho top-down**, chaque case = **Sprite3D texturé** posé à plat (base
 388px sur l'hexagone, décor débordant au Nord, tri Sud-sur-Nord), routes orientées via `RoadTiling`,
 **outline** de périmètre couleur joueur, `special`/`spawn`. UI : **previews réelles** des tuiles.
 
 **Interaction** : pointeur souris/tactile ; **magnet** snappe le fantôme à la pose légale la plus proche
-(auto-rotation, rotation = cycle des candidats) ; lâcher « une case trop loin » → **auto-pont**
-(`BridgeFinder` + `SetupPhase.try_place_with_bridge`, consomme le pont) ; fantôme **rouge** si invalide.
+(auto-rotation, rotation = cycle des candidats) ; on glisse blocs et pont ; fantôme **rouge** si invalide.
 
 ### Couche de gameplay intégrée (au-dessus du socle plateau)
 
