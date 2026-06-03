@@ -3,7 +3,6 @@ extends Node3D
 ## The left column: one ClipCardView per delivery, stacked vertically and pinned into a screen region
 ## by GameRoot. Scroll offsets the stack; cards outside the region are hidden. Pure rendering.
 
-const ROW_GAP := 1.5         # vertical world gap between cards (before scaling)
 const VISIBLE_ROWS := 4      # how many rows fit in the left region at once
 
 var _views: Array[ClipCardView] = []

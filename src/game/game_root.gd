@@ -338,7 +338,6 @@ func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
 func _on_turn_changed(_player: Player) -> void:
 	_can_roll = true
 	_clear_dice()
-	_show_budget(0)
 	_refresh_highlights()
 	_refresh_ui()
 	_ui.set_status("À toi de jouer — lance les dés.")
