@@ -121,6 +121,15 @@ func test_stepping_onto_the_drive_cell_sets_en_cours() -> void:
 	assert_eq(phase.deliveries_in_flight(0)[0].status, DeliveryStatus.Kind.EN_COURS)
 
 
+func test_reserving_while_on_the_drive_cell_jumps_to_en_cours() -> void:
+	var phase := _phase_with_delivery()
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))  # step onto the drive cell first (no reservation yet)
+	assert_true(phase.reserve_delivery(), "still reservable from the drive cell")
+	assert_eq(phase.deliveries_in_flight(0)[0].status, DeliveryStatus.Kind.EN_COURS,
+		"reserving on the drive cell transitions straight to EN_COURS")
+
+
 func test_stepping_onto_the_recipient_scores_and_is_free() -> void:
 	var phase := _phase_with_delivery()
 	var player := phase.current_player()

@@ -38,7 +38,8 @@ var _movement: TurnMovement = null
 var _context: TurnContext = null       # mutable state for the current turn's events/powers
 var _generator: DeliveryGenerator = null  # when set, delivering recycles a new recipient (index-aligned with _deliveries)
 
-const MAX_IN_FLIGHT := 2  # deliveries a player may hold (RESERVE + EN_COURS) at once
+## Maximum in-flight deliveries (RESERVE + EN_COURS) a player may hold simultaneously.
+const MAX_IN_FLIGHT := 2
 
 
 func _init(players: Array[Player], board: Board, deliveries: Array[Delivery] = [], generator: DeliveryGenerator = null) -> void:
@@ -163,7 +164,7 @@ func deliveries_in_flight(player_index: int) -> Array[Delivery]:
 
 
 ## The reservable delivery on the current pawn's tile, or null. Requires the player to hold fewer than
-## [constant MAX_IN_FLIGHT] deliveries.
+## [constant MAX_IN_FLIGHT] deliveries. Only the drive tile is checked (tiles[0]).
 func reservable_delivery() -> Delivery:
 	if deliveries_in_flight(_current).size() >= MAX_IN_FLIGHT:
 		return null
@@ -198,7 +199,7 @@ func _check_delivery_transitions() -> void:
 		if delivery.status == DeliveryStatus.Kind.RESERVE and cell == delivery.drive_cell:
 			delivery.status = DeliveryStatus.Kind.EN_COURS
 			delivery_in_progress.emit(delivery)
-		if delivery.status == DeliveryStatus.Kind.EN_COURS and cell == delivery.recipient_cell:
+		elif delivery.status == DeliveryStatus.Kind.EN_COURS and cell == delivery.recipient_cell:
 			_complete_delivery(delivery)
 	if _context != null:
 		_context.current_delivery = _primary_delivery(_current)
