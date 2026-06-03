@@ -104,9 +104,10 @@ func _fit_camera_to_board() -> void:
 	var board_h := (max_z - min_z) + pad
 	var vp := get_viewport().get_visible_rect().size
 	var aspect := vp.aspect() if vp.y > 0.0 else 1.78
-	# The board should occupy roughly the framed region (BOARD_RECT), with a margin.
-	var size_for_h := board_h / 0.58
-	var size_for_w := board_w / (0.62 * aspect)
+	# The board fills most of the area right of the delivery column: ~80% of the height, ~66% of the
+	# width. Take the larger so it always fits both ways.
+	var size_for_h := board_h / 0.80
+	var size_for_w := board_w / (0.66 * aspect)
 	var target := maxf(size_for_h, size_for_w)
 	var rig := _camera as CameraRig
 	if rig != null:
@@ -114,10 +115,11 @@ func _fit_camera_to_board() -> void:
 	_camera.size = target
 	var half_h := target * 0.5
 	var half_w := half_h * aspect
-	# Place the board center at the frame center on screen (≈ nx 0.25 right, ny 0.26 up).
+	# Center the board in the right ~72% of the screen (nx 0.28 right of screen center, vertically ~centered),
+	# leaving the left column for the delivery cards.
 	var board_cx := (min_x + max_x) * 0.5
 	var board_cz := (min_z + max_z) * 0.5
-	_camera.position = Vector3(board_cx - 0.25 * half_w, _camera.position.y, board_cz + 0.26 * half_h)
+	_camera.position = Vector3(board_cx - 0.28 * half_w, _camera.position.y, board_cz + 0.0 * half_h)
 
 
 # Pins the dice (bottom-left) and the event-card choice (centered) to fixed screen regions, scaled to

@@ -103,11 +103,14 @@ func _make_image(texture: Texture2D, size: Vector2) -> MeshInstance3D:
 func _make_label(text: String, color: Color, width: float) -> Label3D:
 	var label := Label3D.new()
 	label.text = text
-	label.font_size = 48
-	label.pixel_size = 0.0026
-	label.width = 420
+	label.font_size = 64
+	label.pixel_size = 0.007  # world units per pixel — large enough to stay readable on screen
+	label.width = 260
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.outline_size = 8  # thin outline keeps the name legible over any card color
+	label.outline_modulate = Color(0, 0, 0, 0.6) if color.get_luminance() > 0.5 else Color(1, 1, 1, 0.5)
 	label.modulate = color
 	label.position = Vector3(width * 0.12, THICK * 0.5 + 0.006, 0.0)
 	label.rotation_degrees = Vector3(-90, 0, 0)
