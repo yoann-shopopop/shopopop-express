@@ -45,15 +45,15 @@ func _ready() -> void:
 # The current player's character card, framed in their color, on the right edge (whose-turn-it-is).
 func _build_char_card() -> void:
 	_char_frame = Panel.new()
-	# Top-right, just below the top bar (~42 px), 25% larger than before (228×316 -> 285×395).
+	# Top-right, with a comfortable gap below the top bar (~42 px), 25% larger (228×316 -> 285×395).
 	_char_frame.anchor_left = 1.0
 	_char_frame.anchor_right = 1.0
 	_char_frame.anchor_top = 0.0
 	_char_frame.anchor_bottom = 0.0
 	_char_frame.offset_left = -301
 	_char_frame.offset_right = -16
-	_char_frame.offset_top = 50
-	_char_frame.offset_bottom = 445
+	_char_frame.offset_top = 68
+	_char_frame.offset_bottom = 463
 	add_child(_char_frame)
 	_char_card = TextureRect.new()
 	_char_card.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
