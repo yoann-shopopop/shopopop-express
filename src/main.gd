@@ -107,7 +107,6 @@ func _on_setup_finished() -> void:
 	_ui.queue_free()
 	controller.queue_free()
 	_zoom_controls.hide()  # PlayHud owns zoom controls in the title bar during play
-	grid_view.set_lattice_visible(false)  # the empty placement lattice is hidden during play
 	_game_root = GameRoot.new()
 	add_child(_game_root)
 	_game_root.setup(board, _players, _camera)

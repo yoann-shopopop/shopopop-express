@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://da380mk1koegx"
-path="res://.godot/imported/2.png-04075daddecd1fdbab18d62f072bb979.ctex"
+uid="uid://dta07y3wwci4o"
+path="res://.godot/imported/cartes shopopop express8.jpg-e2a7a5ccce90cbf27610b148bcdcb1e4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/tiles/road/2.png"
-dest_files=["res://.godot/imported/2.png-04075daddecd1fdbab18d62f072bb979.ctex"]
+source_file="res://assets/player-cards/cartes shopopop express8.jpg"
+dest_files=["res://.godot/imported/cartes shopopop express8.jpg-e2a7a5ccce90cbf27610b148bcdcb1e4.ctex"]
 
 [params]
 

@@ -1,13 +1,13 @@
 class_name HexGridView
 extends Node3D
-## Renders the board with the real tile artwork: a faint lattice, one textured Sprite3D per cell
-## (via [TileSprite]), a player-colored perimeter outline per piece, and the start-point (spawn) /
-## pawn markers. Reads a [Board] + [Player] list, redraws on [signal Board.changed].
+## Renders the board with the real tile artwork: one textured Sprite3D per cell (via [TileSprite]),
+## a player-colored perimeter outline per piece, and the start-point (spawn) / pawn markers. Reads a
+## [Board] + [Player] list, redraws on [signal Board.changed]. No empty-cell lattice is drawn — pieces
+## float on the backdrop ("in the void").
 
 var _board: Board
 var _players: Array[Player] = []
 
-var _lattice: MultiMeshInstance3D
 var _outlines: MultiMeshInstance3D
 var _tiles_root: Node3D
 var _markers: Node3D
@@ -17,20 +17,12 @@ func setup(board: Board, players: Array[Player]) -> void:
 	_board = board
 	_players = players
 	_board.changed.connect(_refresh)
-	_build_lattice()
 	_outlines = _make_outline_instance()
 	_tiles_root = Node3D.new()
 	add_child(_tiles_root)
 	_markers = Node3D.new()
 	add_child(_markers)
 	_refresh()
-
-
-## Shows or hides the faint background lattice. Kept for the placement phase (a placing aid), hidden
-## during play so the assembled board reads clearly instead of floating in a sea of empty cells.
-func set_lattice_visible(value: bool) -> void:
-	if _lattice != null:
-		_lattice.visible = value
 
 
 func _refresh() -> void:
@@ -49,34 +41,7 @@ func _refresh() -> void:
 	_refresh_markers()
 
 
-# --- Lattice & outlines ------------------------------------------------------
-
-func _build_lattice() -> void:
-	_lattice = MultiMeshInstance3D.new()
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = HexMeshFactory.create_tile(GameConfig.HEX_SIZE * 0.94, 0.02)
-	_lattice.multimesh = mm
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	_lattice.material_override = mat
-	add_child(_lattice)
-	var cells: Array[Vector2i] = []
-	var radius := GameConfig.GRID_RADIUS
-	for q in range(-radius, radius + 1):
-		for r in range(maxi(-radius, -q - radius), mini(radius, -q + radius) + 1):
-			cells.append(Vector2i(q, r))
-	# The 6-sided CylinderMesh is pointy-top; rotate it 30° so the lattice reads as FLAT-TOP and
-	# tessellates with the flat-top layout.
-	var flat_top := Basis(Vector3.UP, PI / 6.0)
-	mm.instance_count = cells.size()
-	for i in cells.size():
-		var pos := HexUtils.axial_to_world(cells[i], GameConfig.HEX_SIZE)
-		pos.y = -1.0  # well below the tiles so it never occludes them
-		mm.set_instance_transform(i, Transform3D(flat_top, pos))
-		mm.set_instance_color(i, GameConfig.LATTICE_COLOR)
-
+# --- Outlines ----------------------------------------------------------------
 
 func _make_outline_instance() -> MultiMeshInstance3D:
 	var inst := MultiMeshInstance3D.new()

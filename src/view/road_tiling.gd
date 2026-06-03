@@ -46,17 +46,6 @@ static func classify(dirs: Array) -> Dictionary:
 	return {"variant": STRAIGHT, "steps": _axis_steps(a), "flip": false}
 
 
-## Steps to render [param dirs] as a single STRAIGHT segment along its main axis (junction branches
-## are implied by neighbours — used when only a straight road texture is available). Prefers a
-## through-axis (a connected pair of opposite directions), else the first connected direction.
-static func straight_steps(dirs: Array) -> int:
-	var set := _normalized(dirs)
-	for d in set:
-		if ((d + 3) % 6) in set:
-			return _axis_steps(d)
-	return _axis_steps(set[0]) if set.size() > 0 else 0
-
-
 # Rotation steps that bring the straight base's N end onto direction [param a].
 static func _axis_steps(a: int) -> int:
 	return ((a - 2) % 6 + 6) % 6
