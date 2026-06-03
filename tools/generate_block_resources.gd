@@ -1,8 +1,10 @@
 extends SceneTree
 ## Generates the block library: the 3 board patterns (side-3 = 19 cells) + the bridge.
-## Each pattern reproduces a board asset: a road crossing the centre with a branch (3 road exits =
-## 3 connectors) and the SPECIAL (rainbow) cell at the centre. The other cells (water/urban/green)
-## are generated procedurally per region, always keeping >=2 green and >=1 urban zones.
+## Each pattern reproduces a board asset: roads built from straight segments crossing the centre,
+## which is the SPECIAL (rainbow) cell. Two patterns are a straight road with one bifurcation toward
+## an adjacent edge (Y, mirrored left/right = 3 connectors); one is two straight roads crossing (X =
+## 4 connectors). The other cells (water/urban/green) are generated procedurally per region, always
+## keeping >=2 green and >=1 urban.
 ## Run: godot --headless --path . -s res://tools/generate_block_resources.gd
 
 const RADIUS := 2
@@ -12,12 +14,16 @@ const W := CellType.Kind.WATER
 const G := CellType.Kind.GREEN
 const U := CellType.Kind.URBAN
 
-# The 3 patterns (from assets B1/B2/B3): road = straight line between opposite edge-centers
-# [axis]/[axis+3] through the centre + a branch to a 3rd edge-center. Special = centre cell.
+# The 3 patterns (from assets B1/B2/B3). "roads" is a list of segments (HexUtils corner indices
+# 0..5; corner i = DIRECTIONS[i] * RADIUS): a 2-corner segment [a, b] is a straight road between
+# opposite corners (grain-aligned, perfectly straight through the centre); a 1-corner segment [d] is
+# a bifurcation from the centre out to that corner. p1/p2 = a straight road {0-3} + one fork toward
+# an adjacent corner (1 vs 5 = mirrored Y, fork left/right); p3 = two straight roads crossing
+# {0-3}+{1-4} (X). Every corner touched is a connector (where tiles join road-to-road).
 var _patterns := [
-	{"id": "p1", "name": "Quartier A", "axis": 0, "branch": 2, "regions": [W, W, U, U, G, G]},
-	{"id": "p2", "name": "Quartier B", "axis": 1, "branch": 3, "regions": [U, W, W, G, G, U]},
-	{"id": "p3", "name": "Quartier C", "axis": 2, "branch": 5, "regions": [G, U, U, W, W, G]},
+	{"id": "p1", "name": "Quartier A", "roads": [[0, 3], [1]], "regions": [W, W, U, U, G, G]},
+	{"id": "p2", "name": "Quartier B", "roads": [[0, 3], [5]], "regions": [U, W, W, G, G, U]},
+	{"id": "p3", "name": "Quartier C", "roads": [[0, 3], [1, 4]], "regions": [G, U, U, W, W, G]},
 ]
 
 
@@ -58,20 +64,27 @@ func _ensure_count(type_of: Dictionary, cells: Array, kind: int, count: int) -> 
 
 func _save_pattern(spec: Dictionary) -> void:
 	var cells := BlockDefinition.make_hexagon_cells(RADIUS + 1)
-	var ec := BlockDefinition.hexagon_edge_centers(RADIUS)
-	var axis: int = spec["axis"]
-	var branch: int = spec["branch"]
+	var roads: Array = spec["roads"]
 	var regions: Array = spec["regions"]
 
-	# Road cells = straight line across + optional T branch from the center.
+	# Road cells from segments, built between the big hexagon's CORNERS (HexUtils.DIRECTIONS[i] * R).
+	# A line between two opposite corners runs along a grid grain axis, so it is perfectly straight;
+	# edge-centers are not grain-aligned and would make the road stagger. A 2-corner segment is a
+	# straight road across; a 1-corner segment is a bifurcation from the centre. Every corner reached
+	# becomes a connector.
 	var road := {}
-	for c in HexUtils.line(ec[axis], ec[(axis + 3) % 6]):
-		road[c] = true
-	var connectors: Array[Vector2i] = [ec[axis], ec[(axis + 3) % 6]]
-	if branch >= 0:
-		for c in HexUtils.line(CENTER, ec[branch]):
+	var connector_set := {}
+	for seg in roads:
+		var a: Vector2i = HexUtils.DIRECTIONS[seg[0]] * RADIUS
+		var b: Vector2i = HexUtils.DIRECTIONS[seg[-1]] * RADIUS
+		var endpoints := HexUtils.line(a, b) if seg.size() == 2 else HexUtils.line(CENTER, a)
+		for c in endpoints:
 			road[c] = true
-		connectors.append(ec[branch])
+		for e in seg:
+			connector_set[HexUtils.DIRECTIONS[e] * RADIUS] = true
+	var connectors: Array[Vector2i] = []
+	for c in connector_set:
+		connectors.append(c)
 
 	# Terrain: road cells, then regions for the rest (water kept to the outer ring so it never
 	# appears in the middle of a block).
