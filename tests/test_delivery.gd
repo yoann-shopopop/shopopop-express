@@ -54,3 +54,10 @@ func test_recycle_clips_a_new_recipient_and_resets_state() -> void:
 	assert_eq(d.destinataire, fresh)
 	assert_eq(d.status, DeliveryStatus.Kind.DISPONIBLE)
 	assert_eq(d.reserved_by, -1)
+
+
+func test_is_available_is_true_only_when_disponible() -> void:
+	var d := _delivery(0)
+	assert_true(d.is_available(), "DISPONIBLE par défaut")
+	d.status = DeliveryStatus.Kind.RESERVE
+	assert_false(d.is_available())

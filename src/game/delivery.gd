@@ -28,6 +28,11 @@ func recycle(p_destinataire: DestinataireDefinition) -> void:
 	reserved_by = -1
 
 
+## True while the delivery is on the board and not yet taken (status DISPONIBLE), recipient or not.
+func is_available() -> bool:
+	return status == DeliveryStatus.Kind.DISPONIBLE
+
+
 ## True when the delivery can be reserved: available and still carrying a recipient.
 func is_reservable() -> bool:
 	return status == DeliveryStatus.Kind.DISPONIBLE and destinataire != null

@@ -23,6 +23,7 @@ var _can_roll: bool = true
 var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
 var _event_choice: EventCardChoice      # active card choice, if any
+var _delivery_list: DeliveryListView
 
 
 func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
@@ -54,6 +55,9 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	for player in players:
 		_spawn_pawn(player)
 	_build_delivery_markers(deliveries)
+	_delivery_list = DeliveryListView.new()
+	add_child(_delivery_list)
+	_delivery_list.build(deliveries)
 
 	var move_controller := MovementController.new()
 	add_child(move_controller)
@@ -92,6 +96,10 @@ func _process(_delta: float) -> void:
 	if _event_choice != null and is_instance_valid(_event_choice):
 		_event_choice.position = center + Vector3(0.0, 1.0, -half_h * 0.05)
 		_event_choice.scale = Vector3.ONE * 4.0 * zoom
+	if _delivery_list != null:
+		# Left column: centered horizontally on x≈-0.82*half_w, top near +0.5*half_h, rows going down (+z).
+		var left_origin := center + Vector3(-half_w * 0.82, 1.0, -half_h * 0.46)
+		_delivery_list.layout(left_origin, half_h * 0.30 * zoom, 0.55 * zoom)
 
 
 func _spawn_pawn(player: Player) -> void:
@@ -228,6 +236,8 @@ func _on_reserve() -> void:
 # A delivery's status changed (reserved / en cours): refresh its status disc and the action bar.
 func _on_delivery_changed(delivery: Delivery) -> void:
 	_update_status_ring(delivery)
+	if _delivery_list != null:
+		_delivery_list.refresh_statuses()
 	_refresh_ui()
 
 
@@ -317,6 +327,8 @@ func _on_delivery_completed(delivery: Delivery, points: int) -> void:
 	# The destinataire was recycled (or cleared) — refresh that delivery's recipient card + status.
 	_rebuild_recipient_marker(delivery)
 	_update_status_ring(delivery)  # back to DISPONIBLE -> ring removed
+	if _delivery_list != null:
+		_delivery_list.refresh_statuses()
 	_ui.set_status("Livré ! +%d points." % points)
 	_refresh_ui()
 
@@ -340,6 +352,19 @@ func _current_action() -> int:
 	if _phase.current_subphase() == GamePhase.SubPhase.DEPLACEMENT and _phase.reservable_delivery() != null:
 		return PlayHud.Action.RESERVE
 	return PlayHud.Action.END_TURN
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and _delivery_list != null:
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed and _over_left_region():
+			_delivery_list.scroll_by(1)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed and _over_left_region():
+			_delivery_list.scroll_by(-1)
+
+
+# True if the mouse is over the left third of the screen (the delivery column).
+func _over_left_region() -> bool:
+	return get_viewport().get_mouse_position().x < get_viewport().get_visible_rect().size.x * 0.26
 
 
 func _load_events() -> Array[CardDefinition]:

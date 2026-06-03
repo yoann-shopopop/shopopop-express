@@ -1,44 +1,56 @@
 class_name ClipCardView
 extends Node3D
-## 3D view of one delivery combo: the enseigne (left, with its brand logo), an optional status insert
+## 3D view of one delivery: the enseigne (left, with its brand logo), an optional status insert
 ## (center, hidden while DISPONIBLE), and the destinataire (right, name + banner color). Flat slabs laid
 ## on the XZ plane so they read under the top-down/orbit camera. Pure rendering — rebuilt via [method
-## bind]/[method refresh]; the demo handles input.
+## bind]/[method bind_delivery]/[method refresh]; the demo handles input.
 
 const CARD := Vector2(2.0, 1.2)   # width, depth of an enseigne/destinataire slab
 const INSERT := Vector2(0.7, 0.9)
 const GAP := 0.08
 const THICK := 0.08
 
-var _combo: DeliveryCombo
+var _enseigne: EnseigneDefinition
+var _destinataire: DestinataireDefinition
+var _status: int = DeliveryStatus.Kind.DISPONIBLE
 var _insert: Node3D = null
 
 
-## Builds (or rebuilds) the view for [param combo].
+## Builds (or rebuilds) the view for [param combo] (demo path).
 func bind(combo: DeliveryCombo) -> void:
-	_combo = combo
+	_build(combo.enseigne, combo.destinataire, combo.status)
+
+
+## Builds (or rebuilds) the view for a spatial [Delivery] (game path).
+func bind_delivery(delivery: Delivery) -> void:
+	_build(delivery.enseigne, delivery.destinataire, delivery.status)
+
+
+func _build(enseigne: EnseigneDefinition, destinataire: DestinataireDefinition, status: int) -> void:
+	_enseigne = enseigne
+	_destinataire = destinataire
+	_status = status
 	for child in get_children():
 		child.queue_free()
 	_insert = null
 	var step := CARD.x * 0.5 + INSERT.x * 0.5 + GAP
-	_add_card(Vector3(-step, 0.0, 0.0), CARD, combo.enseigne.color,
-		combo.enseigne.display_name, combo.enseigne.texture)
-	var dest_color: Color = combo.destinataire.color if combo.destinataire else Color("33384a")
-	var dest_name: String = combo.destinataire.display_name if combo.destinataire else "(vide)"
-	var dest_tex: Texture2D = combo.destinataire.texture if combo.destinataire else null
+	_add_card(Vector3(-step, 0.0, 0.0), CARD, enseigne.color, enseigne.display_name, enseigne.texture)
+	var dest_color: Color = destinataire.color if destinataire else Color("33384a")
+	var dest_name: String = destinataire.display_name if destinataire else "(vide)"
+	var dest_tex: Texture2D = destinataire.texture if destinataire else null
 	_add_card(Vector3(step, 0.0, 0.0), CARD, dest_color, dest_name, dest_tex)
 	refresh()
 
 
-## Updates the status insert to match the combo's current status.
+## Updates the status insert to match the current status.
 func refresh() -> void:
 	if _insert != null:
 		_insert.queue_free()
 		_insert = null
-	if _combo == null or _combo.is_available():
+	if _status == DeliveryStatus.Kind.DISPONIBLE:
 		return
 	_insert = _make_slab(Vector3.ZERO, INSERT, Color("20242c"))
-	_insert.add_child(_make_label(DeliveryStatus.label(_combo.status), Color.WHITE, INSERT.x))
+	_insert.add_child(_make_label(DeliveryStatus.label(_status), Color.WHITE, INSERT.x))
 	add_child(_insert)
 
 
