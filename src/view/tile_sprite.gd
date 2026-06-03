@@ -38,6 +38,9 @@ static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float,
 		yaw = float(meta["steps"]) * PI / 3.0
 		if bridge:
 			yaw += PI / 2.0
+		# The new road art draws its markings horizontally (E-W); the tiling convention expects the
+		# straight base along N-S. Rotate the texture 90° so markings line up across tiles.
+		yaw += PI / 2.0
 	elif type == CellType.Kind.URBAN and is_drive:
 		# The pickup point's urban cell shows the DRIVE storefront art (the enseigne jeton sits on top).
 		var drives := TileTextures.drive_variants()
