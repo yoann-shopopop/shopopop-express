@@ -21,9 +21,10 @@ var _recipient_markers: Dictionary = {}  # Delivery -> Node3D (rebuilt on recycl
 var _status_rings: Dictionary = {}     # Delivery -> Node3D (status disc on the drive cell)
 var _can_roll: bool = true
 var _dice_views: Node3D                 # holder for the rolled 3D dice
-var _budget_cubes: Node3D               # holder for the remaining movement budget cubes
 var _highlights: Node3D                 # holder for the reachable-cell markers
+var _active_marker: Node3D              # ring under the active pawn + floating steps badge above it
 var _event_choice: EventCardChoice      # active card choice, if any
+var _pulse_t: float = 0.0               # time accumulator for the reachable-cell pulse
 var _delivery_list: DeliveryListView
 
 
@@ -50,10 +51,10 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_ui.setup_players(players)
 	_dice_views = Node3D.new()
 	add_child(_dice_views)
-	_budget_cubes = Node3D.new()
-	add_child(_budget_cubes)
 	_highlights = Node3D.new()
 	add_child(_highlights)
+	_active_marker = Node3D.new()
+	add_child(_active_marker)
 
 	for player in players:
 		_spawn_pawn(player)
@@ -83,6 +84,7 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 		_ui.zoom_out_requested.connect(camera_rig.zoom_out)
 	_fit_camera_to_board()
 	_refresh_ui()
+	_update_active_marker()
 
 
 # Centers the camera on the placed board and zooms so it fills the framed region at game start (the
@@ -136,10 +138,10 @@ func _process(_delta: float) -> void:
 	if _dice_views != null and _dice_views.get_child_count() > 0:
 		_dice_views.position = center + Vector3(-half_w * 0.70, 1.0, half_h * 0.42)
 		_dice_views.scale = Vector3.ONE * 3.2 * zoom
-	if _budget_cubes != null and _budget_cubes.get_child_count() > 0:
-		# Clearly to the right of the die, never overlapping it.
-		_budget_cubes.position = center + Vector3(-half_w * 0.46, 1.0, half_h * 0.50)
-		_budget_cubes.scale = Vector3.ONE * 1.5 * zoom
+	# Gentle pulse on the reachable-cell markers so they read as "you can go here".
+	_pulse_t += _delta
+	if _highlights != null:
+		_highlights.scale = Vector3.ONE * (1.0 + 0.08 * sin(_pulse_t * 4.0))
 	if _event_choice != null and is_instance_valid(_event_choice):
 		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
 		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.10)
@@ -211,11 +213,11 @@ func _on_roll() -> void:
 	var dice_count := player.character.dice_count() if player.character != null else 2
 	_dice.roll(dice_count)
 	_phase.begin_movement(_dice.total())
-	_show_budget(_dice.total())
 	_phase.movement().step_budget_changed.connect(_on_budget_changed)
 	_can_roll = false
 	_show_dice(_dice.values())
 	_refresh_highlights()
+	_update_active_marker()
 	_ui.set_status("Dés : %s — déplacement : %d (clique une case verte)" % [str(_dice.values()), _dice.total()])
 	_refresh_ui()
 
@@ -234,24 +236,6 @@ func _show_dice(values: Array) -> void:
 func _clear_dice() -> void:
 	for child in _dice_views.get_children():
 		child.queue_free()
-	_show_budget(0)
-
-
-## Shows [param remaining] little cubes = remaining movement budget.
-func _show_budget(remaining: int) -> void:
-	for child in _budget_cubes.get_children():
-		child.queue_free()
-	for i in remaining:
-		var inst := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(0.4, 0.4, 0.4)
-		inst.mesh = box
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color("e6b800")
-		inst.material_override = mat
-		# Wrap into rows of 3 so a big budget stays a compact little block, not a long line.
-		inst.position = Vector3((i % 3) * 0.55, 0.0, (i / 3) * 0.55)
-		_budget_cubes.add_child(inst)
 
 
 # Green markers on the cells the current pawn can step onto right now (empty outside movement).
@@ -268,25 +252,86 @@ func _refresh_highlights() -> void:
 func _highlight_marker(cell: Vector2i) -> MeshInstance3D:
 	var inst := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
-	mesh.top_radius = GameConfig.HEX_SIZE * 0.5
-	mesh.bottom_radius = GameConfig.HEX_SIZE * 0.5
-	mesh.height = 0.06
+	mesh.top_radius = GameConfig.HEX_SIZE * 0.66
+	mesh.bottom_radius = GameConfig.HEX_SIZE * 0.66
+	mesh.height = 0.08
 	mesh.radial_segments = 6
 	inst.mesh = mesh
 	inst.rotation_degrees = Vector3(0, 30, 0)  # flat-top alignment
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.3, 0.85, 0.4, 0.55)
+	mat.albedo_color = Color(0.45, 1.0, 0.55, 0.78)  # bright green, clearly readable
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	inst.material_override = mat
 	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
-	pos.y = GameConfig.TILE_HEIGHT + 0.05
+	pos.y = GameConfig.TILE_HEIGHT + 0.06
 	inst.position = pos
 	return inst
 
 
-func _on_budget_changed(remaining: int) -> void:
-	_show_budget(remaining)
+# Marks the active pawn: a ring in the player's color under it, plus a floating "steps remaining"
+# badge above it (Mario-Party style) during movement. Rebuilt on turn/roll/step/move.
+func _update_active_marker() -> void:
+	if _active_marker == null:
+		return
+	for child in _active_marker.get_children():
+		child.queue_free()
+	var player := _phase.current_player()
+	_active_marker.position = HexUtils.axial_to_world(_phase.position_of(player), GameConfig.HEX_SIZE)
+	var color := PlayerColor.to_color(player.color)
+	_active_marker.add_child(_active_ring(color))
+	var movement := _phase.movement()
+	if movement != null and _phase.current_subphase() == GamePhase.SubPhase.DEPLACEMENT:
+		_active_marker.add_child(_steps_badge(movement.remaining(), color))
+
+
+# A flat ring around the active pawn's cell, in the player's color.
+func _active_ring(color: Color) -> MeshInstance3D:
+	var inst := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = GameConfig.HEX_SIZE * 0.82
+	torus.outer_radius = GameConfig.HEX_SIZE * 1.02
+	torus.rings = 6
+	inst.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	inst.material_override = mat
+	inst.position = Vector3(0.0, GameConfig.TILE_HEIGHT + 0.07, 0.0)
+	return inst
+
+
+# A floating bubble (colored chip + big number) just north of the pawn, showing steps remaining.
+func _steps_badge(remaining: int, color: Color) -> Node3D:
+	var root := Node3D.new()
+	root.position = Vector3(0.0, 0.7, -GameConfig.HEX_SIZE * 1.15)  # raised + north (above on screen)
+	var chip := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.6
+	cyl.bottom_radius = 0.6
+	cyl.height = 0.1
+	cyl.radial_segments = 32
+	chip.mesh = cyl
+	var cmat := StandardMaterial3D.new()
+	cmat.albedo_color = color
+	cmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	chip.material_override = cmat
+	root.add_child(chip)
+	var label := Label3D.new()
+	label.text = str(remaining)
+	label.font_size = 120
+	label.pixel_size = 0.0075
+	label.modulate = Color.BLACK if color.get_luminance() > 0.5 else Color.WHITE
+	label.outline_size = 12
+	label.outline_modulate = Color(1, 1, 1, 0.5) if color.get_luminance() <= 0.5 else Color(0, 0, 0, 0.5)
+	label.position = Vector3(0.0, 0.06, 0.0)
+	label.rotation_degrees = Vector3(-90, 0, 0)
+	root.add_child(label)
+	return root
+
+
+func _on_budget_changed(_remaining: int) -> void:
+	_update_active_marker()
 
 
 func _on_reserve() -> void:
@@ -376,6 +421,7 @@ func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
 	var pawn: Pawn = _pawns[player.index]
 	pawn.move_to(to)
 	_refresh_highlights()
+	_update_active_marker()
 	_refresh_ui()
 
 
@@ -383,6 +429,7 @@ func _on_turn_changed(_player: Player) -> void:
 	_can_roll = true
 	_clear_dice()
 	_refresh_highlights()
+	_update_active_marker()
 	_refresh_ui()
 	_ui.set_status("À toi de jouer — lance les dés.")
 
