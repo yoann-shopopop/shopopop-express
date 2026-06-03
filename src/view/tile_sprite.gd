@@ -27,17 +27,19 @@ static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float,
 	var yaw := 0.0
 	if type == CellType.Kind.ROUTE:
 		var dirs := _road_dirs(cell, road_cells)
-		# A lone road cell (a bridge's central road, flanked only by its own water ends): orient it
-		# along the span, then turn the markings 90° so they read as planks ACROSS the bridge.
-		var bridge := dirs.is_empty()
-		if bridge:
-			dirs = _piece_dirs(cell, piece_cells)
-		var meta := RoadTiling.classify(dirs)
-		sprite.texture = TileTextures.road(meta["variant"])
-		sprite.flip_h = meta["flip"]
-		yaw = float(meta["steps"]) * PI / 3.0
-		if bridge:
-			yaw += PI / 2.0
+		if dirs.is_empty():
+			# A lone road cell = a bridge's central road (flanked only by its own water ends). Use the
+			# diagonal-marking texture, rotated to the span axis. The span is a hex axis, so 60° steps
+			# keep the hexagon flat-top aligned (no 90° turn that would rotate the hexagon itself).
+			var span := _piece_dirs(cell, piece_cells)
+			sprite.texture = TileTextures.road_bridge()
+			if span.size() > 0:
+				yaw = float(span[0] % 3) * PI / 3.0
+		else:
+			var meta := RoadTiling.classify(dirs)
+			sprite.texture = TileTextures.road(meta["variant"])
+			sprite.flip_h = meta["flip"]
+			yaw = float(meta["steps"]) * PI / 3.0
 	else:
 		var variants := TileTextures.variants(type)
 		sprite.texture = variants[_variant_of(variant_seed, variants.size())]

@@ -33,6 +33,13 @@ static func road(variant: int) -> Texture2D:
 	return load(_BASE + ("road/2.png" if variant == RoadTiling.T else "road/1.png"))
 
 
+## A bridge's central-road texture: diagonal lane markings, drawn for a span along the q-axis. The
+## bridge spans a hex axis, so this rotates in clean 60° steps (the hexagon stays flat-top aligned),
+## unlike reusing the straight texture turned 90° (which would rotate the hexagon itself).
+static func road_bridge() -> Texture2D:
+	return load(_BASE + "road/3.png")
+
+
 ## The start-point entity texture, placed on a green cell.
 static func spawn() -> Texture2D:
 	return load(_BASE + "spawn.png")
