@@ -34,7 +34,8 @@ static func resolve(card: EventCardDefinition, ctx: TurnContext) -> void:
 			ctx.movement.teleport_to(ctx.start_cell)
 		E.TELEPORT_DESTINATION:
 			if ctx.current_delivery != null:
-				var target := ctx.current_delivery.recipient_cell if ctx.current_delivery.picked_up \
+				var target := ctx.current_delivery.recipient_cell \
+					if ctx.current_delivery.status == DeliveryStatus.Kind.EN_COURS \
 					else ctx.current_delivery.drive_cell
 				ctx.movement.teleport_to(target)
 		E.BONUS_SCORE:
