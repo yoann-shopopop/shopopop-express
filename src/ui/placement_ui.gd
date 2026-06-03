@@ -73,6 +73,8 @@ func _build_start_panel() -> void:
 	var title := Label.new()
 	title.text = "Nombre de joueurs"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", UITheme.TEXT)
 	box.add_child(title)
 
 	var row := HBoxContainer.new()
@@ -83,6 +85,11 @@ func _build_start_panel() -> void:
 		var button := Button.new()
 		button.text = str(n)
 		button.custom_minimum_size = BUTTON_MIN
+		button.add_theme_font_size_override("font_size", 22)
+		button.add_theme_color_override("font_color", UITheme.TEXT)
+		button.add_theme_stylebox_override("normal", UITheme.button_style(UITheme.BLUE))
+		button.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.BLUE, 1.6))
+		button.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.BLUE))
 		button.pressed.connect(_on_count_pressed.bind(n))
 		row.add_child(button)
 
