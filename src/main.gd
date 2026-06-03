@@ -15,6 +15,7 @@ var _camera: CameraRig
 var _ghost: BlockGhost
 var _bridge_ghost: BlockGhost
 var _ui: PlacementUI
+var _zoom_controls: ZoomControls
 var _library: Array[BlockDefinition] = []
 var _characters: Array[CharacterDefinition] = []
 var _bridge: BlockDefinition
@@ -29,6 +30,10 @@ func _ready() -> void:
 	_camera = _build_camera()
 	_build_light()
 	_build_environment()
+	_zoom_controls = ZoomControls.new()
+	add_child(_zoom_controls)
+	_zoom_controls.zoom_in_requested.connect(_camera.zoom_in)
+	_zoom_controls.zoom_out_requested.connect(_camera.zoom_out)
 	_ui = PlacementUI.new()
 	add_child(_ui)
 	_ui.player_count_chosen.connect(_on_player_count_chosen)
