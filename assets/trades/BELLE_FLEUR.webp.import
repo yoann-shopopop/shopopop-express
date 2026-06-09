@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cx0ofxd7c1qi8"
-path="res://.godot/imported/BELLE_FLEUR.webp-c6e8ce56f0461526e82450d0e244320b.ctex"
+uid="uid://ljb5qyrdbcud"
+path="res://.godot/imported/belle_fleur.webp-10df1f7a3bbc3039057e677290cec0a2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/BELLE_FLEUR.webp"
-dest_files=["res://.godot/imported/BELLE_FLEUR.webp-c6e8ce56f0461526e82450d0e244320b.ctex"]
+source_file="res://assets/trades/belle_fleur.webp"
+dest_files=["res://.godot/imported/belle_fleur.webp-10df1f7a3bbc3039057e677290cec0a2.ctex"]
 
 [params]
 

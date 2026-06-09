@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbkbbn2uqclvg"
-path="res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"
+uid="uid://660c8afyvnn6"
+path="res://.godot/imported/le_filip.jpg-0017d59a36936e09d53dd57f47462bb4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/la_claire.webp"
-dest_files=["res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"]
+source_file="res://assets/player_tokens/le_filip.jpg"
+dest_files=["res://.godot/imported/le_filip.jpg-0017d59a36936e09d53dd57f47462bb4.ctex"]
 
 [params]
 

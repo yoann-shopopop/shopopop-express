@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbkbbn2uqclvg"
-path="res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"
+uid="uid://coafbit1ohobo"
+path="res://.godot/imported/logo_shopopop_express.png-9eb8abe6cf51feaa44c7b880ec0369f7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/la_claire.webp"
-dest_files=["res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"]
+source_file="res://assets/logo/logo_shopopop_express.png"
+dest_files=["res://.godot/imported/logo_shopopop_express.png-9eb8abe6cf51feaa44c7b880ec0369f7.ctex"]
 
 [params]
 

@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="EnseigneDefinition" format=3]
 
 [ext_resource type="Script" path="res://src/enseignes/enseigne_definition.gd" id="1_k20yb"]
-[ext_resource type="Texture2D" path="res://assets/trades/CHAREFOUR.webp" id="2_qoqjg"]
+[ext_resource type="Texture2D" path="res://assets/trades/charefour.webp" id="2_qoqjg"]
 
 [resource]
 script = ExtResource("1_k20yb")

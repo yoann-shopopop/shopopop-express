@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="DestinataireDefinition" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
-[ext_resource type="Texture2D" path="res://assets/player-token/cartes shopopop express12.jpg" id="2_img"]
+[ext_resource type="Texture2D" path="res://assets/player_tokens/keiona.jpg" id="2_img"]
 
 [resource]
 script = ExtResource("1_dest")

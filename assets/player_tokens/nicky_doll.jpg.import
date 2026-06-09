@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbkbbn2uqclvg"
-path="res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"
+uid="uid://cy26yvvp55ti2"
+path="res://.godot/imported/nicky_doll.jpg-9606529b79c2727e79e45c309d43164d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/la_claire.webp"
-dest_files=["res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"]
+source_file="res://assets/player_tokens/nicky_doll.jpg"
+dest_files=["res://.godot/imported/nicky_doll.jpg-9606529b79c2727e79e45c309d43164d.ctex"]
 
 [params]
 

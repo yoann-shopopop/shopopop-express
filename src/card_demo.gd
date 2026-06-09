@@ -16,14 +16,14 @@ const _REVEAL_POS: Array[Vector3] = [Vector3(-0.7, 0.0, 0.4), Vector3(0.7, 0.0, 
 
 # Placeholder fronts so the revealed cards look distinct.
 const _FRONTS: Array[String] = [
-	"res://assets/trades/CHAREFOUR.webp",
-	"res://assets/trades/IKEO.webp",
-	"res://assets/trades/BELLE_FLEUR.webp",
-	"res://assets/trades/DECLATON.webp",
-	"res://assets/trades/LIDI.webp",
-	"res://assets/trades/WINE_MINE.webp",
-	"res://assets/trades/BRICO_COCO.webp",
-	"res://assets/trades/CHUPER_U.webp",
+	"res://assets/trades/charefour.webp",
+	"res://assets/trades/ikeo.webp",
+	"res://assets/trades/belle_fleur.webp",
+	"res://assets/trades/declaton.webp",
+	"res://assets/trades/lidi.webp",
+	"res://assets/trades/wine_mine.webp",
+	"res://assets/trades/brico_coco.webp",
+	"res://assets/trades/chuper_u.webp",
 ]
 
 var _deck: Deck

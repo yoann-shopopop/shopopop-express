@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbkbbn2uqclvg"
-path="res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"
+uid="uid://dr02qn2w14rqo"
+path="res://.godot/imported/soa_de_muse.jpg-c86e5479b0ddfbd35dab72a9e66f90dc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/la_claire.webp"
-dest_files=["res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"]
+source_file="res://assets/player_tokens/soa_de_muse.jpg"
+dest_files=["res://.godot/imported/soa_de_muse.jpg-c86e5479b0ddfbd35dab72a9e66f90dc.ctex"]
 
 [params]
 

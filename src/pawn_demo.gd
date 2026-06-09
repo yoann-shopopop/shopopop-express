@@ -5,8 +5,8 @@ extends Node3D
 ## drive and a recipient shown as image chips. You can GRAB a pawn with the mouse and rotate it;
 ## dragging the empty background orbits the camera, and the wheel zooms. Imagery is placeholder.
 
-const _IMG_DRIVE := preload("res://assets/trades/IKEO.webp")
-const _IMG_RECIPIENT := preload("res://assets/trades/BELLE_FLEUR.webp")
+const _IMG_DRIVE := preload("res://assets/trades/ikeo.webp")
+const _IMG_RECIPIENT := preload("res://assets/trades/belle_fleur.webp")
 
 # Player colors for the cotransporter figures.
 const _PLAYER_COLORS: Array[Color] = [

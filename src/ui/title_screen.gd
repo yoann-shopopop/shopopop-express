@@ -6,7 +6,7 @@ extends CanvasLayer
 
 signal start_requested
 
-const _LOGO := "res://assets/logo/LOGO-SHOPOPOP-EXPRESS.png"
+const _LOGO := "res://assets/logo/logo_shopopop_express.png"
 
 
 func _ready() -> void:

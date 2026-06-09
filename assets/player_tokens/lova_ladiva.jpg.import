@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbkbbn2uqclvg"
-path="res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"
+uid="uid://dmu4l0eidiotm"
+path="res://.godot/imported/lova_ladiva.jpg-e77a58c176b5dfc5b415057e42d0fb37.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/la_claire.webp"
-dest_files=["res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"]
+source_file="res://assets/player_tokens/lova_ladiva.jpg"
+dest_files=["res://.godot/imported/lova_ladiva.jpg-e77a58c176b5dfc5b415057e42d0fb37.ctex"]
 
 [params]
 

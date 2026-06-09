@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbkbbn2uqclvg"
-path="res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"
+uid="uid://duo3d75mx07cy"
+path="res://.godot/imported/punani.jpg-615bba571574bbafea8c99b433bcb0f0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/la_claire.webp"
-dest_files=["res://.godot/imported/la_claire.webp-df632994e918b27bbd9755d97896edbd.ctex"]
+source_file="res://assets/player_tokens/punani.jpg"
+dest_files=["res://.godot/imported/punani.jpg-615bba571574bbafea8c99b433bcb0f0.ctex"]
 
 [params]
 
