@@ -67,6 +67,11 @@ func _refresh_outlines() -> void:
 				piece.cells(), GameConfig.HEX_SIZE, 1.0, GameConfig.OUTLINE_WIDTH):
 			transforms.append(t)
 			colors.append(color)
+		# Per-cell outline: interior edges, half the perimeter width, same color.
+		for t in BlockOutline.interior_edge_transforms(
+				piece.cells(), GameConfig.HEX_SIZE, 1.0, GameConfig.OUTLINE_WIDTH * 0.5):
+			transforms.append(t)
+			colors.append(color)
 	_outlines.multimesh.instance_count = transforms.size()
 	for i in transforms.size():
 		_outlines.multimesh.set_instance_transform(i, transforms[i])
