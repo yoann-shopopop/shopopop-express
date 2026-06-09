@@ -131,7 +131,7 @@ src/cards/      card_definition.gd / deck.gd  CardDefinition (Resource) + Deck (
 src/movement/   movement.gd (Movement)        marche auto-évitante sur un set de cases injecté
 src/dice/       dice_roller.gd (DiceRoller)   lance X D6, mémorise le résultat, RNG injectable
 src/view/       hex_grid_view.gd              assemble lattice + tuiles + outlines + marqueurs
-                tile_sprite.gd / tile_textures.gd  une case = Sprite3D texturé (débord Nord)
+                tile_sprite.gd / tile_textures.gd  une case = Sprite3D texturé (art hex-plein ≈248px)
                 road_tiling.gd                oriente les routes (droite/T) selon la connectivité
                 tile_preview.gd               rend un bloc en SubViewport pour l'UI
                 block_ghost.gd / block_outline.gd  fantôme texturé (rouge si invalide) / contour joueur
@@ -187,8 +187,9 @@ gratuit (`try_place_bridge`, mêmes ajustements). `finish_turn()` clôt le tour,
 bloc n'est posé** ; le joueur est `done` quand `pieces` est vide (un pont non posé est **abandonné** —
 jamais de tour avec seulement un pont).
 
-**Rendu** : scène 3D, **caméra ortho top-down**, chaque case = **Sprite3D texturé** posé à plat (base
-388px sur l'hexagone, décor débordant au Nord, tri Sud-sur-Nord), routes orientées via `RoadTiling`,
+**Rendu** : scène 3D, **caméra ortho top-down**, chaque case = **Sprite3D texturé** posé à plat (art
+flat-top hex-plein, **≈248px de large, l'hexagone remplit l'image sans débord**, géométrie unique
+pour tous les types ; tri Sud-sur-Nord), routes orientées via `RoadTiling`,
 **outline** de périmètre couleur joueur, `special`/`spawn`. UI : **previews réelles** des tuiles.
 
 **Interaction** : pointeur souris/tactile ; **magnet** snappe le fantôme à la pose légale la plus proche
