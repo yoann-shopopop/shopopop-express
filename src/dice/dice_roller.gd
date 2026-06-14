@@ -53,6 +53,16 @@ func count() -> int:
 	return _last.size()
 
 
+## Re-rolls a single die [param index] of the last roll and returns its new value (1..6), updating the
+## recorded result. For Coup d'Accélérateur (Vic). Returns 0 if the index is out of range.
+func reroll(index: int) -> int:
+	if index < 0 or index >= _last.size():
+		return 0
+	_last[index] = _rng.randi_range(1, SIDES)
+	rolled.emit(_last)
+	return _last[index]
+
+
 ## Whether a result is currently recorded.
 func has_result() -> bool:
 	return not _last.is_empty()

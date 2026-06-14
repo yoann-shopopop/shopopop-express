@@ -13,6 +13,13 @@ var done: bool = false                          ## true once this player has fin
 var start_block: BlockDefinition = null         ## the block (by reference) carrying the start point
 var start_cell: Vector2i = Vector2i.ZERO        ## offset of the start cell within that block
 
+# Persistent benefits armed by a one-shot super-power. They outlive the turn (the power may pay off
+# later) so the power is never wasted: it stays armed until the matching moment actually arrives.
+var bonus_capacity: int = 0                     ## Chargement Pro (Margot): extra in-flight slots
+var pending_draw_two: bool = false              ## Carnet d'Adresses (Charlie): next event drawn 2-keep-1
+var shield_charged: bool = false                ## Bouclier Vert (Axel·le): the next malus is cancelled
+var regular_route_charge: bool = false          ## Habitué·e (Camille): next delivery scores full
+
 
 func _init(p_color: int) -> void:
 	color = p_color

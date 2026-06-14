@@ -344,3 +344,124 @@ func test_deliveries_remaining_reaches_zero_exactly_when_finished() -> void:
 	_deliver_once(phase)
 	assert_eq(phase.deliveries_remaining(), 0)
 	assert_true(phase.is_finished())
+
+
+# --- Super-powers (the four that were stubbed + the two dead-flag ones) ------
+
+func _char_with_power(power_id: StringName) -> CharacterDefinition:
+	var c := CharacterDefinition.new()
+	c.colors = [PlayerColor.Kind.RED]
+	c.power_id = power_id
+	return c
+
+
+# Two players on one tile; player 0 holds Dépassement. Returns { phase, p0, p1 }.
+func _depassement_setup() -> Dictionary:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var p0 := _player(0, PlayerColor.Kind.RED, tile)
+	p0.character = _char_with_power(&"depassement")
+	var p1 := _player(1, PlayerColor.Kind.BLUE, tile)
+	var phase := GamePhase.new([p0, p1] as Array[Player], board)
+	return {"phase": phase, "p0": p0, "p1": p1}
+
+
+func test_depassement_swaps_pawn_cells_and_spends_the_power() -> void:
+	var s := _depassement_setup()
+	var phase: GamePhase = s["phase"]
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))  # player 0 -> (1,0); player 1 still on (0,0)
+	assert_true(phase.swap_positions(1))
+	assert_eq(phase.position_of(s["p0"]), Vector2i(0, 0), "player 0 took player 1's cell")
+	assert_eq(phase.position_of(s["p1"]), Vector2i(1, 0), "player 1 took player 0's cell")
+	assert_true(s["p0"].power_used)
+	assert_false(phase.swap_positions(1), "one-shot")
+
+
+func test_coup_accelerateur_adjusts_budget_and_spends_the_power() -> void:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	player.character = _char_with_power(&"coup_accelerateur")
+	var phase := GamePhase.new([player] as Array[Player], board)
+	phase.begin_movement(3)
+	assert_true(phase.apply_reroll(2), "rerolled a 2-higher die")
+	assert_eq(phase.movement().remaining(), 5)
+	assert_false(phase.apply_reroll(1), "one-shot")
+
+
+func test_passage_secret_makes_water_walkable_this_turn() -> void:
+	var board := Board.new()
+	var b := BlockDefinition.new()
+	b.id = &"water_tile"
+	b.cells = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)] as Array[Vector2i]
+	b.cell_types = [CellType.Kind.GREEN, CellType.Kind.ROUTE, CellType.Kind.WATER]
+	b.connectors = [Vector2i(1, 0)] as Array[Vector2i]
+	board.place(b, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, b)
+	player.character = _char_with_power(&"passage_secret")
+	var phase := GamePhase.new([player] as Array[Player], board)
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))
+	assert_false(phase.movement().legal_moves().has(Vector2i(2, 0)), "water blocked before the power")
+	assert_true(phase.use_power())
+	assert_true(phase.movement().legal_moves().has(Vector2i(2, 0)), "water passable after Passage Secret")
+
+
+func test_bouclier_vert_cancels_the_next_malus() -> void:
+	var phase := _phase_with_event()
+	phase.begin_movement(3)
+	phase.current_player().shield_charged = true
+	var malus := EventCardDefinition.new()
+	malus.effect = EventCardDefinition.Effect.MALUS_CASES
+	malus.amount = 2
+	malus.is_malus = true
+	phase.apply_event(malus)
+	assert_eq(phase.movement().remaining(), 3, "the malus was cancelled by the shield")
+	assert_false(phase.current_player().shield_charged, "the shield is spent")
+	assert_true(phase.context().shield_consumed)
+
+
+func test_habitue_quartier_scores_a_delivery_as_full() -> void:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.BLUE)  # not the player's colour
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	player.character = _char_with_power(&"habitue_quartier")
+	player.regular_route_charge = true
+	var piece: PlacedPiece = board.pieces()[0]
+	var delivery := Delivery.new(Vector2i(1, 0), Vector2i(2, 0), [piece] as Array[PlacedPiece])
+	delivery.destinataire = DestinataireDefinition.new()
+	var phase := GamePhase.new([player] as Array[Player], board, [delivery] as Array[Delivery])
+	phase.begin_movement(3)
+	phase.reserve_delivery()
+	watch_signals(phase)
+	phase.try_step(Vector2i(1, 0))  # drive -> EN_COURS
+	phase.try_step(Vector2i(2, 0))  # recipient -> delivered
+	assert_signal_emitted_with_parameters(phase, "delivery_completed", [delivery, ScoreCalculator.full_score()])
+	assert_false(player.regular_route_charge, "the charge is spent")
+
+
+func test_chargement_pro_grants_a_third_in_flight_slot() -> void:
+	# With three deliveries on the start tile, the cap of 2 blocks the third — unless Margot's +1 applies.
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	player.character = _char_with_power(&"chargement_pro")
+	var piece: PlacedPiece = board.pieces()[0]
+	var deliveries: Array[Delivery] = []
+	# Drive/recipient cells sit off the pawn's start, so reserving keeps them RESERVE (no auto pickup).
+	for i in 3:
+		var d := Delivery.new(Vector2i(10 + i, 0), Vector2i(20 + i, 0), [piece] as Array[PlacedPiece])
+		d.destinataire = DestinataireDefinition.new()
+		deliveries.append(d)
+	var phase := GamePhase.new([player] as Array[Player], board, deliveries)
+	phase.begin_movement(1)
+	assert_true(phase.reserve_delivery(), "1st reserved")
+	assert_true(phase.reserve_delivery(), "2nd reserved")
+	assert_false(phase.reserve_delivery(), "3rd blocked at the default cap of 2")
+	player.bonus_capacity = 1  # Margot's Chargement Pro
+	assert_true(phase.reserve_delivery(), "3rd reservable with +1 capacity")

@@ -15,9 +15,11 @@ var replay: bool = false                   ## play another turn (Tous les Feux a
 var score_bonus: int = 0                   ## flat points added to the final score (5/5)
 var double_score: bool = false             ## double this player's delivery points (Livraison Écologique)
 var extra_dice: int = 0                    ## extra dice to roll (Prime Gouvernementale)
-var draw_two: bool = false                 ## draw two event cards, keep one (Carnet d'Adresses)
-var shield: bool = false                   ## cancel the next malus that targets the player (Bouclier Vert)
-var force_regular_route: bool = false      ## count one delivery as regular-route regardless of color
+var water_crossing: bool = false           ## Passage Secret (Gégé): water is passable this turn
+var shield_consumed: bool = false          ## set when a malus was just cancelled by Bouclier Vert (UI feedback)
+
+# Powers whose benefit pays off later (Carnet d'Adresses, Bouclier Vert, Habitué·e, Chargement Pro)
+# arm a persistent flag on the [Player] instead — see player.gd — so they survive across turns.
 
 
 func _init(p_movement: TurnMovement = null, p_player: Player = null) -> void:

@@ -81,6 +81,13 @@ func subtract_steps(n: int) -> void:
 	step_budget_changed.emit(_remaining)
 
 
+## Adds [param cells] to the walkable set for the rest of this turn — used by Passage Secret (Gégé),
+## which makes water passable. A no-op for cells already walkable.
+func allow_cells(cells: Dictionary) -> void:
+	for cell in cells:
+		_walkable[cell] = true
+
+
 ## Repositions the pawn onto [param cell] without spending budget and without an adjacency or
 ## walkable check — for teleport event cards (Faille Spatio-Temporelle, Escorte Policière, returns).
 func teleport_to(cell: Vector2i) -> void:

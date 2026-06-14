@@ -391,28 +391,43 @@ func _update_status_ring(delivery: Delivery) -> void:
 	_status_rings[delivery] = inst
 
 
-func _on_event_triggered(cell: Vector2i) -> void:
-	# Draw two event cards and show them: the player keeps one (the other returns to the deck) and
-	# activates it. Movement is paused (EVENEMENT) until the choice resolves.
-	var drawn := _events.draw(2)
+func _on_event_triggered(_cell: Vector2i) -> void:
+	# Draw the event card(s): normally one (forced), but two when the player armed Carnet d'Adresses
+	# (Charlie) — then they keep one and the other returns to the deck. Movement is paused (EVENEMENT)
+	# until the choice resolves.
+	var player := _phase.current_player()
+	var count := 1
+	if player.pending_draw_two:
+		count = 2
+		player.pending_draw_two = false
+	var drawn := _events.draw(count)
 	if drawn.is_empty():
+		_phase.end_turn()  # deck somehow empty: don't strand the player in EVENEMENT
 		return
 	_refresh_highlights()  # clears the markers while the cards are up
 	_event_choice = EventCardChoice.new()
 	add_child(_event_choice)
 	_event_choice.resolved.connect(_on_event_resolved)
 	_event_choice.present(drawn, _camera, Vector3.ZERO)  # position pinned each frame by _process
-	_ui.set_status("Événement ! Choisis une carte, puis clique-la pour l'activer.")
+	if count == 2:
+		_ui.set_status("Carnet d'Adresses : pioche 2, garde la carte qui t'arrange.")
+	else:
+		_ui.set_status("Événement ! Clique la carte pour l'activer.")
 
 
 func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
+	var ctx := _phase.context()
 	_phase.apply_event(chosen)
 	_events.discard(chosen)
 	for card in discarded:
 		_events.return_to_top(card)
 	_event_choice = null
-	var tag := "Malus" if chosen.is_malus else "Avantage"
-	_ui.set_status("%s : %s" % [tag, chosen.display_name])
+	if ctx != null and ctx.shield_consumed:
+		ctx.shield_consumed = false
+		_ui.set_status("Bouclier Vert : malus « %s » annulé !" % chosen.display_name)
+	else:
+		var tag := "Malus" if chosen.is_malus else "Avantage"
+		_ui.set_status("%s : %s" % [tag, chosen.display_name])
 	_consume_event_aftermath()
 	_refresh_highlights()
 	_update_active_marker()
@@ -441,12 +456,81 @@ func _consume_event_aftermath() -> void:
 
 func _on_power() -> void:
 	var player := _phase.current_player()
+	if player.character == null or player.power_used or _phase.context() == null:
+		_ui.set_status("Aucun pouvoir disponible pour l'instant.")
+		return
+	var pid := player.character.power_id
+	if PowerResolver.is_interactive(pid):
+		_begin_interactive_power(pid)
+		return
 	if _phase.use_power():
-		_ui.set_status("Super-pouvoir activé !")
+		_ui.set_status(_power_message(pid))
 		_refresh_highlights()
-	elif player.character != null and not player.power_used:
-		_ui.set_status("Ce pouvoir n'est pas encore disponible.")
+		_update_active_marker()
+	else:
+		_ui.set_status("Ce pouvoir n'est pas disponible maintenant.")
 	_refresh_ui()
+
+
+# Interactive powers ask the player to pick a target first, then call the matching GamePhase method.
+func _begin_interactive_power(pid: StringName) -> void:
+	if pid == &"depassement":
+		var options: Array = []
+		var indices: Array = []
+		for p in _players:
+			if p.index == _phase.current_player().index:
+				continue
+			options.append({"text": PlayerColor.name_of(p.color), "color": PlayerColor.to_color(p.color)})
+			indices.append(p.index)
+		if options.is_empty():
+			_ui.set_status("Dépassement : aucun autre joueur à dépasser.")
+			return
+		_ui.show_chooser("Dépassement — échange ta place avec :", options, func(choice: int) -> void:
+			if choice < 0:
+				return
+			if _phase.swap_positions(indices[choice]):
+				_ui.set_status("Dépassement ! Place échangée.")
+				_refresh_highlights()
+				_update_active_marker()
+				_refresh_ui())
+	elif pid == &"coup_accelerateur":
+		var values := _dice.values()
+		if values.is_empty():
+			_ui.set_status("Coup d'Accélérateur : lance d'abord les dés.")
+			return
+		var options: Array = []
+		for v in values:
+			options.append({"text": "Dé : %d" % v, "color": UITheme.ORANGE})
+		_ui.show_chooser("Coup d'Accélérateur — relance quel dé ?", options, func(choice: int) -> void:
+			if choice < 0:
+				return
+			var old_value: int = values[choice]
+			var new_value := _dice.reroll(choice)
+			if _phase.apply_reroll(new_value - old_value):
+				_show_dice(_dice.values())
+				_ui.set_status("Coup d'Accélérateur : %d → %d (%+d cases)." % [old_value, new_value, new_value - old_value])
+				_refresh_highlights()
+				_update_active_marker()
+				_refresh_ui())
+
+
+# Toast describing the effect of a non-interactive power that was just used.
+func _power_message(pid: StringName) -> String:
+	match pid:
+		&"bonne_marcheuse":
+			return "Bonne Marcheuse : +2 cases !"
+		&"carnet_adresses":
+			return "Carnet d'Adresses : ton prochain événement, pioche 2 et garde 1."
+		&"bouclier_vert":
+			return "Bouclier Vert : le prochain malus sera annulé."
+		&"habitue_quartier":
+			return "Habitué·e : ta prochaine livraison comptera au maximum."
+		&"passage_secret":
+			return "Passage Secret : tu peux franchir l'eau ce tour-ci !"
+		&"chargement_pro":
+			return "Chargement Pro : +1 livraison transportable."
+		_:
+			return "Super-pouvoir activé !"
 
 
 func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:

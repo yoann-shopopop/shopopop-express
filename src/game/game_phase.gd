@@ -149,9 +149,17 @@ func context() -> TurnContext:
 	return _context
 
 
-## Resolves a drawn event [param card] against the current turn, then resumes (or ends) the turn.
+## Resolves a drawn event [param card] against the current turn, then resumes (or ends) the turn. A
+## malus is cancelled outright when the player has Bouclier Vert armed (the shield is then spent).
 func apply_event(card: EventCardDefinition) -> void:
 	if _context == null:
+		return
+	var player := current_player()
+	if card.is_malus and player.shield_charged:
+		player.shield_charged = false
+		_context.shield_consumed = true
+		if _subphase == SubPhase.EVENEMENT:
+			_set_subphase(SubPhase.DEPLACEMENT)
 		return
 	EventResolver.resolve(card, _context)
 	if _context.score_bonus != 0:
@@ -163,14 +171,73 @@ func apply_event(card: EventCardDefinition) -> void:
 		_set_subphase(SubPhase.DEPLACEMENT)
 
 
-## Activates the current player's one-shot super-power. Returns false if unavailable/already used.
+## Activates the current player's NON-interactive one-shot super-power. Interactive powers
+## (Dépassement, Coup d'Accélérateur) are handled by [method swap_positions] / [method apply_reroll].
+## Returns false if unavailable/already used/interactive. Applies effects the resolver only flags
+## (Passage Secret opens the water).
 func use_power() -> bool:
 	if _context == null:
 		return false
 	var character := current_player().character
 	if character == null:
 		return false
-	return PowerResolver.resolve(character.power_id, _context)
+	if PowerResolver.is_interactive(character.power_id):
+		return false
+	if not PowerResolver.resolve(character.power_id, _context):
+		return false
+	if _context.water_crossing:
+		_open_water_crossing()
+	return true
+
+
+# Passage Secret (Gégé): make every water cell passable for the rest of this turn.
+func _open_water_crossing() -> void:
+	if _movement == null:
+		return
+	var water := {}
+	for cell in _board.cells_of_type(CellType.Kind.WATER):
+		water[cell] = true
+	_movement.allow_cells(water)
+
+
+## Dépassement (Sam): swaps the current pawn's cell with player [param other_index]'s, consuming the
+## one-shot. The acting pawn's movement continues from the new cell. Returns false if unavailable or
+## the target is invalid.
+func swap_positions(other_index: int) -> bool:
+	if _context == null or _subphase != SubPhase.DEPLACEMENT:
+		return false
+	var player := current_player()
+	if player.character == null or player.power_used or player.character.power_id != &"depassement":
+		return false
+	if other_index == player.index or not _positions.has(other_index):
+		return false
+	var mine: Vector2i = _positions[player.index]
+	var theirs: Vector2i = _positions[other_index]
+	_positions[player.index] = theirs
+	_positions[other_index] = mine
+	if _movement != null:
+		_movement.teleport_to(theirs)
+	player.power_used = true
+	pawn_moved.emit(player, mine, theirs)
+	pawn_moved.emit(_players[other_index], theirs, mine)
+	_check_delivery_transitions()
+	return true
+
+
+## Coup d'Accélérateur (Vic): adjusts the turn budget by [param delta] (new die value − old) after the
+## view re-rolled a die, consuming the one-shot. Returns false if unavailable.
+func apply_reroll(delta: int) -> bool:
+	if _context == null or _subphase != SubPhase.DEPLACEMENT or _movement == null:
+		return false
+	var player := current_player()
+	if player.character == null or player.power_used or player.character.power_id != &"coup_accelerateur":
+		return false
+	if delta >= 0:
+		_movement.add_steps(delta)
+	else:
+		_movement.subtract_steps(-delta)
+	player.power_used = true
+	return true
 
 
 # --- Deliveries -------------------------------------------------------------
@@ -198,7 +265,7 @@ func deliveries_in_flight(player_index: int) -> Array[Delivery]:
 ## The reservable delivery on the current pawn's tile, or null. Requires the player to hold fewer than
 ## [constant MAX_IN_FLIGHT] deliveries. Only the drive tile is checked (tiles[0]).
 func reservable_delivery() -> Delivery:
-	if deliveries_in_flight(_current).size() >= MAX_IN_FLIGHT:
+	if deliveries_in_flight(_current).size() >= MAX_IN_FLIGHT + current_player().bonus_capacity:
 		return null
 	var tile := _board.piece_at(position_of(current_player()))
 	if tile == null:
@@ -239,7 +306,11 @@ func _check_delivery_transitions() -> void:
 
 # Scores [param delivery], recycles a new recipient (or leaves the drive free), checks for game end.
 func _complete_delivery(delivery: Delivery) -> void:
-	var points := _score_for(current_player(), delivery)
+	var player := current_player()
+	var points := _score_for(player, delivery)
+	if player.regular_route_charge:
+		points = maxi(points, ScoreCalculator.full_score())  # Habitué·e: count as if on your colour
+		player.regular_route_charge = false
 	if _context != null and _context.double_score:
 		points *= 2  # Livraison Écologique
 	_scores[_current] += points

@@ -36,6 +36,7 @@ var _chips: Array[Panel] = []
 var _action: int = Action.ROLL
 var _char_frame: Panel       # framed character card of the current player (right of the board)
 var _char_card: TextureRect
+var _chooser: Control        # transient modal chooser (interactive powers), null when none
 
 
 func _ready() -> void:
@@ -317,6 +318,67 @@ func set_status(text: String) -> void:
 	var tween := create_tween()
 	tween.tween_interval(1.8)
 	tween.tween_property(_toast, "modulate:a", 0.0, 0.7)
+
+
+## Shows a transient modal chooser centered on screen: [param prompt] then one button per option
+## ([code]{ "text": String, "color": Color }[/code]); calls [param on_pick] with the chosen index, then
+## dismisses. A "Annuler" button dismisses with index -1. The dim backdrop blocks board clicks while
+## open. Used by the interactive super-powers (Dépassement target, Coup d'Accélérateur die).
+func show_chooser(prompt: String, options: Array, on_pick: Callable) -> void:
+	dismiss_chooser()
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0, 0, 0, 0.5)
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP  # eats clicks so the board isn't moved meanwhile
+	add_child(backdrop)
+	_chooser = backdrop
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UITheme.pill_style())
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	panel.add_child(box)
+	var label := Label.new()
+	label.text = prompt
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_color", UITheme.TEXT)
+	box.add_child(label)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	box.add_child(row)
+	for i in options.size():
+		var opt: Dictionary = options[i]
+		var btn := Button.new()
+		btn.text = opt.get("text", "?")
+		btn.custom_minimum_size = Vector2(132, 60)
+		btn.add_theme_font_size_override("font_size", 20)
+		_theme_button(btn, opt.get("color", UITheme.BLUE))
+		var idx := i
+		btn.pressed.connect(func() -> void:
+			dismiss_chooser()
+			on_pick.call(idx))
+		row.add_child(btn)
+	var cancel := Button.new()
+	cancel.text = "Annuler"
+	cancel.custom_minimum_size = Vector2(132, 40)
+	cancel.add_theme_font_size_override("font_size", 18)
+	_theme_button(cancel, UITheme.PANEL_BORDER)
+	cancel.pressed.connect(func() -> void:
+		dismiss_chooser()
+		on_pick.call(-1))
+	box.add_child(cancel)
+
+
+## Dismisses the modal chooser if one is open.
+func dismiss_chooser() -> void:
+	if _chooser != null and is_instance_valid(_chooser):
+		_chooser.queue_free()
+	_chooser = null
 
 
 ## Updates the round counter shown in the top bar.
