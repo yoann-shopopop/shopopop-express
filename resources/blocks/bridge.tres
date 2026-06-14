@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BlockDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/blocks/block_definition.gd" id="1_45bdp"]
+
+[resource]
+script = ExtResource("1_45bdp")
+id = &"bridge"
+display_name = "Pont"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)])
+cell_types = Array[int]([3, 0, 3])
+connectors = Array[Vector2i]([Vector2i(1, 0)])

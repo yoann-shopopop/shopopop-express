@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_ud2fj"]
+
+[resource]
+script = ExtResource("1_ud2fj")
+id = &"keiona"
+display_name = "Keiona"
+color = Color(0.9529412, 0.44705883, 0.17254902, 1)

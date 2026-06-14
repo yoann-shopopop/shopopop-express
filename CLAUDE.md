@@ -14,11 +14,9 @@ couches découplées et des tests unitaires. Voir la section « Architecture imp
 logique de **gameplay** (déplacements sur les routes, dés, livraisons, score, événements) reste à
 construire **au-dessus** de ces fondations, en se référant aux règles.
 
-**La source de vérité du gameplay est la page Notion « SHOPOPOP Express 2 - LE Retour »**
-(`3732c5c7-9816-8027-bddc-e78f7729d8a5`). `docs/SHOPOPOP-EXPRESS-GAME-RULES.MD` en est une **copie
-synchronisée** (dernière synchro : 2026-06-02) ; en cas de divergence, Notion fait foi. Les règles
-évoluent encore (voir « Points encore ouverts ») : ne pas figer dans le code un comportement issu
-d'une formulation douteuse sans confirmation.
+**La source de vérité du gameplay est `docs/SHOPOPOP-EXPRESS-GAME-RULES.MD`.** Toute logique de jeu
+doit s'y référer. Les règles sont encore en cours de rédaction (voir « Ambiguïtés connues » plus bas) :
+ne pas figer dans le code un comportement issu d'une formulation douteuse sans confirmation.
 
 > ⚠️ **Maintenir ce CLAUDE.md à jour avec l'évolution des règles.** Le modèle de domaine et les
 > ambiguïtés décrits ici sont un instantané des règles actuelles. Dès que `SHOPOPOP-EXPRESS-GAME-RULES.MD`
@@ -66,41 +64,32 @@ Concepts clés à modéliser. Les entités forment naturellement des `Resource` 
 - **Plateau** = assemblage de **tuiles** (chaque tuile = un *quartier* avec routes, espaces verts,
   zones grises/urbanisées). Contrainte d'assemblage : deux tuiles ne se joignent que si une route de
   l'une touche une route de l'autre. **Déplacement uniquement sur les routes** (sauf cartes événement).
-- **Carte personnage** : un **mode de transport** (qui fixe le nombre de dés), **2 couleurs** = les
-  quartiers de son *trajet régulier*, et **1 super-pouvoir propre** utilisable **une seule fois**
-  (les pouvoirs sont variés — pas uniquement « annuler un événement »).
-- **4 modes de transport** → nb de dés : **vélo** (1 dé), **à pied** (1 dé), **voiture** (2 dés),
-  **camion** (2 dés). Certains événements/pouvoirs dépendent du mode (le vélo notamment).
-- **8 personnages** (2 par transport) aux pouvoirs spécifiques : Axel·le (Bouclier Vert), Camille
-  (Habitué·e du Quartier), Gégé (Passage Secret), Dolly (Bonne Marcheuse), Vic (Coup d'Accélérateur),
-  Sam (Dépassement), Margot (Chargement Pro), Charlie (Carnet d'Adresses). → modéliser le pouvoir comme
-  un effet de données par personnage, pas un `if` géant.
-- **4 couleurs de quartier** : 🔴 Rouge, 🟡 Jaune, 🟣 Violet, 🔵 Bleu.
-- **Drive** (point de retrait, zone grise) et **destinataire** (espace vert) sont des **jetons posés sur
-  les tuiles-quartiers**, pas des tuiles séparées. Une **livraison** = relier un drive à un destinataire ;
-  elle s'étend sur **1 ou 2 tuiles**. Chaque tuile posée porte 1 drive + 1 destinataire, donc
-  **nb de livraisons = nb de tuiles posées**.
-- **Effectif & tuiles** : 2 à 6 joueurs. Jusqu'à 3 joueurs → 3 tuiles/joueur ; à partir de 4 →
-  2 tuiles/joueur. (2j=6, 3j=9, 4j=8, 5j=10, 6j=12 tuiles = livraisons.)
-- **Tour de jeu** : Planification (choisir une livraison) → Déplacement (dés selon le transport, avancer
-  le pion sur les routes) → Événements (case arc-en-ciel = piocher/résoudre une carte) → Prise en charge
+- **Carte personnage** : mode de déplacement (**voiture** ou **vélo**), **2 couleurs** = les quartiers
+  de son *trajet régulier* quotidien, et **1 super-pouvoir** utilisable **une seule fois** pour annuler
+  un événement.
+- **Livraison** = une **tuile enseigne** (point de retrait, zone grise) + une **tuile destinataire**
+  (zone verte). Il y a **9 enseignes** et **9 destinataires** → **9 livraisons** construites par partie.
+- **Tour de jeu** : Planification (choisir une livraison) → Déplacement (**2 dés**, avancer le pion sur
+  les routes) → Événements (case arc-en-ciel = piocher/résoudre une carte) → Prise en charge
   (**coûte +1 point de déplacement**) → Livraison (**gratuite**). Fin de partie : plus aucune livraison.
-- **Scoring** : 5 pts de base par livraison ; **+10 pts par tuile de la livraison dont la couleur
-  appartient au joueur** ; **exception** : livraison sur une **seule** tuile à soi = **20 pts** (au lieu
-  de 10). Donc 2 tuiles à soi (25) = 1 tuile à soi (25).
-- **Cartes événement** : deux familles — **Avantages** et **Malus** (blocages, retours forcés, fin de
-  tour). Le **pont** (1/joueur) permet de franchir certains obstacles ; fermé par « Pluies Torrentielles ».
+- **Scoring** : 5 pts de base ; **+** si réalisée sur un trajet régulier (les 2 couleurs du personnage).
+- **Cartes événement** : deux familles — **Avantages** (bonus/déplacement supplémentaire, souvent en
+  faveur du vélo) et **Malus** (blocages, retours forcés, fin de tour). Le **vélo** est un thème
+  récurrent (bonus écologiques). Le **pont** permet de franchir certains obstacles ; fermé par l'événement
+  « Pluies Torrentielles ».
 
-### Points encore ouverts (ne pas coder en dur sans validation)
+### Ambiguïtés connues dans les règles (à clarifier, ne pas coder en dur sans validation)
 
-Détaillés dans la section « Points ouverts » de `SHOPOPOP-EXPRESS-GAME-RULES.MD` :
+- **Table de score incohérente** : « trajet régulier 1 couleur = 20 pts » vaut *plus* que « 2 couleurs
+  = 10 pts », ce qui est contre-intuitif. À confirmer.
+- **Nombre de joueurs** non spécifié ; quantités par joueur (3 tuiles, 3 jetons destinataire, 3 jetons
+  enseigne, 1 pion, 1 pont) données sans total de plateau clair.
+- Terminologie flottante : « deck de livraison » vs les 9 livraisons construites ; « jetons » vs
+  « tuiles » enseigne/destinataire.
+- Le doublement des points au vélo apparaît dans plusieurs événements — vérifier s'ils se cumulent.
 
-- **Objectif coopératif vs compétitif** : intro collective mais score individuel — à trancher.
-- **Capacité de volume** : évoquée par le pouvoir de Margot, jamais définie ailleurs.
-- **Mécanique du pont** : usage non décrit ; recouvre en partie le pouvoir *Passage Secret* de Gégé.
-- **Cumul des doublements** de points (*Livraison Écologique*) : ponctuel ou persistant ?
-- **Variance** : événements « téléportation » et **5/5 (+20 pts)** très swingy.
-- **Score mono-tuile == deux-tuiles** (25 pts) : favorise les livraisons compactes.
+Si l'utilisateur·rice demande de **réécrire les règles** (formulations imparfaites, répétitions),
+le faire dans `docs/` en conservant l'original ou via git, et lever les ambiguïtés ci-dessus.
 
 ## Conventions Godot
 
@@ -110,87 +99,135 @@ Détaillés dans la section « Points ouverts » de `SHOPOPOP-EXPRESS-GAME-RULES
   est l'ancrage des positions — penser un système de **coordonnées de cases** découplé des positions
   monde 3D dès le départ (déplacements comptés « en cases », pas en mètres).
 
-## Architecture implémentée
+## Architecture implémentée — grille flat-top texturée & placement UX
 
-**Découplage strict logique / rendu** : la logique de jeu est en `RefCounted`/`Resource` purs (sans
-`Node`, testés en `--headless`), le rendu et les entrées sont des `Node` séparés. Deux ensembles
-cohabitent : le **socle plateau** (grille hex + placement) et les **systèmes de gameplay** (pion,
-paquet de cartes, déplacement, dés), chacun **isolé et indépendant**, branchés ensemble à
-l'intégration. Chaque système a une **scène de démo autonome** (`scenes/*_demo.tscn`).
+**Découplage strict en couches** : la logique de jeu ne dépend pas du rendu (on fait évoluer le
+visuel sans toucher aux règles, et toute la logique est testée par GUT).
 
 ```
-src/logic/      hex_utils.gd (HexUtils)   maths hexagonales pures, statiques
-                board.gd (Board)          état du plateau + règles de placement
-src/blocks/     block_definition.gd       BlockDefinition (Resource) = bloc en données
-src/pawns/      pawn_definition.gd        PawnDefinition (Resource) : id, nom, image, color, type
-                pawn.gd (Pawn)            état runtime : position + steps, invariants, signaux
-src/cards/      card_definition.gd        CardDefinition (Resource) : identité placeholder
-                deck.gd (Deck)            pioche/défausse, reshuffle, return_to_top, RNG injectable
-src/movement/   movement.gd (Movement)    marche auto-évitante sur un set de cases injecté
-src/dice/       dice_roller.gd (DiceRoller) lance X D6, mémorise le résultat, RNG injectable
-src/view/       hex_grid_view.gd          quadrillage fantôme + tuiles posées (MultiMesh)
-                block_ghost.gd            aperçu vert/rouge sous le pointeur
-                hex_mesh_factory.gd       tuile = prisme CylinderMesh pointy-top (sans asset)
-                pawn_view.gd (PawnView)   figure cône+tête (cotransporteur, colorée) / jeton-image
-                card_view.gd (CardView)   carte 3D : face placeholder, dos logo + CARD_TYPE
-                die_view.gd (DieView)     dé 3D à points, orienté sur la valeur
-                game_config.gd            constantes de présentation
-src/interaction/placement_controller.gd  pointeur souris/tactile -> case -> pose/rotation
-                camera_rig.gd             pan/zoom (molette + clic-droit, pinch + 2 doigts)
-src/ui/         placement_ui.gd           barre Hexagone / Pont / Rotation (CanvasLayer extensible)
-src/main.gd     scenes/main.tscn          composition root du prototype de placement
-src/*_demo.gd   scenes/*_demo.tscn        démos autonomes : pawn / card / movement / dice
-resources/blocks/  hex19.tres, bridge3.tres   blocs canoniques
+src/logic/      hex_utils.gd (HexUtils)       maths hexagonales FLAT-TOP, statiques (+ line())
+                board.gd (Board)              état du plateau + règles de placement (connecteurs)
+                placed_piece.gd (PlacedPiece) instance posée : propriétaire, cases typées, connecteurs
+src/blocks/     cell_type.gd (CellType)       enum Route/Vert/Urbain/Eau/Événement
+                block_definition.gd           BlockDefinition (Resource) : cases + types + connecteurs
+src/game/       player_color.gd / player.gd   4 couleurs (Bleu/Rouge/Violet/Jaune) + modèle joueur
+                setup_distributor.gd          tire 3 patterns partagés, recolore, assigne le départ
+                setup_phase.gd                tours round-robin : 1 bloc/tour (sans auto-avance) ajustable (retrait/rotation) + pont gratuit, fin via finish_turn
+src/pawns/      pawn_definition.gd / pawn.gd  PawnDefinition (Resource) + Pawn (état : position + steps)
+src/cards/      card_definition.gd / deck.gd  CardDefinition (Resource) + Deck (pioche/défausse, RNG)
+src/movement/   movement.gd (Movement)        marche auto-évitante sur un set de cases injecté
+src/dice/       dice_roller.gd (DiceRoller)   lance X D6, mémorise le résultat, RNG injectable
+src/view/       hex_grid_view.gd              assemble lattice + tuiles + outlines + marqueurs
+                tile_sprite.gd / tile_textures.gd  une case = Sprite3D texturé (débord Nord)
+                road_tiling.gd                oriente les routes (droite/T) selon la connectivité
+                tile_preview.gd               rend un bloc en SubViewport pour l'UI
+                block_ghost.gd / block_outline.gd  fantôme texturé (rouge si invalide) / contour joueur
+                pawn_view.gd (PawnView)       figure cône+tête colorée / jeton-image
+                card_view.gd (CardView)       carte 3D : face placeholder, dos logo + CARD_TYPE
+                die_view.gd (DieView)         dé 3D à points, orienté sur la valeur
+                hex_mesh_factory.gd / game_config.gd
+src/interaction/placement_controller.gd      magnet auto-rotation (blocs + pont manuel)
+                camera_rig.gd                 pan/zoom (molette + clic-droit, pinch + 2 doigts)
+src/ui/         placement_ui.gd               écran 2–4 joueurs + barre (joueur, previews de tuiles)
+src/main.gd     scenes/main.tscn              composition root
+src/*_demo.gd   scenes/*_demo.tscn            démos autonomes : pawn / card / movement / dice
+resources/blocks/patterns/*.tres, bridge.tres   bibliothèque (générée)
+assets/tiles/   textures par type (green/urban/water/road + special/spawn)
 tools/          generate_block_resources.gd, capture_preview.gd   outils dev
 ```
 
-### Systèmes de gameplay (logique pure, testée, à intégrer)
+### Systèmes de gameplay (logique pure, testée, en cours d'intégration)
 
-Chacun ignore les autres et le `Board` ; le branchement se fera dans un composition root d'intégration.
+Apportés par la fusion de `main` ; chacun ignore les autres et le `Board`, branchés à l'intégration
+(voir le plan en 3 phases). Chaque système a une **scène de démo autonome** (`scenes/*_demo.tscn`).
 
-- **Pion** (`Pawn` + `PawnDefinition`) : `position` (case) + `steps` (cases à parcourir), pose unique,
-  pion fixe immobile ; signaux `placed/moved/steps_changed`. Cotransporteur = figure colorée, drive/
-  destinataire = jeton-image.
-- **Paquet** (`Deck` + `CardDefinition`) : `draw(n)` / `discard` / `reshuffle` / `return_to_top`,
-  RNG injectable. Règle démo : tirer 2 → garder 1 (l'autre revient sur la pioche) → activer le pouvoir
-  → défausse.
-- **Déplacement** (`Movement`) : reçoit un **set de cases praticables** + une case de départ + un
-  budget ; marche **auto-évitante**, total obligatoire, arrêt si bloqué. Aucune dépendance Board/Pawn.
+- **Pion** (`Pawn` + `PawnDefinition`) : `position` (case) + `steps`, pose unique, pion fixe immobile ;
+  signaux `placed/moved/steps_changed`. Cotransporteur = figure colorée, drive/destinataire = jeton-image.
+- **Paquet** (`Deck` + `CardDefinition`) : `draw(n)` / `discard` / `reshuffle` / `return_to_top`, RNG
+  injectable.
+- **Déplacement** (`Movement`) : set de cases praticables + départ + budget ; marche **auto-évitante**,
+  total obligatoire, arrêt si bloqué. ⚠️ Inadapté tel quel au déplacement de plateau (demi-tours,
+  téléportations, coût +1 prise en charge) → une variante `TurnMovement` est introduite à l'intégration.
 - **Dés** (`DiceRoller`) : `roll(X)` de D6, mémorise le résultat, `total()` / `consume()`.
 
-**Intégration visée** : `walkable` du `Movement` construit depuis `Board` (puis **routes uniquement**) ;
-`DiceRoller.total()` = budget du `Movement` ; fin de déplacement → `pawn.move_to(current)` ; `Deck`
-pour les événements (cases arc-en-ciel).
+**Coordonnées de cases** : axiales **flat-top** (imposé par les textures), une case = `Vector2i(q, r)`,
+conventions Red Blob Games. `HexUtils` : voisins, distance, rotation 60°, `line()`, case↔monde (plan XZ).
 
-**Coordonnées de cases** (réponse à l'exigence « coordonnées découplées ») : axiales **pointy-top**,
-une case = `Vector2i(q, r)`, conventions Red Blob Games. `HexUtils` fournit voisins, distance, rotation
-60°, et conversions case↔monde (plan XZ). C'est l'ancrage de tous les déplacements « en cases ».
+**Blocs & types** : `BlockDefinition` = `cells` + `cell_types` (parallèle) + `connectors`. Tuile quartier
+= hexagone **côté 3 = 19 cases** (les **3 patterns** des assets B1/B2/B3, routes en segments **droits
+alignés sur la grille** = reliant les **coins** du grand hexagone, `coin i = DIRECTIONS[i]·R` ; relier
+des centres d'arête ferait zigzaguer la route). **2 en Y** = une droite traversante `{0-3}` + une
+bifurcation vers un coin adjacent (miroir gauche/droite, 3 connecteurs) et **1 en croix** = deux droites
+croisées `{0-3}+{1-4}` (4 connecteurs). Les **connecteurs sont les coins atteints** (jonction
+route-à-route, tuiles assemblées en quinconce). **Case spéciale au centre**, + eau/urbain/vert
+procéduraux avec **≥2 vert et ≥1 urbain**. **Pont** =
+`Eau–Route–Eau` dont **seule la case centrale (route)** connecte. `SetupDistributor` tire les 3 patterns
+(partagés), recolore par joueur, + 1 pont + un **départ** (case verte en bord de route).
 
-**Blocs ↔ assets** (correspondance directe avec `assets/boards/`) :
-- `hex19` = hexagone **côté 3 = 19 cases** = une tuile de plateau. Les quartiers comptent **4 couleurs**
-  (🔴 Rouge, 🟡 Jaune, 🟣 Violet, 🔵 Bleu — décision validée, le Violet est retenu), correspondant aux
-  couleurs des cartes personnage. ⚠️ **Assets à compléter** : `assets/boards/` ne contient pour l'instant
-  que 3 couleurs (`B1..B3`, `R1..R3`, `Y1..Y3`) ; les tuiles **Violet** (`V1..V3`) restent à produire.
-- `bridge3` = **ligne de 3 cases** (eau–route–eau) = `BRIDGE.png`.
+**Placement (route-à-route)** : `Board` indexe des `PlacedPiece`. `can_place()` = pas de chevauchement +
+(1ʳᵉ pièce libre, sinon **un connecteur de la nouvelle pièce voisin d'un connecteur ROUTE existant**).
+Connecteurs = cases route atteintes en bord de tuile (**coins** du grand hexagone ; **case centrale du
+pont uniquement**) ; `Board.remove_piece()` permet de reprendre une pièce posée. **Modèle de tour
+`SetupPhase`** : poser un bloc **n'avance pas** le tour ; le bloc posé est ajustable (`remove_block` /
+`rotate_block` qui snappe à la rotation valide, ou repositionné en le glissant) ; le **pont** reste
+gratuit (`try_place_bridge`, mêmes ajustements). `finish_turn()` clôt le tour, **refusé tant qu'aucun
+bloc n'est posé** ; le joueur est `done` quand `pieces` est vide (un pont non posé est **abandonné** —
+jamais de tour avec seulement un pont).
 
-`BlockDefinition` décrit un bloc par ses **offsets de cases** (+ rotation) ; créer un bloc = créer un
-`.tres`, sans code. `Board` gère un `Dictionary` case→bloc, expose les cases (utile pour un futur **A***
-sur les routes) et impose à `can_place()` : pas de chevauchement + adjacence à un bloc existant (le
-1er bloc est libre).
+**Rendu** : scène 3D, **caméra ortho top-down**, chaque case = **Sprite3D texturé** posé à plat (base
+388px sur l'hexagone, décor débordant au Nord, tri Sud-sur-Nord), routes orientées via `RoadTiling`,
+**outline** de périmètre couleur joueur, `special`/`spawn`. UI : **previews réelles** des tuiles.
 
-**Rendu** : scène 3D + **caméra orthographique top-down** (effet plateau via épaisseur + ombres),
-cohérent avec `GL Compatibility`. **Entrées** pensées **souris ET tactile** via `InputMap` (action
-`rotate_block`).
+**Interaction** : pointeur souris/tactile ; **magnet** snappe le fantôme à la pose légale la plus proche
+(auto-rotation, rotation = cycle des candidats) ; on glisse blocs et pont ; fantôme **rouge** si invalide.
+Après pose, **barre flottante** ancrée au-dessus de la pièce active (⟲ rotation gauche · ✕ retirer · ⟳
+rotation droite) ; glisser la pièce posée la reprend (repose ou restaure si drop invalide). Tray verrouillé
+tant qu'un bloc est posé (1/tour) ; **"Terminer"** activé seulement une fois un bloc posé.
 
-### À aligner sur les règles (écarts connus, prochaines étapes)
+### Couche de gameplay intégrée (au-dessus du socle plateau)
 
-Le placement actuel est **générique** ; pour coller aux règles il faudra notamment :
-- Donner un **type de terrain à chaque case** (route / eau / espace vert / zone grise / arc-en-ciel /
-  enseigne) — à porter sur `BlockDefinition` (par case). Les visuels existent déjà dans `assets/boards/`.
-- Renforcer l'adjacence : la règle exige que **deux tuiles ne se joignent que si une *route* touche une
-  *route*** (cf. règles). `Board.can_place` ne teste pour l'instant que l'adjacence de cases.
-- Déplacements **sur les routes uniquement** + **A*** avec preview de trajectoire (le `Board` expose
-  déjà le graphe de cases pour ça).
-- Texturer les tuiles avec les PNG du plateau plutôt que la couleur unie de prototypage.
+Le gameplay est branché au plateau via un second composition root, `GameRoot` (Node3D), que `Main`
+instancie à `setup_finished`. Tout le cœur reste en **logique pure testée** (GUT) ; les Node ne font
+que rendu/entrées.
+
+```
+src/logic/      road_network.gd (RoadNetwork)  set de cases praticables (ROUTE+EVENT) depuis le Board
+                board.gd                       + cells_of_type(kind), piece_at(cell)
+src/movement/   turn_movement.gd (TurnMovement) marche réelle : revisite, ±budget, teleport_to
+src/game/       character_definition.gd        CharacterDefinition (Resource) : transport→dés, 2 couleurs, power_id
+                game_phase.gd (GamePhase)       boucle de tour + sous-phases + livraisons + events + score
+                delivery.gd / delivery_setup.gd Delivery (drive→destinataire) + génération (1/ tuile)
+                score_calculator.gd             5 + 10/tuile à soi + exception mono-tuile (constantes paramétrables)
+                turn_context.gd (TurnContext)   état mutable du tour (effets events/pouvoirs)
+                event_resolver.gd / power_resolver.gd  effets data-driven (match, pas de if géant)
+                game_root.gd (GameRoot)         composition root du jeu : pions, dés, deck, UI, contrôleur
+src/cards/      event_card_definition.gd        EventCardDefinition : effect/amount/condition/is_malus
+src/interaction/movement_controller.gd          clic/tap → case → GamePhase.try_step
+src/ui/         game_ui.gd (GameUI)             tour, score, lancer dés, livraisons, prendre/livrer, pouvoir, fin
+resources/characters/*.tres   8 personnages   ·  resources/events/*.tres   ~22 cartes (outil generate_event_cards.gd)
+```
+
+**Boucle de tour** (`GamePhase`, round-robin) : PLANIFICATION (`select_delivery`) → DEPLACEMENT
+(`begin_movement(budget)` depuis `DiceRoller`, puis `try_step` sur les **routes uniquement**) →
+EVENEMENT (case arc-en-ciel → `apply_event`) → PRISE_EN_CHARGE (`confirm_pickup`, **−1 déplacement**)
+→ LIVRAISON (`confirm_delivery`, **gratuit**, score). Fin de partie quand toutes les livraisons sont
+faites. Pouvoir une seule fois (`use_power`).
+
+⚠️ `Movement` (auto-évitant, démo) **n'est pas** réutilisé en jeu : `TurnMovement` autorise revisite,
+budget ajustable (events ±, prise en charge +1) et téléportation (cartes). « Tuile à moi » = la
+**couleur de quartier** (`PlacedPiece.owner`) appartient au **personnage** (`character.owns_color`),
+jamais l'identité du joueur (`Player.index`).
+
+**Points laissés en STUB (V1, points ouverts non tranchés)** : téléportation « quartier »/« parallèle »,
+Manifestation/Fuite/Pluies (effets persistants), capacité de volume (Margot), pont en jeu, coop vs
+compétitif (scores individuels + total affichés, pas de vainqueur en dur), cumul des doublements.
+
+### Restant / à raffiner
+
+- **A\*** avec preview de trajectoire (le `Board` expose déjà l'index des cases / connecteurs).
+- **Pose manuelle** des jetons drive/destinataire (V1 : placement auto post-setup, livraisons mono-tuile).
+- Effets d'événement **interactifs** (choix de cible/quartier) et **persistants inter-tours**.
+- **Multijoueur** distant : non implémenté (hot-seat 1 client) ; l'état est découplé et les joueurs identifiés.
+- 5–6 joueurs réutilisent une couleur de quartier (4 couleurs) — distingués par `Player.index`.
 
 > Notes de dev complémentaires (rôle, vision, commandes) : `docs/dev-notes/`.

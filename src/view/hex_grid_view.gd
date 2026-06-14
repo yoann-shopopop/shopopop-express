@@ -1,79 +1,130 @@
 class_name HexGridView
 extends Node3D
-## Renders the board: a faint background lattice plus every placed tile.
-## Reads from a [Board] and redraws on [signal Board.changed]. Pure presentation — it never
-## decides what is legal, it only shows what the model holds.
-
-## Yaw applied to each tile. The 6-sided CylinderMesh already has vertices on the Z axis and
-## flat edges facing X (verified), which is pointy-top for our layout — so no extra yaw.
-const TILE_YAW: float = 0.0
+## Renders the board with the real tile artwork: one textured Sprite3D per cell (via [TileSprite]),
+## a player-colored perimeter outline per piece, and the start-point (spawn) / pawn markers. Reads a
+## [Board] + [Player] list, redraws on [signal Board.changed]. No empty-cell lattice is drawn — pieces
+## float on the backdrop ("in the void").
 
 var _board: Board
-var _palette: Dictionary = {}  # StringName id -> Color
+var _players: Array[Player] = []
 
-var _lattice: MultiMeshInstance3D
-var _placed: MultiMeshInstance3D
+var _outlines: MultiMeshInstance3D
+var _tiles_root: Node3D
+var _markers: Node3D
 
 
-## Wires the view to its model and the id->color palette, then draws the initial state.
-func setup(board: Board, palette: Dictionary) -> void:
+func setup(board: Board, players: Array[Player]) -> void:
 	_board = board
-	_palette = palette
-	_board.changed.connect(_refresh_placed)
-	_build_lattice()
-	_refresh_placed()
+	_players = players
+	_board.changed.connect(_refresh)
+	_outlines = _make_outline_instance()
+	_tiles_root = Node3D.new()
+	add_child(_tiles_root)
+	_markers = Node3D.new()
+	add_child(_markers)
+	_refresh()
 
 
-func _tile_transform(cell: Vector2i, y: float) -> Transform3D:
-	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
-	pos.y = y
-	return Transform3D(Basis(Vector3.UP, TILE_YAW), pos)
+func _refresh() -> void:
+	for child in _tiles_root.get_children():
+		child.queue_free()
+	for piece in _board.pieces():
+		var road_cells := TileSprite.road_cells_of(piece.typed_cells)
+		var piece_cells := TileSprite.cells_of(piece.typed_cells)
+		for i in piece.typed_cells.size():
+			var tc: Dictionary = piece.typed_cells[i]
+			var local: Vector2i = piece.block_def.cells[i]
+			_tiles_root.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, local, piece_cells))
+	_refresh_outlines()
+	_refresh_markers()
 
 
-func _make_multimesh() -> MultiMesh:
+# --- Outlines ----------------------------------------------------------------
+
+func _make_outline_instance() -> MultiMeshInstance3D:
+	var inst := MultiMeshInstance3D.new()
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
-	mm.mesh = HexMeshFactory.create_tile(GameConfig.HEX_SIZE, GameConfig.TILE_HEIGHT)
-	return mm
-
-
-func _make_instance() -> MultiMeshInstance3D:
-	var inst := MultiMeshInstance3D.new()
-	inst.multimesh = _make_multimesh()
+	mm.mesh = BoxMesh.new()
+	inst.multimesh = mm
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	inst.material_override = mat
 	add_child(inst)
 	return inst
 
 
-# The faint static lattice covering a disc of GRID_RADIUS cells around the origin.
-func _build_lattice() -> void:
-	_lattice = _make_instance()
-	# A touch flatter and below the placed tiles so it reads as a guide, not a piece.
-	_lattice.multimesh.mesh = HexMeshFactory.create_tile(GameConfig.HEX_SIZE * 0.94, 0.02)
-	var cells: Array[Vector2i] = []
-	var radius := GameConfig.GRID_RADIUS
-	for q in range(-radius, radius + 1):
-		for r in range(maxi(-radius, -q - radius), mini(radius, -q + radius) + 1):
-			cells.append(Vector2i(q, r))
-	_lattice.multimesh.instance_count = cells.size()
-	for i in cells.size():
-		_lattice.multimesh.set_instance_transform(i, _tile_transform(cells[i], -0.02))
-		_lattice.multimesh.set_instance_color(i, GameConfig.LATTICE_COLOR)
+func _refresh_outlines() -> void:
+	var transforms: Array[Transform3D] = []
+	var colors: Array[Color] = []
+	for piece in _board.pieces():
+		var color := PlayerColor.to_color(piece.owner) if piece.owner >= 0 else Color.WHITE
+		for t in BlockOutline.perimeter_edge_transforms(
+				piece.cells(), GameConfig.HEX_SIZE, 1.0, GameConfig.OUTLINE_WIDTH):
+			transforms.append(t)
+			colors.append(color)
+	_outlines.multimesh.instance_count = transforms.size()
+	for i in transforms.size():
+		_outlines.multimesh.set_instance_transform(i, transforms[i])
+		_outlines.multimesh.set_instance_color(i, colors[i])
 
 
-# Rebuilds the placed-tile instances from the current board state.
-func _refresh_placed() -> void:
-	if _placed == null:
-		_placed = _make_instance()
-	var cells := _board.get_cells()
-	var keys := cells.keys()
-	_placed.multimesh.instance_count = keys.size()
-	for i in keys.size():
-		var cell: Vector2i = keys[i]
-		var id: StringName = cells[cell]
-		_placed.multimesh.set_instance_transform(i, _tile_transform(cell, 0.0))
-		_placed.multimesh.set_instance_color(i, _palette.get(id, Color.WHITE))
+# --- Markers (spawn entities now, pawns at the end) --------------------------
+
+func _refresh_markers() -> void:
+	for child in _markers.get_children():
+		child.queue_free()
+	for player in _players:
+		var cell = _placed_start_cell(player)
+		if cell != null:
+			_markers.add_child(_make_spawn_sprite(cell))
+
+
+## Adds standing pawns at every player's start (called once setup is finished).
+func show_pawns() -> void:
+	for player in _players:
+		var cell = _placed_start_cell(player)
+		if cell != null:
+			_markers.add_child(_make_pawn(cell, PlayerColor.to_color(player.color)))
+
+
+func _placed_start_cell(player: Player):
+	if player.start_block == null:
+		return null
+	for piece in _board.pieces():
+		if piece.block_def == player.start_block:
+			return HexUtils.rotate(player.start_cell, piece.rotation) + piece.anchor
+	return null
+
+
+func _make_spawn_sprite(cell: Vector2i) -> Sprite3D:
+	var sprite := Sprite3D.new()
+	sprite.texture = TileTextures.spawn()
+	sprite.pixel_size = (2.0 * GameConfig.HEX_SIZE) / TileSprite.TEX_W
+	sprite.offset = Vector2(0, TileSprite.OFFSET_Y_PX)
+	sprite.shaded = false
+	sprite.transparent = true
+	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
+	pos.y = 0.3  # above all tiles so the entity stays visible
+	sprite.transform = Transform3D(TileSprite.FLAT, pos)
+	return sprite
+
+
+func _make_pawn(cell: Vector2i, color: Color) -> MeshInstance3D:
+	var inst := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.22
+	mesh.bottom_radius = 0.22
+	mesh.height = 0.5
+	mesh.radial_segments = 16
+	inst.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	inst.material_override = mat
+	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
+	pos.y = 0.45
+	inst.position = pos
+	return inst

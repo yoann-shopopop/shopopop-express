@@ -57,19 +57,34 @@ static func rotate(cell: Vector2i, steps: int) -> Vector2i:
 	return Vector2i(x, z)
 
 
-## Converts an axial cell to a world position on the XZ plane (y = 0).
-## [param size] is the hexagon circumradius (center to a corner).
+## Converts an axial cell to a world position on the XZ plane (y = 0). FLAT-TOP layout
+## (flat edges north/south), matching the tile artwork. [param size] is the circumradius.
 static func axial_to_world(cell: Vector2i, size: float) -> Vector3:
-	var x := size * (sqrt(3.0) * cell.x + sqrt(3.0) / 2.0 * cell.y)
-	var z := size * (3.0 / 2.0 * cell.y)
+	var x := size * (3.0 / 2.0 * cell.x)
+	var z := size * (sqrt(3.0) / 2.0 * cell.x + sqrt(3.0) * cell.y)
 	return Vector3(x, 0.0, z)
 
 
-## Converts a world position on the XZ plane back to the nearest axial cell.
+## Converts a world position on the XZ plane back to the nearest axial cell (flat-top).
 static func world_to_axial(world: Vector3, size: float) -> Vector2i:
-	var q := (sqrt(3.0) / 3.0 * world.x - 1.0 / 3.0 * world.z) / size
-	var r := (2.0 / 3.0 * world.z) / size
+	var q := (2.0 / 3.0 * world.x) / size
+	var r := (-1.0 / 3.0 * world.x + sqrt(3.0) / 3.0 * world.z) / size
 	return _axial_round(q, r)
+
+
+## The contiguous line of cells from [param a] to [param b] (inclusive), one per step.
+static func line(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+	var n := distance(a, b)
+	var result: Array[Vector2i] = []
+	if n == 0:
+		result.append(a)
+		return result
+	for i in range(n + 1):
+		var t := float(i) / float(n)
+		var cell := _axial_round(lerpf(a.x, b.x, t), lerpf(a.y, b.y, t))
+		if result.is_empty() or result.back() != cell:
+			result.append(cell)
+	return result
 
 
 ## Rounds fractional axial coordinates to the nearest valid cell (via cube rounding).

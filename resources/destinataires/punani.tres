@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_lk1ue"]
+
+[resource]
+script = ExtResource("1_lk1ue")
+id = &"punani"
+display_name = "Punani"
+color = Color(0.78039217, 0.49019608, 1, 1)

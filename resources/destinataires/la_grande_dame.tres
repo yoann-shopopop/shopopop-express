@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_h572q"]
+
+[resource]
+script = ExtResource("1_h572q")
+id = &"la_grande_dame"
+display_name = "La Grande Dame"
+color = Color(0.34117648, 0.45882353, 0.5647059, 1)

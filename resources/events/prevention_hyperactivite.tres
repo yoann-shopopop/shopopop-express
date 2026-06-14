@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="EventCardDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/cards/event_card_definition.gd" id="1_32pgt"]
+
+[resource]
+script = ExtResource("1_32pgt")
+effect = 2
+amount = 3
+is_malus = true
+id = &"prevention_hyperactivite"
+display_name = "Prévention de l'Hyperactivité"

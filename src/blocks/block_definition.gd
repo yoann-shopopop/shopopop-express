@@ -14,6 +14,11 @@ extends Resource
 @export var color: Color = Color.WHITE
 ## Axial cell offsets relative to the anchor. Filled from the shape helpers or the editor.
 @export var cells: Array[Vector2i] = []
+## Terrain type of each cell, parallel to [member cells] (values from [enum CellType.Kind]).
+@export var cell_types: Array[int] = []
+## Offsets of the road-connection cells used by the placement adjacency rule
+## (a hexagon's road edge-centers, or a bridge's end cells).
+@export var connectors: Array[Vector2i] = []
 
 
 ## Returns the absolute cells this piece would occupy at [param anchor] for the given
@@ -22,6 +27,35 @@ func get_cells(anchor: Vector2i, rotation: int) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	for offset in cells:
 		result.append(HexUtils.rotate(offset, rotation) + anchor)
+	return result
+
+
+## Returns the placed cells paired with their type: [code][{ "cell": Vector2i, "type": int }, …][/code].
+## Types travel with their cell through rotation.
+func get_typed_cells(anchor: Vector2i, rotation: int) -> Array:
+	var result: Array = []
+	for i in cells.size():
+		var cell := HexUtils.rotate(cells[i], rotation) + anchor
+		var type: int = cell_types[i] if i < cell_types.size() else CellType.Kind.ROUTE
+		result.append({"cell": cell, "type": type})
+	return result
+
+
+## Returns the absolute connection cells at [param anchor]/[param rotation].
+func get_connectors(anchor: Vector2i, rotation: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for offset in connectors:
+		result.append(HexUtils.rotate(offset, rotation) + anchor)
+	return result
+
+
+## The six edge-center cells of a hexagon of the given [param radius] (where roads terminate).
+static func hexagon_edge_centers(radius: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for i in 6:
+		var a := HexUtils.DIRECTIONS[i] * radius
+		var b := HexUtils.DIRECTIONS[(i + 1) % 6] * radius
+		result.append((a + b) / 2)
 	return result
 
 
