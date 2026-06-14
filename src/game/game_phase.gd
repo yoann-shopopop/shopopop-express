@@ -31,6 +31,7 @@ var _players: Array[Player]
 var _board: Board
 var _deliveries: Array[Delivery] = []
 var _current: int = 0
+var _round: int = 1
 var _subphase: int = SubPhase.PLANIFICATION
 var _positions: Dictionary = {}        # player index -> absolute Vector2i cell
 var _scores: Dictionary = {}           # player index -> total points
@@ -55,6 +56,23 @@ func _init(players: Array[Player], board: Board, deliveries: Array[Delivery] = [
 ## The player whose turn it is.
 func current_player() -> Player:
 	return _players[_current]
+
+
+## The current round number (1-based): increments each time play wraps back to the first seat.
+func round_number() -> int:
+	return _round
+
+
+## How many deliveries are still to be made before the game ends — the recipients still clipped on a
+## tile plus those waiting in the recycling pool. Reaches zero exactly when [method is_finished] holds.
+func deliveries_remaining() -> int:
+	var count := 0
+	for delivery in _deliveries:
+		if delivery.destinataire != null:
+			count += 1
+	if _generator != null:
+		count += _generator.remaining_recipients()
+	return count
 
 
 ## The current sub-phase ([enum SubPhase]).
@@ -111,6 +129,8 @@ func end_turn() -> void:
 	_movement = null
 	_context = null
 	_current = (_current + 1) % _players.size()
+	if _current == 0:
+		_round += 1  # play wrapped back to the first seat: a new round begins
 	_set_subphase(SubPhase.PLANIFICATION)
 	turn_changed.emit(current_player())
 

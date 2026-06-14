@@ -77,6 +77,15 @@ func test_end_turn_wraps_around_round_robin() -> void:
 	assert_eq(phase.current_player().index, 0)
 
 
+func test_round_number_increments_when_play_wraps_to_the_first_seat() -> void:
+	var phase := _phase()  # two players
+	assert_eq(phase.round_number(), 1)
+	phase.end_turn()
+	assert_eq(phase.round_number(), 1, "still round 1 mid-round")
+	phase.end_turn()
+	assert_eq(phase.round_number(), 2, "wrapped back to seat 0 -> round 2")
+
+
 # --- Deliveries -------------------------------------------------------------
 
 # A character (kept for parity with real players; scoring now uses player.color).
@@ -296,4 +305,21 @@ func test_game_finishes_when_the_recipient_pool_is_exhausted() -> void:
 	_deliver_once(phase)
 	assert_null(delivery.destinataire, "pool empty -> drive left free")
 	assert_eq(delivery.status, DeliveryStatus.Kind.DISPONIBLE)
+	assert_true(phase.is_finished())
+
+
+func test_deliveries_remaining_counts_clipped_plus_pooled_recipients() -> void:
+	var ctx := _phase_with_generator(2)  # 1 clipped at init + 1 spare in the pool
+	var phase: GamePhase = ctx["phase"]
+	assert_eq(phase.deliveries_remaining(), 2)
+	_deliver_once(phase)
+	assert_eq(phase.deliveries_remaining(), 1, "one delivered, the recycled recipient remains")
+
+
+func test_deliveries_remaining_reaches_zero_exactly_when_finished() -> void:
+	var ctx := _phase_with_generator(1)
+	var phase: GamePhase = ctx["phase"]
+	assert_eq(phase.deliveries_remaining(), 1)
+	_deliver_once(phase)
+	assert_eq(phase.deliveries_remaining(), 0)
 	assert_true(phase.is_finished())

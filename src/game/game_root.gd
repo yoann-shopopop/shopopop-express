@@ -407,9 +407,12 @@ func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
 
 
 func _on_power() -> void:
+	var player := _phase.current_player()
 	if _phase.use_power():
 		_ui.set_status("Super-pouvoir activé !")
 		_refresh_highlights()
+	elif player.character != null and not player.power_used:
+		_ui.set_status("Ce pouvoir n'est pas encore disponible.")
 	_refresh_ui()
 
 
@@ -447,7 +450,12 @@ func _on_game_finished(scores: Dictionary) -> void:
 func _refresh_ui() -> void:
 	var player := _phase.current_player()
 	_ui.refresh(player, _phase.score_of(player))
-	_ui.set_power_available(player.character != null and not player.power_used)
+	_ui.set_round(_phase.round_number())
+	_ui.set_deliveries_remaining(_phase.deliveries_remaining())
+	# The power needs the turn context (it acts during movement), so only offer it then — never a dead
+	# press during planning, and never silently wasted on an unimplemented effect.
+	var power_ready := player.character != null and not player.power_used and _phase.context() != null
+	_ui.set_power_available(power_ready)
 	_ui.set_action(_current_action())
 
 
