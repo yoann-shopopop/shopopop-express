@@ -72,8 +72,34 @@ func _run() -> void:
 		await _frames(8)
 	await _capture(out_dir, "03_deplacement")
 
+	# End-of-game scoreboard (fabricated from the current scores).
+	var phase := game_root.phase()
+	if phase != null:
+		game_root.hud().show_end(phase.scores(), typed_players)
+		await _frames(16)
+		await _capture(out_dir, "04_fin")
+
+	# Character-select screen (its own opaque backdrop covers the board).
+	var chars := _load_characters()
+	if not chars.is_empty():
+		var select := CharacterSelect.new()
+		get_root().add_child(select)
+		select.setup(count, chars)
+		await _frames(16)
+		await _capture(out_dir, "05_personnages")
+
 	await _frames(4)
 	quit(0)
+
+
+func _load_characters() -> Array:
+	var result: Array = []
+	var dir := DirAccess.open("res://resources/characters/")
+	if dir:
+		for file in dir.get_files():
+			if file.ends_with(".tres"):
+				result.append(load("res://resources/characters/" + file))
+	return result
 
 
 func _capture(out_dir: String, name: String) -> void:

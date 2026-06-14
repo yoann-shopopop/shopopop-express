@@ -46,13 +46,14 @@ func _ready() -> void:
 
 
 ## Starts a game with [param count] players. [param rng_seed] >= 0 makes the draw deterministic.
-func start_game(count: int, rng_seed: int = -1) -> void:
+## [param chosen] holds one character per seat (from the character-select screen); empty = random deal.
+func start_game(count: int, rng_seed: int = -1, chosen: Array[CharacterDefinition] = []) -> void:
 	var rng := RandomNumberGenerator.new()
 	if rng_seed >= 0:
 		rng.seed = rng_seed
 	else:
 		rng.randomize()
-	_players = SetupDistributor.build_players(count, _library, _bridge, rng, _characters)
+	_players = SetupDistributor.build_players(count, _library, _bridge, rng, _characters, chosen)
 	_initial_piece_counts.clear()
 	for p in _players:
 		_initial_piece_counts[p] = p.pieces.size()
@@ -88,7 +89,17 @@ func start_game(count: int, rng_seed: int = -1) -> void:
 
 
 func _on_player_count_chosen(count: int) -> void:
-	start_game(count)
+	if _characters.is_empty():
+		start_game(count)  # no character data: skip the draft
+		return
+	var select := CharacterSelect.new()
+	add_child(select)
+	select.setup(count, _characters)
+	select.characters_chosen.connect(func(chosen: Array) -> void:
+		var typed: Array[CharacterDefinition] = []
+		for c in chosen:
+			typed.append(c)
+		start_game(count, -1, typed))
 
 
 func _on_turn_changed(_player: Player) -> void:

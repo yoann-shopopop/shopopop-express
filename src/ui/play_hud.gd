@@ -438,32 +438,69 @@ func set_deliveries_remaining(count: int) -> void:
 		_deliveries_label.text = "Livraisons : %d" % count
 
 
-## Shows the final scoreboard. [param scores] maps seat index -> total.
+## Shows the final scoreboard: a dimmed backdrop, the ranking (best first, top one highlighted), the
+## cooperative total, and a "Rejouer" button. [param scores] maps seat index -> total.
 func show_end(scores: Dictionary, players: Array[Player]) -> void:
+	dismiss_chooser()
 	_action_btn.hide()
 	_power_btn.hide()
-	_end_panel = CenterContainer.new()
+	if _char_frame != null:
+		_char_frame.hide()
+	_end_panel = ColorRect.new()
+	_end_panel.color = Color(0.05, 0.07, 0.1, 0.82)
 	_end_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_end_panel)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_end_panel.add_child(center)
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_theme_constant_override("separation", 10)
-	_end_panel.add_child(box)
+	center.add_child(box)
+
 	var title := Label.new()
-	title.text = "Partie terminée"
-	UITheme.make_title(title, 34, UITheme.ORANGE)
+	title.text = "Partie terminée !"
+	UITheme.make_title(title, 38, UITheme.ORANGE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+
+	# Rank players best-first; ties keep seat order.
+	var ranked := players.duplicate()
+	ranked.sort_custom(func(a: Player, b: Player) -> bool:
+		return scores.get(a.index, 0) > scores.get(b.index, 0))
 	var total := 0
-	for player in players:
+	for i in ranked.size():
+		var player: Player = ranked[i]
 		var pts: int = scores.get(player.index, 0)
 		total += pts
 		var line := Label.new()
-		line.text = "%s : %d pts" % [PlayerColor.name_of(player.color), pts]
-		line.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if i == 0:
+			line.text = "Meilleur·e : %s — %d pts" % [PlayerColor.name_of(player.color), pts]
+			UITheme.make_title(line, 28, PlayerColor.to_color(player.color))
+		else:
+			line.text = "%d.  %s — %d pts" % [i + 1, PlayerColor.name_of(player.color), pts]
+			line.add_theme_font_size_override("font_size", 20)
+			line.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
 		box.add_child(line)
+
 	var sum := Label.new()
 	sum.text = "Total collectif : %d pts" % total
+	UITheme.make_title(sum, 22, UITheme.GREEN)
 	sum.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sum)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 12)
+	box.add_child(spacer)
+
+	var replay := Button.new()
+	replay.text = "Rejouer"
+	replay.custom_minimum_size = Vector2(220, 60)
+	replay.add_theme_font_size_override("font_size", 24)
+	replay.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_theme_button(replay, UITheme.BLUE)
+	replay.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		get_tree().reload_current_scene())
+	box.add_child(replay)

@@ -6,13 +6,15 @@ extends RefCounted
 
 
 ## Returns [param count] players (2..6), each with the same 3 drawn patterns (recolored) + a bridge.
-## When [param characters] is non-empty, each player is also dealt a distinct character card.
+## Characters: if [param chosen] holds one per seat it is used as-is (the character-select screen);
+## otherwise, when [param characters] is non-empty, each player is dealt a distinct random one.
 static func build_players(
 	count: int,
 	library: Array[BlockDefinition],
 	bridge: BlockDefinition,
 	rng: RandomNumberGenerator,
 	characters: Array[CharacterDefinition] = [],
+	chosen: Array[CharacterDefinition] = [],
 ) -> Array[Player]:
 	var drawn := _draw_distinct(library, 3, rng)
 	var colors := PlayerColor.all()
@@ -21,7 +23,9 @@ static func build_players(
 	for i in count:
 		var player := Player.new(colors[i % colors.size()])
 		player.index = i
-		if i < dealt.size():
+		if i < chosen.size() and chosen[i] != null:
+			player.character = chosen[i]
+		elif i < dealt.size():
 			player.character = dealt[i]
 		var tint := PlayerColor.to_color(player.color)
 		for pattern in drawn:
