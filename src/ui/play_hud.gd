@@ -195,11 +195,14 @@ func _build_title_bar() -> void:
 
 
 func _build_actions() -> void:
+	# Bottom-CENTER (the left edge is the delivery panel, the right the character card / deck piles).
 	var box := HBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	box.offset_left = 20
-	box.offset_top = -84
+	box.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.offset_top = -86
+	box.offset_bottom = -18
 	box.add_theme_constant_override("separation", 10)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE  # only the buttons capture; board clicks pass through
 	add_child(box)
 
 	_action_btn = Button.new()

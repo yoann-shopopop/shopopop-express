@@ -24,7 +24,7 @@ var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
 var _active_marker: Node3D              # ring under the active pawn + floating steps badge above it
 var _event_choice: EventCardChoice      # active card choice, if any
-var _delivery_list: DeliveryListView
+var _delivery_panel: DeliveryPanel
 
 
 ## The pure turn logic, exposed for scripting/demo/screenshot harnesses (the game itself drives it
@@ -69,9 +69,10 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	for player in players:
 		_spawn_pawn(player)
 	_build_delivery_markers(deliveries)
-	_delivery_list = DeliveryListView.new()
-	add_child(_delivery_list)
-	_delivery_list.build(deliveries, _players)
+	# The delivery list is a crisp 2D HUD panel (left column), child of the PlayHud CanvasLayer.
+	_delivery_panel = DeliveryPanel.new()
+	_ui.add_child(_delivery_panel)
+	_delivery_panel.build(deliveries, _players)
 
 	var move_controller := MovementController.new()
 	add_child(move_controller)
@@ -118,10 +119,10 @@ func _fit_camera_to_board() -> void:
 	var board_h := (max_z - min_z) + pad
 	var vp := get_viewport().get_visible_rect().size
 	var aspect := vp.aspect() if vp.y > 0.0 else 1.78
-	# The board sits between the left delivery column and the right character card: ~80% of the height,
-	# ~54% of the width. Take the larger so it always fits both ways.
-	var size_for_h := board_h / 0.80
-	var size_for_w := board_w / (0.54 * aspect)
+	# The board sits between the left delivery panel (~342 px) and the right character card (~317 px):
+	# ~78% of the height, ~62% of the width. Take the larger so it always fits both ways.
+	var size_for_h := board_h / 0.78
+	var size_for_w := board_w / (0.62 * aspect)
 	var target := maxf(size_for_h, size_for_w)
 	var rig := _camera as CameraRig
 	if rig != null:
@@ -129,15 +130,14 @@ func _fit_camera_to_board() -> void:
 	_camera.size = target
 	var half_h := target * 0.5
 	var half_w := half_h * aspect
-	# Center the board between the left delivery column and the right character card (nx ≈ 0.08, just
-	# right of screen center; vertically centered).
+	# Center the board just right of screen centre (the left panel is a touch wider than the right card).
 	var board_cx := (min_x + max_x) * 0.5
 	var board_cz := (min_z + max_z) * 0.5
-	_camera.position = Vector3(board_cx - 0.08 * half_w, _camera.position.y, board_cz + 0.0 * half_h)
+	_camera.position = Vector3(board_cx - 0.02 * half_w, _camera.position.y, board_cz + 0.0 * half_h)
 
 
-# Pins the dice (bottom-left) and the event-card choice (centered) to fixed screen regions, scaled to
-# the zoom, so they keep a consistent size and use the available space whatever the pan/zoom.
+# Pins the 3D dice and the event-card choice to fixed screen regions, scaled to the zoom, so they keep a
+# consistent size whatever the pan/zoom. (The delivery list is now a crisp 2D HUD panel — see PlayHud.)
 func _process(_delta: float) -> void:
 	if _camera == null:
 		return
@@ -145,21 +145,14 @@ func _process(_delta: float) -> void:
 	var half_h := _camera.size * 0.5
 	var half_w := half_h * get_viewport().get_visible_rect().size.aspect()
 	var center := Vector3(_camera.global_position.x, 0.0, _camera.global_position.z)
-	# All HUD overlays use a constant world-scale × zoom and screen-edge anchoring, so they keep a fixed
-	# on-screen size/position: zooming only changes the terrain, never the side elements.
+	# Dice sit low, just right of the left delivery panel (clear of both the panel and the centre action).
 	if _dice_views != null and _dice_views.get_child_count() > 0:
-		_dice_views.position = center + Vector3(-half_w * 0.70, 1.0, half_h * 0.42)
+		_dice_views.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.40)
 		_dice_views.scale = Vector3.ONE * 3.2 * zoom
 	if _event_choice != null and is_instance_valid(_event_choice):
 		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
 		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.10)
 		_event_choice.scale = Vector3.ONE * 5.5 * zoom
-	if _delivery_list != null:
-		# Left column: big readable cards with a CONSTANT on-screen gap (row_step is constant×zoom, not
-		# size-dependent), stacked down the left edge. Anchor pulled back to 0.83 so the wider cards
-		# (scale 1.7) still sit ~16 px from the screen edge instead of clipping off-screen.
-		var left_origin := center + Vector3(-half_w * 0.83, 1.0, -half_h * 0.58)
-		_delivery_list.layout(left_origin, 4.6 * zoom, 1.7 * zoom)
 
 
 func _spawn_pawn(player: Player) -> void:
@@ -359,8 +352,8 @@ func _on_delivery_changed(delivery: Delivery) -> void:
 	if delivery.status == DeliveryStatus.Kind.EN_COURS:
 		AudioManager.sfx(&"pickup")
 	_update_status_ring(delivery)
-	if _delivery_list != null:
-		_delivery_list.refresh_statuses()
+	if _delivery_panel != null:
+		_delivery_panel.refresh()
 	_refresh_ui()
 
 
@@ -568,8 +561,8 @@ func _on_delivery_completed(delivery: Delivery, points: int) -> void:
 	_celebrate_delivery(delivery.recipient_cell)
 	_rebuild_recipient_marker(delivery)
 	_update_status_ring(delivery)  # back to DISPONIBLE -> ring removed
-	if _delivery_list != null:
-		_delivery_list.refresh_statuses()
+	if _delivery_panel != null:
+		_delivery_panel.refresh()
 	_ui.set_status("Livré ! +%d points." % points)
 	_refresh_ui()
 
@@ -622,6 +615,9 @@ func _refresh_ui() -> void:
 	_ui.refresh(player, _phase.score_of(player))
 	_ui.set_round(_phase.round_number())
 	_ui.set_deliveries_remaining(_phase.deliveries_remaining())
+	if _delivery_panel != null:
+		_delivery_panel.set_remaining(_phase.deliveries_remaining())
+		_delivery_panel.set_current_player(player.index)
 	# The power needs the turn context (it acts during movement), so only offer it then — never a dead
 	# press during planning, and never silently wasted on an unimplemented effect.
 	var power_ready := player.character != null and not player.power_used and _phase.context() != null
@@ -637,19 +633,6 @@ func _current_action() -> int:
 	if _phase.current_subphase() == GamePhase.SubPhase.DEPLACEMENT and _phase.reservable_delivery() != null:
 		return PlayHud.Action.RESERVE
 	return PlayHud.Action.END_TURN
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and _delivery_list != null:
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed and _over_left_region():
-			_delivery_list.scroll_by(1)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed and _over_left_region():
-			_delivery_list.scroll_by(-1)
-
-
-# True if the mouse is over the left third of the screen (the delivery column).
-func _over_left_region() -> bool:
-	return get_viewport().get_mouse_position().x < get_viewport().get_visible_rect().size.x * 0.26
 
 
 func _load_events() -> Array[CardDefinition]:

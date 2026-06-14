@@ -99,6 +99,33 @@ static func pill_style() -> StyleBoxFlat:
 	return sb
 
 
+## A cohesive HUD panel/card background: rounded, subtle border + soft drop shadow. Shared by the side
+## panels and the delivery cards so the whole 2D chrome reads as one design.
+static func panel_card(bg: Color = Color("212734")) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.set_corner_radius_all(10)
+	sb.set_border_width_all(1)
+	sb.border_color = PANEL_BORDER
+	sb.shadow_color = SHADOW
+	sb.shadow_size = 5
+	sb.shadow_offset = Vector2(0, 2)
+	sb.set_content_margin_all(10)
+	return sb
+
+
+## A small filled, rounded status-pill background tinted [param color] (delivery status, badges).
+static func status_pill(color: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.set_corner_radius_all(8)
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	return sb
+
+
 ## A tray-tile frame tinted [param accent]. [param selected] thickens the border to mark the active tile.
 static func tray_card_style(accent: Color, selected: bool) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
