@@ -11,12 +11,17 @@ var _players: Array[Player] = []
 var _outlines: MultiMeshInstance3D
 var _tiles_root: Node3D
 var _markers: Node3D
+var _grounding: Node3D       # light pool + soft contact shadow under the whole assembled board
+var _shadow_tex: Texture2D
+var _glow_tex: Texture2D
 
 
 func setup(board: Board, players: Array[Player]) -> void:
 	_board = board
 	_players = players
 	_board.changed.connect(_refresh)
+	_grounding = Node3D.new()
+	add_child(_grounding)
 	_outlines = _make_outline_instance()
 	_tiles_root = Node3D.new()
 	add_child(_tiles_root)
@@ -26,6 +31,7 @@ func setup(board: Board, players: Array[Player]) -> void:
 
 
 func _refresh() -> void:
+	_refresh_grounding()
 	for child in _tiles_root.get_children():
 		child.queue_free()
 	for piece in _board.pieces():
@@ -39,6 +45,76 @@ func _refresh() -> void:
 			_tiles_root.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, local, piece_cells, is_drive))
 	_refresh_outlines()
 	_refresh_markers()
+
+
+# --- Grounding (soft contact shadow under the board) -------------------------
+
+# Grounds the assembled board so it reads as a real board on a table, not flat stickers in the void:
+# a warm light pool underneath it (the board sits in a spotlight) plus a soft contact shadow whose
+# falloff lands just beyond the perimeter. Both follow the footprint and sit behind the tiles.
+func _refresh_grounding() -> void:
+	for child in _grounding.get_children():
+		child.queue_free()
+	var cells := _board.occupied_cells()
+	if cells.is_empty():
+		return
+	var min_x := INF
+	var min_z := INF
+	var max_x := -INF
+	var max_z := -INF
+	for c in cells:
+		var w := HexUtils.axial_to_world(c, GameConfig.HEX_SIZE)
+		min_x = minf(min_x, w.x); max_x = maxf(max_x, w.x)
+		min_z = minf(min_z, w.z); max_z = maxf(max_z, w.z)
+	var span := maxf(max_x - min_x, max_z - min_z) + GameConfig.HEX_SIZE * 2.0
+	var cx := (min_x + max_x) * 0.5
+	var cz := (min_z + max_z) * 0.5
+	# Light pool: large, soft, behind everything — focuses the eye on the board.
+	_grounding.add_child(_radial_sprite(_glow_texture(), span * 2.4, -0.7, Vector3(cx, 0.0, cz)))
+	# Contact shadow: tighter, nudged toward the light's far side, just above the pool.
+	_grounding.add_child(_radial_sprite(_shadow_texture(), span * 1.6, -0.4, Vector3(cx + 0.5, 0.0, cz + 0.5)))
+
+
+# A flat radial sprite of [param texture] spanning [param world_size], at height [param y], centered on
+# [param center] (its y is overridden by [param y]).
+func _radial_sprite(texture: Texture2D, world_size: float, y: float, center: Vector3) -> Sprite3D:
+	var sprite := Sprite3D.new()
+	sprite.shaded = false
+	sprite.transparent = true
+	sprite.texture = texture
+	sprite.pixel_size = world_size / 256.0
+	sprite.rotation_degrees = Vector3(-90, 0, 0)  # lay flat on the table
+	sprite.position = Vector3(center.x, y, center.z)
+	return sprite
+
+
+# A 256² radial alpha gradient: dark and semi-opaque at the center, fading to transparent at the rim.
+func _shadow_texture() -> Texture2D:
+	if _shadow_tex == null:
+		_shadow_tex = _radial_texture(Color(0, 0, 0, 0.6), Color(0, 0, 0, 0.36), Color(0, 0, 0, 0.0))
+	return _shadow_tex
+
+
+# A warm, very soft light pool (lightens the cool backdrop under the board).
+func _glow_texture() -> Texture2D:
+	if _glow_tex == null:
+		_glow_tex = _radial_texture(Color(1.0, 0.95, 0.84, 0.20), Color(1.0, 0.95, 0.84, 0.07), Color(1.0, 0.95, 0.84, 0.0))
+	return _glow_tex
+
+
+func _radial_texture(center: Color, mid: Color, edge: Color) -> Texture2D:
+	var gradient := Gradient.new()
+	gradient.set_color(0, center)
+	gradient.set_color(1, edge)
+	gradient.add_point(0.62, mid)
+	var tex := GradientTexture2D.new()
+	tex.gradient = gradient
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	tex.width = 256
+	tex.height = 256
+	return tex
 
 
 # --- Outlines ----------------------------------------------------------------

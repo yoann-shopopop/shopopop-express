@@ -86,6 +86,8 @@ static func _build_vignette(parent: Node) -> void:
 		+ "}"
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
+	mat.set_shader_parameter("strength", 0.62)
+	mat.set_shader_parameter("radius", 0.72)
 	rect.material = mat
 	layer.add_child(rect)
 	parent.add_child(layer)
