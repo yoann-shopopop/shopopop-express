@@ -31,7 +31,7 @@ func _refresh() -> void:
 	for piece in _board.pieces():
 		var road_cells := TileSprite.road_cells_of(piece.typed_cells)
 		var piece_cells := TileSprite.cells_of(piece.typed_cells)
-		var drive_cell = DeliverySetup.drive_cell_of(piece)  # first urban cell hosts the DRIVE art
+		var drive_cell = DeliverySetup.drive_cell_of(piece, _board)  # road-reachable urban cell hosts the DRIVE art
 		for i in piece.typed_cells.size():
 			var tc: Dictionary = piece.typed_cells[i]
 			var local: Vector2i = piece.block_def.cells[i]
