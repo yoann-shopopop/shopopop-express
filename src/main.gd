@@ -14,6 +14,7 @@ var grid_view: HexGridView
 var _camera: CameraRig
 var _ghost: BlockGhost
 var _ui: PlacementUI
+var _zoom_controls: ZoomControls
 var _library: Array[BlockDefinition] = []
 var _characters: Array[CharacterDefinition] = []
 var _bridge: BlockDefinition
@@ -29,9 +30,18 @@ func _ready() -> void:
 	_camera = _build_camera()
 	_build_light()
 	_build_environment()
+	_zoom_controls = ZoomControls.new()
+	add_child(_zoom_controls)
+	_zoom_controls.zoom_in_requested.connect(_camera.zoom_in)
+	_zoom_controls.zoom_out_requested.connect(_camera.zoom_out)
 	_ui = PlacementUI.new()
 	add_child(_ui)
 	_ui.player_count_chosen.connect(_on_player_count_chosen)
+
+	# Opening title screen (above everything); dismissing it reveals the player-count chooser.
+	var title := TitleScreen.new()
+	add_child(title)
+	title.start_requested.connect(func() -> void: title.queue_free())
 
 
 ## Starts a game with [param count] players. [param rng_seed] >= 0 makes the draw deterministic.
@@ -101,6 +111,7 @@ func _on_setup_finished() -> void:
 	# which owns the moving pawns, dice, movement input and the in-game UI.
 	_ui.queue_free()
 	controller.queue_free()
+	_zoom_controls.hide()  # PlayHud owns zoom controls in the title bar during play
 	_game_root = GameRoot.new()
 	add_child(_game_root)
 	_game_root.setup(board, _players, _camera)
@@ -133,7 +144,7 @@ func _load_characters() -> Array[CharacterDefinition]:
 func _build_camera() -> CameraRig:
 	var camera := CameraRig.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 30.0
+	camera.size = 20.0  # ortho vertical span in world units (~2.5 tiles tall); lower = zoomed in
 	camera.position = Vector3(0, 20, 0)
 	camera.rotation_degrees = Vector3(-90, 0, 0)
 	camera.current = true
@@ -149,16 +160,16 @@ func _build_light() -> void:
 
 
 func _build_environment() -> void:
-	# Light, airy backdrop (mockup feel). The gradient must live in the 3D world, BEHIND the board:
+	# Dark, soft backdrop (easy on the eyes). The gradient must live in the 3D world, BEHIND the board:
 	# a CanvasLayer (even at a negative layer) always draws on top of the 3D viewport, which would hide
 	# the board and the placement ghost. So we use a large unshaded ground plane below the tiles; the
 	# top-down ortho camera renders it as the background. The flat env clear color matches its bottom.
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("c2d2e0")  # matches the gradient's bottom, for any pan past the plane
+	env.background_color = Color("161b26")  # matches the gradient's bottom, for any pan past the plane
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("eaf1f8")
-	env.ambient_light_energy = 0.8
+	env.ambient_light_color = Color("8a94a8")
+	env.ambient_light_energy = 0.75
 	var holder := WorldEnvironment.new()
 	holder.environment = env
 	add_child(holder)
@@ -178,7 +189,7 @@ func _build_environment() -> void:
 		+ "void fragment() { ALBEDO = mix(top_color, bottom_color, UV.y); }"
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
-	mat.set_shader_parameter("top_color", Color("eaf1f8"))
-	mat.set_shader_parameter("bottom_color", Color("c2d2e0"))
+	mat.set_shader_parameter("top_color", Color("28324a"))
+	mat.set_shader_parameter("bottom_color", Color("161b26"))
 	backdrop.material_override = mat
 	add_child(backdrop)

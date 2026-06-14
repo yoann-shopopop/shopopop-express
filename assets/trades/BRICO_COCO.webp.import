@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://2p4t0mibi8ag"
-path="res://.godot/imported/BRICO_COCO.webp-78b5096d48234c1341be34adfad73ce2.ctex"
+uid="uid://4c8mrgjy80dx"
+path="res://.godot/imported/brico_coco.webp-7f79fb175ac140a275db84954f97e78b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/BRICO_COCO.webp"
-dest_files=["res://.godot/imported/BRICO_COCO.webp-78b5096d48234c1341be34adfad73ce2.ctex"]
+source_file="res://assets/trades/brico_coco.webp"
+dest_files=["res://.godot/imported/brico_coco.webp-7f79fb175ac140a275db84954f97e78b.ctex"]
 
 [params]
 

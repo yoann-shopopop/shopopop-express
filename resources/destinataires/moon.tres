@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+[gd_resource type="Resource" script_class="DestinataireDefinition" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_d2ejn"]
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+[ext_resource type="Texture2D" path="res://assets/player_tokens/moon.jpg" id="2_img"]
 
 [resource]
-script = ExtResource("1_d2ejn")
+script = ExtResource("1_dest")
 id = &"moon"
 display_name = "Moon"
 color = Color(0.29803923, 0.7882353, 0.9411765, 1)
+texture = ExtResource("2_img")

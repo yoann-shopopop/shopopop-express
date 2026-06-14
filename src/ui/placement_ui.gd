@@ -198,7 +198,7 @@ func _build_game_panel() -> void:
 	right.add_child(_validate_button)
 
 
-# Floating toolbar shown above the piece just placed: rotate left, remove, rotate right (in order).
+# Floating toolbar shown above the piece just placed: rotate left, remove, rotate right, validate.
 func _build_controls() -> void:
 	_controls = HBoxContainer.new()
 	_controls.add_theme_constant_override("separation", 10)
@@ -209,6 +209,7 @@ func _build_controls() -> void:
 	_controls.add_child(_make_control_button("⟲", UITheme.ORANGE, func() -> void: rotate_left_requested.emit()))
 	_controls.add_child(_make_control_button("✕", UITheme.RED, func() -> void: remove_requested.emit()))
 	_controls.add_child(_make_control_button("⟳", UITheme.BLUE, func() -> void: rotate_right_requested.emit()))
+	_controls.add_child(_make_control_button("✓", Color("3fa64e"), func() -> void: finish_requested.emit()))
 
 
 # A single round-ish accent button for the floating toolbar.

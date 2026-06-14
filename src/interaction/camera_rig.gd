@@ -3,11 +3,17 @@ extends Camera3D
 ## Pan & zoom for the orthographic top-down camera, on mouse and touch.
 ##
 ## Mouse: wheel zooms, right-drag pans. Touch: two fingers pinch-zoom and pan together
-## (a single finger is left for the placement controller). Movement stays on the XZ plane.
+## (a single finger is left for the placement controller). Trackpad: pinch (magnify) zooms,
+## two-finger swipe (pan gesture) pans. On-screen +/- buttons drive zoom via [method zoom_in] /
+## [method zoom_out]. Movement stays on the XZ plane.
 
 @export var min_size: float = 4.0
 @export var max_size: float = 60.0
 @export var zoom_step: float = 0.1
+## Step applied by the on-screen +/- buttons (one click ≈ 20% zoom).
+@export var button_zoom_factor: float = 1.2
+## Trackpad two-finger swipe speed: the gesture delta is tiny, so scale it up to pixel-like motion.
+@export var pan_gesture_speed: float = 12.0
 
 var _mouse_panning: bool = false
 var _touches: Dictionary = {}  # touch index -> Vector2 position
@@ -22,6 +28,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_touch(event)
 	elif event is InputEventScreenDrag:
 		_handle_drag(event)
+	elif event is InputEventMagnifyGesture:
+		# Trackpad pinch: factor > 1 means fingers spread → zoom in (smaller ortho size).
+		_zoom(1.0 / event.factor)
+	elif event is InputEventPanGesture:
+		# Trackpad two-finger swipe: the board follows the fingers.
+		_pan_by_pixels(event.delta * pan_gesture_speed)
 
 
 func _handle_mouse_button(event: InputEventMouseButton) -> void:
@@ -63,6 +75,16 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 	if prev_dist > 0.0 and cur_dist > 0.0:
 		_zoom(prev_dist / cur_dist)
 	get_viewport().set_input_as_handled()
+
+
+## Zooms in one button step (closer view, smaller ortho size).
+func zoom_in() -> void:
+	_zoom(1.0 / button_zoom_factor)
+
+
+## Zooms out one button step (wider view, larger ortho size).
+func zoom_out() -> void:
+	_zoom(button_zoom_factor)
 
 
 func _zoom(factor: float) -> void:

@@ -9,8 +9,8 @@ extends Node3D
 
 ## Extra height above the tile surface so the token never z-fights with the board.
 const SPRITE_LIFT := 0.1
-## Radius of the chip, in world units (a bit under the hexagon circumradius of 1.0).
-const CHIP_RADIUS := 0.55
+## Radius of the chip, in world units — nearly fills the cell (its inscribed circle radius is ~0.87).
+const CHIP_RADIUS := 0.82
 ## Thickness of the chip — enough relief to read as a token under the top-down light.
 const CHIP_HEIGHT := 0.18
 ## Neutral chip body color; the image on top carries the identity.

@@ -14,7 +14,7 @@ const W := CellType.Kind.WATER
 const G := CellType.Kind.GREEN
 const U := CellType.Kind.URBAN
 
-# The 3 patterns (from assets B1/B2/B3). "roads" is a list of segments (HexUtils corner indices
+# The 3 quarter patterns (originally traced from the physical board tiles). "roads" is a list of segments (HexUtils corner indices
 # 0..5; corner i = DIRECTIONS[i] * RADIUS): a 2-corner segment [a, b] is a straight road between
 # opposite corners (grain-aligned, perfectly straight through the centre); a 1-corner segment [d] is
 # a bifurcation from the centre out to that corner. p1/p2 = a straight road {0-3} + one fork toward

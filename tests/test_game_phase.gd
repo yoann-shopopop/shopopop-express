@@ -79,15 +79,15 @@ func test_end_turn_wraps_around_round_robin() -> void:
 
 # --- Deliveries -------------------------------------------------------------
 
-# A character owning RED, so a RED tile scores for its carrier.
+# A character (kept for parity with real players; scoring now uses player.color).
 func _red_character() -> CharacterDefinition:
 	var c := CharacterDefinition.new()
 	c.colors = [PlayerColor.Kind.RED]
 	return c
 
 
-# A phase with one RED tile and a delivery whose drive=(1,0) and recipient=(2,0) (both road cells, so
-# the pawn can stand on them). One player owning RED.
+# A phase with one RED tile and a delivery drive=(1,0) / recipient=(2,0) (both road cells, walkable).
+# One RED player starting on the tile's green cell (0,0). The delivery has a recipient clipped.
 func _phase_with_delivery() -> GamePhase:
 	var board := Board.new()
 	var tile := _tile()
@@ -96,38 +96,101 @@ func _phase_with_delivery() -> GamePhase:
 	player.character = _red_character()
 	var piece: PlacedPiece = board.pieces()[0]
 	var delivery := Delivery.new(Vector2i(1, 0), Vector2i(2, 0), [piece] as Array[PlacedPiece])
+	delivery.destinataire = DestinataireDefinition.new()  # reservable
 	return GamePhase.new([player] as Array[Player], board, [delivery] as Array[Delivery])
 
 
-func test_select_delivery_reserves_it() -> void:
+func test_reserve_delivery_on_the_tile_sets_reserve() -> void:
 	var phase := _phase_with_delivery()
-	var d := phase.available_deliveries()[0]
-	phase.select_delivery(d)
-	assert_eq(phase.current_delivery(), d)
-	assert_eq(phase.available_deliveries().size(), 0, "reserved, no longer available")
+	phase.begin_movement(3)  # pawn on (0,0), which belongs to the tile
+	assert_true(phase.reserve_delivery(), "reservable from the tile")
+	assert_eq(phase.available_deliveries().size(), 0, "no longer available")
+	assert_eq(phase.deliveries_in_flight(0).size(), 1)
 
 
-func test_pickup_costs_one_extra_step() -> void:
+func test_cannot_reserve_outside_deplacement() -> void:
 	var phase := _phase_with_delivery()
-	phase.select_delivery(phase.available_deliveries()[0])
+	assert_false(phase.reserve_delivery(), "still PLANIFICATION")
+
+
+func test_stepping_onto_the_drive_cell_sets_en_cours() -> void:
+	var phase := _phase_with_delivery()
 	phase.begin_movement(3)
-	phase.try_step(Vector2i(1, 0))  # onto the drive cell, budget now 2
-	assert_true(phase.confirm_pickup())
-	assert_true(phase.current_delivery().picked_up)
-	assert_eq(phase.movement().remaining(), 1, "pickup costs +1 step")
+	phase.reserve_delivery()
+	phase.try_step(Vector2i(1, 0))  # the drive cell
+	assert_eq(phase.deliveries_in_flight(0)[0].status, DeliveryStatus.Kind.EN_COURS)
 
 
-func test_delivering_scores_and_finishes_the_game() -> void:
+func test_reserving_while_on_the_drive_cell_jumps_to_en_cours() -> void:
+	var phase := _phase_with_delivery()
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))  # step onto the drive cell first (no reservation yet)
+	assert_true(phase.reserve_delivery(), "still reservable from the drive cell")
+	assert_eq(phase.deliveries_in_flight(0)[0].status, DeliveryStatus.Kind.EN_COURS,
+		"reserving on the drive cell transitions straight to EN_COURS")
+
+
+func test_stepping_onto_the_recipient_scores_and_is_free() -> void:
 	var phase := _phase_with_delivery()
 	var player := phase.current_player()
-	phase.select_delivery(phase.available_deliveries()[0])
 	phase.begin_movement(3)
-	phase.try_step(Vector2i(1, 0))
-	phase.confirm_pickup()
-	phase.try_step(Vector2i(2, 0))  # onto the recipient cell
-	assert_true(phase.confirm_delivery())
-	assert_eq(phase.score_of(player), 20, "single owned tile = 20")
-	assert_true(phase.is_finished(), "the only delivery is done")
+	phase.reserve_delivery()
+	phase.try_step(Vector2i(1, 0))  # drive -> EN_COURS
+	phase.try_step(Vector2i(2, 0))  # recipient -> delivered
+	assert_eq(phase.score_of(player), 25, "single tile that is mine")
+	assert_eq(phase.movement().remaining(), 1, "two steps from a budget of 3, reservation is free")
+	assert_true(phase.is_finished(), "the only delivery is done, no recycling")
+
+
+func test_cannot_reserve_more_than_two_in_flight() -> void:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	player.character = _red_character()
+	var piece: PlacedPiece = board.pieces()[0]
+	# Three deliveries pinned to the same tile (unrealistic, but exercises the cap purely).
+	var deliveries: Array[Delivery] = []
+	for i in 3:
+		var d := Delivery.new(Vector2i(1, 0), Vector2i(2, 0), [piece] as Array[PlacedPiece])
+		d.destinataire = DestinataireDefinition.new()
+		deliveries.append(d)
+	var phase := GamePhase.new([player] as Array[Player], board, deliveries)
+	phase.begin_movement(3)
+	# Mark two as already in flight for player 0.
+	deliveries[0].status = DeliveryStatus.Kind.RESERVE
+	deliveries[0].reserved_by = 0
+	deliveries[1].status = DeliveryStatus.Kind.EN_COURS
+	deliveries[1].reserved_by = 0
+	assert_eq(phase.deliveries_in_flight(0).size(), 2)
+	assert_null(phase.reservable_delivery(), "cap of 2 reached")
+	assert_false(phase.reserve_delivery())
+
+
+# The drive sits on an URBAN cell and the recipient on a GREEN cell — neither is a road. The pawn must
+# still be able to step onto them (off the road) to pick up / deliver. Regression: with a roads-only
+# walkable set they were unreachable, so EN_COURS/LIVREE never triggered in the real game.
+func test_pawn_can_reach_a_drive_cell_off_the_road() -> void:
+	var board := Board.new()
+	var b := BlockDefinition.new()
+	b.id = &"drive_tile"
+	b.cells = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)] as Array[Vector2i]
+	b.cell_types = [CellType.Kind.GREEN, CellType.Kind.ROUTE, CellType.Kind.URBAN]
+	b.connectors = [Vector2i(1, 0)] as Array[Vector2i]
+	board.place(b, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, b)
+	player.character = _red_character()
+	var piece: PlacedPiece = board.pieces()[0]
+	# drive on the urban cell (2,0) — off the road; recipient on the green start (0,0).
+	var delivery := Delivery.new(Vector2i(2, 0), Vector2i(0, 0), [piece] as Array[PlacedPiece])
+	delivery.destinataire = DestinataireDefinition.new()
+	var phase := GamePhase.new([player] as Array[Player], board, [delivery] as Array[Delivery])
+	phase.begin_movement(3)
+	phase.reserve_delivery()  # pawn on the green start (0,0), which belongs to the tile
+	assert_true(phase.try_step(Vector2i(1, 0)), "step onto the road")
+	assert_true(phase.try_step(Vector2i(2, 0)), "the urban drive cell must be reachable")
+	assert_eq(phase.deliveries_in_flight(0)[0].status, DeliveryStatus.Kind.EN_COURS,
+		"reaching the drive cell sets EN_COURS")
 
 
 # --- Events & powers --------------------------------------------------------
@@ -207,30 +270,30 @@ func _phase_with_generator(recipient_count: int) -> Dictionary:
 	return {"phase": phase, "delivery": delivery}
 
 
-func _deliver_once(phase: GamePhase) -> bool:
+# Reserves on the start tile then walks drive->recipient (all free now).
+func _deliver_once(phase: GamePhase) -> void:
 	phase.begin_movement(3)
+	phase.reserve_delivery()
 	phase.try_step(Vector2i(1, 0))
-	phase.confirm_pickup()
 	phase.try_step(Vector2i(2, 0))
-	return phase.confirm_delivery()
 
 
 func test_delivery_recycles_and_game_continues_when_pool_has_spares() -> void:
 	var ctx := _phase_with_generator(2)  # 1 used at init, 1 spare
 	var phase: GamePhase = ctx["phase"]
 	var delivery: Delivery = ctx["delivery"]
-	assert_true(_deliver_once(phase))
-	assert_false(delivery.delivered, "recycled, not permanently delivered")
+	_deliver_once(phase)
+	assert_eq(delivery.status, DeliveryStatus.Kind.DISPONIBLE, "recycled, available again")
 	assert_not_null(delivery.destinataire, "a new recipient was clipped")
 	assert_false(phase.is_finished())
-	assert_eq(phase.available_deliveries().size(), 1, "available again")
+	assert_eq(phase.available_deliveries().size(), 1)
 
 
 func test_game_finishes_when_the_recipient_pool_is_exhausted() -> void:
 	var ctx := _phase_with_generator(1)  # no spare
 	var phase: GamePhase = ctx["phase"]
 	var delivery: Delivery = ctx["delivery"]
-	assert_true(_deliver_once(phase))
-	assert_true(delivery.delivered, "pool empty -> tile done for good")
-	assert_null(delivery.destinataire)
+	_deliver_once(phase)
+	assert_null(delivery.destinataire, "pool empty -> drive left free")
+	assert_eq(delivery.status, DeliveryStatus.Kind.DISPONIBLE)
 	assert_true(phase.is_finished())

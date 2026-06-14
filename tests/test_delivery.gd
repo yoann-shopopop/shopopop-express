@@ -1,5 +1,5 @@
 extends GutTest
-## Tests for Delivery — a drive→recipient link spanning one or two tiles, and its tile owners.
+## Tests for Delivery — a drive→recipient link, its tile owners, and its status lifecycle.
 
 
 func _piece(owner: int) -> PlacedPiece:
@@ -11,36 +11,53 @@ func _piece(owner: int) -> PlacedPiece:
 	return PlacedPiece.new(b, Vector2i.ZERO, 0, owner)
 
 
+func _delivery(owner: int) -> Delivery:
+	return Delivery.new(Vector2i(0, 0), Vector2i(1, 0), [_piece(owner)] as Array[PlacedPiece])
+
+
 func test_single_tile_delivery() -> void:
-	var p := _piece(PlayerColor.Kind.RED)
-	var d := Delivery.new(Vector2i(0, 0), Vector2i(1, 0), [p] as Array[PlacedPiece])
+	var d := _delivery(PlayerColor.Kind.RED)
 	assert_true(d.is_single_tile())
-	assert_eq(d.tile_owners(), [PlayerColor.Kind.RED])
+	assert_eq(d.drive_tile_owner(), PlayerColor.Kind.RED)
+	assert_eq(d.recipient_tile_owner(), PlayerColor.Kind.RED)
 
 
-func test_two_tile_delivery() -> void:
+func test_two_tile_delivery_owners_are_drive_then_recipient() -> void:
 	var tiles := [_piece(PlayerColor.Kind.RED), _piece(PlayerColor.Kind.BLUE)] as Array[PlacedPiece]
 	var d := Delivery.new(Vector2i(0, 0), Vector2i(5, 0), tiles)
-	assert_false(d.is_single_tile())
-	assert_eq(d.tile_owners().size(), 2)
+	assert_eq(d.drive_tile_owner(), PlayerColor.Kind.RED)
+	assert_eq(d.recipient_tile_owner(), PlayerColor.Kind.BLUE)
 
 
-func test_starts_unpicked_and_undelivered() -> void:
-	var d := Delivery.new(Vector2i(0, 0), Vector2i(1, 0), [_piece(0)] as Array[PlacedPiece])
-	assert_false(d.picked_up)
-	assert_false(d.delivered)
-	assert_eq(d.carrier_index, -1)
+func test_starts_disponible_and_unreserved() -> void:
+	var d := _delivery(0)
+	assert_eq(d.status, DeliveryStatus.Kind.DISPONIBLE)
+	assert_eq(d.reserved_by, -1)
+
+
+func test_is_reservable_requires_disponible_with_a_recipient() -> void:
+	var d := _delivery(0)
+	assert_false(d.is_reservable(), "no recipient yet")
+	d.destinataire = DestinataireDefinition.new()
+	assert_true(d.is_reservable(), "disponible + recipient")
+	d.status = DeliveryStatus.Kind.RESERVE
+	assert_false(d.is_reservable(), "already reserved")
 
 
 func test_recycle_clips_a_new_recipient_and_resets_state() -> void:
-	var d := Delivery.new(Vector2i(0, 0), Vector2i(1, 0), [_piece(0)] as Array[PlacedPiece])
-	d.picked_up = true
-	d.delivered = true
-	d.carrier_index = 2
+	var d := _delivery(0)
+	d.status = DeliveryStatus.Kind.EN_COURS
+	d.reserved_by = 2
 	var fresh := DestinataireDefinition.new()
 	fresh.id = &"fresh"
 	d.recycle(fresh)
 	assert_eq(d.destinataire, fresh)
-	assert_false(d.picked_up)
-	assert_false(d.delivered)
-	assert_eq(d.carrier_index, -1)
+	assert_eq(d.status, DeliveryStatus.Kind.DISPONIBLE)
+	assert_eq(d.reserved_by, -1)
+
+
+func test_is_available_is_true_only_when_disponible() -> void:
+	var d := _delivery(0)
+	assert_true(d.is_available(), "DISPONIBLE par défaut")
+	d.status = DeliveryStatus.Kind.RESERVE
+	assert_false(d.is_available())

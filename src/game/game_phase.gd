@@ -16,8 +16,10 @@ signal turn_changed(player: Player)
 signal subphase_changed(subphase: int)
 ## A pawn moved from one cell to another.
 signal pawn_moved(player: Player, from: Vector2i, to: Vector2i)
-## A delivery was reserved by the current player during planning.
-signal delivery_picked(delivery: Delivery)
+## A delivery was reserved by the current player (stepping onto its tile).
+signal delivery_reserved(delivery: Delivery)
+## A reserved delivery became EN_COURS (the pawn reached its drive cell).
+signal delivery_in_progress(delivery: Delivery)
 ## A delivery was completed; [param points] were awarded to its carrier.
 signal delivery_completed(delivery: Delivery, points: int)
 ## The game ended (all deliveries done); [param scores] maps player index -> total.
@@ -32,10 +34,12 @@ var _current: int = 0
 var _subphase: int = SubPhase.PLANIFICATION
 var _positions: Dictionary = {}        # player index -> absolute Vector2i cell
 var _scores: Dictionary = {}           # player index -> total points
-var _carrying: Dictionary = {}         # player index -> the Delivery being carried (or absent)
 var _movement: TurnMovement = null
 var _context: TurnContext = null       # mutable state for the current turn's events/powers
 var _generator: DeliveryGenerator = null  # when set, delivering recycles a new recipient (index-aligned with _deliveries)
+
+## Maximum in-flight deliveries (RESERVE + EN_COURS) a player may hold simultaneously.
+const MAX_IN_FLIGHT := 2
 
 
 func _init(players: Array[Player], board: Board, deliveries: Array[Delivery] = [], generator: DeliveryGenerator = null) -> void:
@@ -74,9 +78,14 @@ func begin_movement(budget: int) -> void:
 	if _subphase != SubPhase.PLANIFICATION:
 		return
 	var walkable := RoadNetwork.walkable_from_board(_board)
+	# Movement is roads-only, but the drive (urban) and recipient (green) cells of every delivery are
+	# reachable destinations: the pawn must be able to step onto them (off the road) to pick up/deliver.
+	for delivery in _deliveries:
+		walkable[delivery.drive_cell] = true
+		walkable[delivery.recipient_cell] = true
 	_movement = TurnMovement.new(walkable, position_of(current_player()), budget)
 	_context = TurnContext.new(_movement, current_player())
-	_context.current_delivery = current_delivery()
+	_context.current_delivery = _primary_delivery(_current)
 	_set_subphase(SubPhase.DEPLACEMENT)
 
 
@@ -90,6 +99,7 @@ func try_step(cell: Vector2i) -> bool:
 		return false
 	_positions[current_player().index] = cell
 	pawn_moved.emit(current_player(), from, cell)
+	_check_delivery_transitions()
 	if _board.cell_type_at(cell) == CellType.Kind.EVENT:
 		_set_subphase(SubPhase.EVENEMENT)
 		event_triggered.emit(cell)
@@ -138,90 +148,96 @@ func use_power() -> bool:
 
 # --- Deliveries -------------------------------------------------------------
 
-## Deliveries that can still be reserved: not delivered and not already carried by anyone.
+## Deliveries still reservable: DISPONIBLE with a recipient clipped (drive not "free").
 func available_deliveries() -> Array[Delivery]:
 	var result: Array[Delivery] = []
 	for delivery in _deliveries:
-		if not delivery.delivered and delivery.carrier_index < 0:
+		if delivery.is_reservable():
 			result.append(delivery)
 	return result
 
 
-## The delivery the current player is carrying, or null.
-func current_delivery() -> Delivery:
-	return _carrying.get(_current, null)
-
-
-## Reserves [param delivery] for the current player (only during planning, if still available).
-func select_delivery(delivery: Delivery) -> bool:
-	if _subphase != SubPhase.PLANIFICATION or delivery == null:
-		return false
-	if delivery.delivered or delivery.carrier_index >= 0:
-		return false
-	delivery.carrier_index = _current
-	_carrying[_current] = delivery
-	delivery_picked.emit(delivery)
-	return true
-
-
-## Picks up a delivery at its drive — costs +1 step. Valid on or next to the drive cell. If the player
-## isn't carrying one yet, the available delivery at this drive is reserved automatically (no separate
-## planning step).
-func confirm_pickup() -> bool:
-	if _movement == null:
-		return false
-	var delivery := current_delivery()
-	if delivery == null:
-		delivery = _available_delivery_at(_movement.current())
-		if delivery == null:
-			return false
-		delivery.carrier_index = _current
-		_carrying[_current] = delivery
-		delivery_picked.emit(delivery)
-	if delivery.picked_up or HexUtils.distance(_movement.current(), delivery.drive_cell) > 1:
-		return false
-	_movement.subtract_steps(1)
-	delivery.picked_up = true
-	return true
-
-
-# An available delivery whose drive is on or next to [param cell], or null.
-func _available_delivery_at(cell: Vector2i) -> Delivery:
+## In-flight deliveries (RESERVE or EN_COURS) held by [param player_index].
+func deliveries_in_flight(player_index: int) -> Array[Delivery]:
+	var result: Array[Delivery] = []
 	for delivery in _deliveries:
-		if not delivery.delivered and delivery.carrier_index < 0 \
-				and HexUtils.distance(cell, delivery.drive_cell) <= 1:
+		if delivery.reserved_by == player_index \
+				and (delivery.status == DeliveryStatus.Kind.RESERVE \
+					or delivery.status == DeliveryStatus.Kind.EN_COURS):
+			result.append(delivery)
+	return result
+
+
+## The reservable delivery on the current pawn's tile, or null. Requires the player to hold fewer than
+## [constant MAX_IN_FLIGHT] deliveries. Only the drive tile is checked (tiles[0]).
+func reservable_delivery() -> Delivery:
+	if deliveries_in_flight(_current).size() >= MAX_IN_FLIGHT:
+		return null
+	var tile := _board.piece_at(position_of(current_player()))
+	if tile == null:
+		return null
+	for delivery in _deliveries:
+		if delivery.is_reservable() and not delivery.tiles.is_empty() and delivery.tiles[0] == tile:
 			return delivery
 	return null
 
 
-## Delivers the carried delivery at its recipient — free. Valid on or next to the recipient cell.
-func confirm_delivery() -> bool:
-	var delivery := current_delivery()
-	if delivery == null or not delivery.picked_up or delivery.delivered:
+## Reserves the delivery on the current tile for the current player (only during DEPLACEMENT).
+func reserve_delivery() -> bool:
+	if _subphase != SubPhase.DEPLACEMENT:
 		return false
-	if _movement == null or HexUtils.distance(_movement.current(), delivery.recipient_cell) > 1:
+	var delivery := reservable_delivery()
+	if delivery == null:
 		return false
+	delivery.status = DeliveryStatus.Kind.RESERVE
+	delivery.reserved_by = _current
+	delivery_reserved.emit(delivery)
+	_check_delivery_transitions()
+	return true
+
+
+# Drives automatic transitions from the current pawn position; called after each step and after a
+# reservation. RESERVE -> EN_COURS on the drive cell; EN_COURS -> delivery on the recipient cell.
+func _check_delivery_transitions() -> void:
+	var cell := position_of(current_player())
+	for delivery in deliveries_in_flight(_current):
+		if delivery.status == DeliveryStatus.Kind.RESERVE and cell == delivery.drive_cell:
+			delivery.status = DeliveryStatus.Kind.EN_COURS
+			delivery_in_progress.emit(delivery)
+		elif delivery.status == DeliveryStatus.Kind.EN_COURS and cell == delivery.recipient_cell:
+			_complete_delivery(delivery)
+	if _context != null:
+		_context.current_delivery = _primary_delivery(_current)
+
+
+# Scores [param delivery], recycles a new recipient (or leaves the drive free), checks for game end.
+func _complete_delivery(delivery: Delivery) -> void:
 	var points := _score_for(current_player(), delivery)
 	if _context != null and _context.double_score:
 		points *= 2  # Livraison Écologique
 	_scores[_current] += points
-	_carrying.erase(_current)
 	if _generator != null:
-		# Recycle: clip a new recipient onto this tile and make it available again. When the pool is
-		# exhausted (no new recipient), the tile is done for good.
 		var idx := _deliveries.find(delivery)
 		var next: DestinataireDefinition = null
 		if idx >= 0:
 			next = _generator.recycle(idx)
 		delivery.recycle(next)
-		if next == null:
-			delivery.delivered = true
 	else:
-		delivery.delivered = true  # no recycling (one-shot deliveries)
+		delivery.recycle(null)  # no recycling source: the drive is done
 	delivery_completed.emit(delivery, points)
 	if is_finished():
 		game_finished.emit(scores())
-	return true
+
+
+# The delivery "in hand" for [param player_index]: the EN_COURS one if any, else a RESERVE one, else
+# null. Used by event teleports.
+func _primary_delivery(player_index: int) -> Delivery:
+	var reserved: Delivery = null
+	for delivery in deliveries_in_flight(player_index):
+		if delivery.status == DeliveryStatus.Kind.EN_COURS:
+			return delivery
+		reserved = delivery
+	return reserved
 
 
 ## Total points scored by [param player].
@@ -234,20 +250,19 @@ func scores() -> Dictionary:
 	return _scores.duplicate()
 
 
-## True once every delivery is done (false while there are none, so a freshly built game isn't "over").
+## True once no delivery remains actionable: every delivery is DISPONIBLE with no recipient (pool
+## exhausted, nothing in flight). False on a board that never had a delivery.
 func is_finished() -> bool:
 	if _deliveries.is_empty():
 		return false
 	for delivery in _deliveries:
-		if not delivery.delivered:
+		if delivery.status != DeliveryStatus.Kind.DISPONIBLE or delivery.destinataire != null:
 			return false
 	return true
 
 
 func _score_for(player: Player, delivery: Delivery) -> int:
-	if player.character == null:
-		return ScoreCalculator.BASE
-	return ScoreCalculator.score_delivery(delivery, player.character)
+	return ScoreCalculator.score_delivery(delivery, player.color)
 
 
 func _set_subphase(subphase: int) -> void:

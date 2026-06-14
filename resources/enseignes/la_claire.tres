@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="EnseigneDefinition" format=3]
 
 [ext_resource type="Script" path="res://src/enseignes/enseigne_definition.gd" id="1_q2iq5"]
-[ext_resource type="Texture2D" path="res://assets/trades/LA_CLAIRE.webp" id="2_sda8x"]
+[ext_resource type="Texture2D" path="res://assets/trades/la_claire.webp" id="2_sda8x"]
 
 [resource]
 script = ExtResource("1_q2iq5")

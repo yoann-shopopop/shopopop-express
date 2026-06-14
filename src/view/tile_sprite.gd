@@ -1,13 +1,14 @@
 class_name TileSprite
 extends RefCounted
-## Builds a single textured cell as a flat Sprite3D: base 388px aligned to the hexagon, taller art
-## overflowing north, roads oriented via RoadTiling. Shared by the board view, the ghost and the
+## Builds a single textured cell as a flat Sprite3D. All cell types share one flat-top hex art set
+## (≈248 wide, the hex fills the frame, no overflow); roads additionally pick an oriented variant so
+## their markings line up via the RoadTiling convention. Shared by the board view, the ghost and the
 ## UI previews so they all look identical.
 
-const TEX_W := 450.0
-const TEX_H := 500.0
-const BASE_PX := 388.0
-const OFFSET_Y_PX := (TEX_H - BASE_PX) / 2.0      # center the base region on the hex
+const TEX_W := 248.0                              # flat-top hex bounding box width (≈248×215)
+const TEX_H := 215.0
+const BASE_PX := 215.0                            # the art fills the hex; no northward overflow
+const OFFSET_Y_PX := (TEX_H - BASE_PX) / 2.0      # 0 — kept as a formula for clarity
 const SORT_K := 0.01                              # south-over-north depth nudge
 const FLAT := Basis(Vector3(1, 0, 0), -PI / 2.0)  # lay flat, texture-up = north
 
@@ -16,16 +17,19 @@ const FLAT := Basis(Vector3(1, 0, 0), -PI / 2.0)  # lay flat, texture-up = north
 ## keyed by Vector2i) of road cells in the same piece, used to orient roads. [param variant_seed]
 ## is the cell's LOCAL offset within its block, so the random texture variant stays stable wherever
 ## the block is previewed, placed or rotated.
-static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float, variant_seed: Vector2i, piece_cells: Dictionary = {}) -> Sprite3D:
+static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float, variant_seed: Vector2i, piece_cells: Dictionary = {}, is_drive: bool = false) -> Sprite3D:
 	var sprite := Sprite3D.new()
-	sprite.pixel_size = (2.0 * size) / TEX_W
-	sprite.offset = Vector2(0, OFFSET_Y_PX)
 	sprite.shaded = false
 	sprite.transparent = true
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 
+	# Every tile shares the flat-top hex art geometry (hex fills the frame, no overflow).
+	sprite.pixel_size = (2.0 * size) / TEX_W
+	sprite.offset = Vector2(0, OFFSET_Y_PX)
+
 	var yaw := 0.0
 	if type == CellType.Kind.ROUTE:
+		# Roads pick an oriented texture so the markings line up via the RoadTiling convention.
 		var dirs := _road_dirs(cell, road_cells)
 		if dirs.is_empty():
 			# A lone road cell = a bridge's central road (flanked only by its own water ends). Use the
@@ -41,8 +45,13 @@ static func make(cell: Vector2i, type: int, road_cells: Dictionary, size: float,
 			sprite.flip_h = meta["flip"]
 			yaw = float(meta["steps"]) * PI / 3.0
 	else:
-		var variants := TileTextures.variants(type)
-		sprite.texture = variants[_variant_of(variant_seed, variants.size())]
+		if type == CellType.Kind.URBAN and is_drive:
+			# The pickup point's urban cell shows the DRIVE storefront art (the enseigne jeton on top).
+			var drives := TileTextures.drive_variants()
+			sprite.texture = drives[_variant_of(variant_seed, drives.size())]
+		else:
+			var variants := TileTextures.variants(type)
+			sprite.texture = variants[_variant_of(variant_seed, variants.size())]
 
 	var pos := HexUtils.axial_to_world(cell, size)
 	pos.y = pos.z * SORT_K

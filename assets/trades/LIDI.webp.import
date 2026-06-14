@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://q3qsqr5pxc00"
-path="res://.godot/imported/LIDI.webp-8f6c0b36fe8e69c1e65f240ff698a707.ctex"
+uid="uid://h2c7qb6t2d0d"
+path="res://.godot/imported/lidi.webp-3ef39d0ba189f397debcdfc778d1ff75.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/LIDI.webp"
-dest_files=["res://.godot/imported/LIDI.webp-8f6c0b36fe8e69c1e65f240ff698a707.ctex"]
+source_file="res://assets/trades/lidi.webp"
+dest_files=["res://.godot/imported/lidi.webp-3ef39d0ba189f397debcdfc778d1ff75.ctex"]
 
 [params]
 

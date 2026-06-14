@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+[gd_resource type="Resource" script_class="DestinataireDefinition" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_h572q"]
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+[ext_resource type="Texture2D" path="res://assets/player_tokens/la_grande_dame.jpg" id="2_img"]
 
 [resource]
-script = ExtResource("1_h572q")
+script = ExtResource("1_dest")
 id = &"la_grande_dame"
 display_name = "La Grande Dame"
 color = Color(0.34117648, 0.45882353, 0.5647059, 1)
+texture = ExtResource("2_img")

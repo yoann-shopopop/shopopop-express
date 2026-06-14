@@ -64,15 +64,27 @@ Concepts clés à modéliser. Les entités forment naturellement des `Resource` 
 - **Plateau** = assemblage de **tuiles** (chaque tuile = un *quartier* avec routes, espaces verts,
   zones grises/urbanisées). Contrainte d'assemblage : deux tuiles ne se joignent que si une route de
   l'une touche une route de l'autre. **Déplacement uniquement sur les routes** (sauf cartes événement).
-- **Carte personnage** : mode de déplacement (**voiture** ou **vélo**), **2 couleurs** = les quartiers
-  de son *trajet régulier* quotidien, et **1 super-pouvoir** utilisable **une seule fois** pour annuler
-  un événement.
-- **Livraison** = une **tuile enseigne** (point de retrait, zone grise) + une **tuile destinataire**
-  (zone verte). Il y a **9 enseignes** et **9 destinataires** → **9 livraisons** construites par partie.
-- **Tour de jeu** : Planification (choisir une livraison) → Déplacement (**2 dés**, avancer le pion sur
-  les routes) → Événements (case arc-en-ciel = piocher/résoudre une carte) → Prise en charge
-  (**coûte +1 point de déplacement**) → Livraison (**gratuite**). Fin de partie : plus aucune livraison.
-- **Scoring** : 5 pts de base ; **+** si réalisée sur un trajet régulier (les 2 couleurs du personnage).
+- **Identité du joueur = sa couleur** (`player.color`, une seule des 4 couleurs de quartier). Les
+  **personnages** subsistent (transport → nombre de dés, super-pouvoir, événements) mais ne définissent
+  **plus** l'identité de score : le pion n'est représenté que par sa couleur.
+- **Carte personnage** : mode de déplacement (**voiture** ou **vélo**), 2 couleurs de *trajet régulier*
+  (flavor), et **1 super-pouvoir** utilisable **une seule fois**. ⚠️ Le **score** se fonde désormais sur
+  la couleur du joueur, pas sur ces 2 couleurs.
+- **Livraison** = un **drive** (point de retrait, case urbaine/grise) + un **destinataire** (case verte)
+  **sur la même tuile** (1 drive par tuile). Cycle de vie : **Disponible → Réservé → En cours → Terminé**
+  (`DeliveryStatus`). Une **enseigne** habille le drive ; un **destinataire** (recyclé) habille le point
+  vert.
+- **Tour de jeu** : Planification (lancer les dés) → Déplacement (sur les routes). **Pendant** le
+  déplacement, lorsqu'il est sur la **tuile** d'un drive *disponible*, le joueur peut **réserver** la
+  livraison (statut **Réservé**, **2 livraisons max** « en vol » par joueur). Arriver sur la **case du
+  drive** → **En cours** (automatique) ; arriver sur la **case du destinataire** → **Terminé**
+  (automatique). **Tout est gratuit** (plus de coût de prise en charge). Événements : case arc-en-ciel =
+  piocher/résoudre une carte. À la livraison, la tuile **recycle** un nouveau destinataire disponible
+  (roulement) ; pool épuisé ⇒ le drive reste **libre**. **Fin de partie** : plus aucune livraison
+  actionnable.
+- **Scoring** (par livraison terminée) : **5** pts + **10** si la tuile du **drive** est de la couleur du
+  joueur + **10** si la tuile du **destinataire** l'est ⇒ **5 ou 25** en mono-tuile (les deux `+10`
+  coïncident). Voir `src/game/score_calculator.gd`.
 - **Cartes événement** : deux familles — **Avantages** (bonus/déplacement supplémentaire, souvent en
   faveur du vélo) et **Malus** (blocages, retours forcés, fin de tour). Le **vélo** est un thème
   récurrent (bonus écologiques). Le **pont** permet de franchir certains obstacles ; fermé par l'événement
@@ -80,8 +92,9 @@ Concepts clés à modéliser. Les entités forment naturellement des `Resource` 
 
 ### Ambiguïtés connues dans les règles (à clarifier, ne pas coder en dur sans validation)
 
-- **Table de score incohérente** : « trajet régulier 1 couleur = 20 pts » vaut *plus* que « 2 couleurs
-  = 10 pts », ce qui est contre-intuitif. À confirmer.
+- ~~Table de score incohérente~~ **(résolu 2026-06-03)** : le scoring est désormais **5 + 10 (tuile du
+  drive à ma couleur) + 10 (tuile du destinataire à ma couleur)**, sur la couleur du joueur. Mono-tuile
+  ⇒ 5 ou 25.
 - **Nombre de joueurs** non spécifié ; quantités par joueur (3 tuiles, 3 jetons destinataire, 3 jetons
   enseigne, 1 pion, 1 pont) données sans total de plateau clair.
 - Terminologie flottante : « deck de livraison » vs les 9 livraisons construites ; « jetons » vs
@@ -118,7 +131,7 @@ src/cards/      card_definition.gd / deck.gd  CardDefinition (Resource) + Deck (
 src/movement/   movement.gd (Movement)        marche auto-évitante sur un set de cases injecté
 src/dice/       dice_roller.gd (DiceRoller)   lance X D6, mémorise le résultat, RNG injectable
 src/view/       hex_grid_view.gd              assemble lattice + tuiles + outlines + marqueurs
-                tile_sprite.gd / tile_textures.gd  une case = Sprite3D texturé (débord Nord)
+                tile_sprite.gd / tile_textures.gd  une case = Sprite3D texturé (art hex-plein ≈248px)
                 road_tiling.gd                oriente les routes (droite/T) selon la connectivité
                 tile_preview.gd               rend un bloc en SubViewport pour l'UI
                 block_ghost.gd / block_outline.gd  fantôme texturé (rouge si invalide) / contour joueur
@@ -174,8 +187,9 @@ gratuit (`try_place_bridge`, mêmes ajustements). `finish_turn()` clôt le tour,
 bloc n'est posé** ; le joueur est `done` quand `pieces` est vide (un pont non posé est **abandonné** —
 jamais de tour avec seulement un pont).
 
-**Rendu** : scène 3D, **caméra ortho top-down**, chaque case = **Sprite3D texturé** posé à plat (base
-388px sur l'hexagone, décor débordant au Nord, tri Sud-sur-Nord), routes orientées via `RoadTiling`,
+**Rendu** : scène 3D, **caméra ortho top-down**, chaque case = **Sprite3D texturé** posé à plat (art
+flat-top hex-plein, **≈248px de large, l'hexagone remplit l'image sans débord**, géométrie unique
+pour tous les types ; tri Sud-sur-Nord), routes orientées via `RoadTiling`,
 **outline** de périmètre couleur joueur, `special`/`spawn`. UI : **previews réelles** des tuiles.
 
 **Interaction** : pointeur souris/tactile ; **magnet** snappe le fantôme à la pose légale la plus proche
@@ -196,27 +210,31 @@ src/logic/      road_network.gd (RoadNetwork)  set de cases praticables (ROUTE+E
 src/movement/   turn_movement.gd (TurnMovement) marche réelle : revisite, ±budget, teleport_to
 src/game/       character_definition.gd        CharacterDefinition (Resource) : transport→dés, 2 couleurs, power_id
                 game_phase.gd (GamePhase)       boucle de tour + sous-phases + livraisons + events + score
-                delivery.gd / delivery_setup.gd Delivery (drive→destinataire) + génération (1/ tuile)
-                score_calculator.gd             5 + 10/tuile à soi + exception mono-tuile (constantes paramétrables)
+                delivery.gd / delivery_setup.gd Delivery (drive→destinataire, statut Disponible/Réservé/En cours/Livré) + génération (1/ tuile)
+                score_calculator.gd             5 + 10 (tuile drive à ma couleur) + 10 (tuile destinataire à ma couleur)
                 turn_context.gd (TurnContext)   état mutable du tour (effets events/pouvoirs)
                 event_resolver.gd / power_resolver.gd  effets data-driven (match, pas de if géant)
-                game_root.gd (GameRoot)         composition root du jeu : pions, dés, deck, UI, contrôleur
+                game_root.gd (GameRoot)         composition root du jeu : pions, jetons drive/dest, dés+cubes, deck, HUD, contrôleur
 src/cards/      event_card_definition.gd        EventCardDefinition : effect/amount/condition/is_malus
 src/interaction/movement_controller.gd          clic/tap → case → GamePhase.try_step
-src/ui/         game_ui.gd (GameUI)             tour, score, lancer dés, livraisons, prendre/livrer, pouvoir, fin
+src/view/       clip_card_view.gd (ClipCardView) carte 3D enseigne/statut/destinataire (bind combo OU Delivery)
+                delivery_list_view.gd (DeliveryListView) colonne gauche défilable : 1 ClipCardView par Delivery
+src/ui/         play_hud.gd (PlayHud)           HUD de jeu (CanvasLayer) : cadre plateau, barre titre (tour/score/ordre + zoom ±), bouton d'action contextuel + pouvoir, emplacements DECK/cartes/DÉFAUSSE
 resources/characters/*.tres   8 personnages   ·  resources/events/*.tres   ~22 cartes (outil generate_event_cards.gd)
 ```
 
-**Boucle de tour** (`GamePhase`, round-robin) : PLANIFICATION (`select_delivery`) → DEPLACEMENT
-(`begin_movement(budget)` depuis `DiceRoller`, puis `try_step` sur les **routes uniquement**) →
-EVENEMENT (case arc-en-ciel → `apply_event`) → PRISE_EN_CHARGE (`confirm_pickup`, **−1 déplacement**)
-→ LIVRAISON (`confirm_delivery`, **gratuit**, score). Fin de partie quand toutes les livraisons sont
-faites. Pouvoir une seule fois (`use_power`).
+**Boucle de tour** (`GamePhase`, round-robin) : PLANIFICATION (`begin_movement(budget)` depuis
+`DiceRoller`) → DEPLACEMENT (`try_step` sur les **routes uniquement** ; pendant le déplacement,
+`reserve_delivery()` sur la tuile d'un drive disponible — **2 max** par joueur) → EVENEMENT (case
+arc-en-ciel → `apply_event`). Les transitions de livraison sont **automatiques** et **gratuites** :
+sur la case du drive → EN_COURS ; sur la case du destinataire → livrée (score + recyclage du
+destinataire via `DeliveryGenerator`). Fin de partie quand plus aucune livraison n'est actionnable.
+Pouvoir une seule fois (`use_power`).
 
 ⚠️ `Movement` (auto-évitant, démo) **n'est pas** réutilisé en jeu : `TurnMovement` autorise revisite,
-budget ajustable (events ±, prise en charge +1) et téléportation (cartes). « Tuile à moi » = la
-**couleur de quartier** (`PlacedPiece.owner`) appartient au **personnage** (`character.owns_color`),
-jamais l'identité du joueur (`Player.index`).
+budget ajustable (events ±) et téléportation (cartes). « Tuile à moi » = la **couleur de quartier**
+(`PlacedPiece.owner`) égale la **couleur du joueur** (`Player.color`) — l'identité de score, pas les
+2 couleurs du personnage.
 
 **Points laissés en STUB (V1, points ouverts non tranchés)** : téléportation « quartier »/« parallèle »,
 Manifestation/Fuite/Pluies (effets persistants), capacité de volume (Margot), pont en jeu, coop vs

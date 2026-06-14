@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+[gd_resource type="Resource" script_class="DestinataireDefinition" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_2win6"]
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+[ext_resource type="Texture2D" path="res://assets/player_tokens/kam_hugh.jpg" id="2_img"]
 
 [resource]
-script = ExtResource("1_2win6")
+script = ExtResource("1_dest")
 id = &"kam_hugh"
 display_name = "Kam Hugh"
 color = Color(1, 0.4392157, 0.2627451, 1)
+texture = ExtResource("2_img")

@@ -2,25 +2,19 @@ class_name ScoreCalculator
 extends RefCounted
 ## Scores a delivery for its carrier. Pure, static.
 ##
-## Formula (Notion rules): [constant BASE] points, plus [constant PER_OWNED_TILE] for each tile of the
-## delivery whose district color belongs to the character, with one exception: a delivery on a single
-## tile that is the character's own scores [constant SINGLE_OWNED_TILE] instead.
-## So: 2 owned tiles = 25 · 1 owned single tile = 20 · 1 of 2 owned = 15 · none owned = 5.
-## The constants are kept tweakable on purpose — the Notion score table is internally inconsistent
-## (see CLAUDE.md "Points ouverts"), so the literal formula is the source of truth, not the table.
+## Formule (règles 2026-06) : [constant BASE] points, +[constant PER_TILE_OWNED] si la tuile du drive
+## est de la couleur du joueur, +[constant PER_TILE_OWNED] si la tuile du destinataire l'est aussi.
+## Mono-tuile (drive et destinataire sur la même tuile) ⇒ 5 (aucune) ou 25 (tuile à soi).
 
 const BASE := 5
-const PER_OWNED_TILE := 10
-const SINGLE_OWNED_TILE := 20
+const PER_TILE_OWNED := 10
 
 
-## Points the [param delivery] is worth for [param character].
-static func score_delivery(delivery: Delivery, character: CharacterDefinition) -> int:
-	var owners := delivery.tile_owners()
-	if delivery.is_single_tile() and character.owns_color(owners[0]):
-		return SINGLE_OWNED_TILE
+## Points the [param delivery] is worth for a carrier of district color [param color] (PlayerColor.Kind).
+static func score_delivery(delivery: Delivery, color: int) -> int:
 	var score := BASE
-	for owner in owners:
-		if character.owns_color(owner):
-			score += PER_OWNED_TILE
+	if delivery.drive_tile_owner() == color:
+		score += PER_TILE_OWNED
+	if delivery.recipient_tile_owner() == color:
+		score += PER_TILE_OWNED
 	return score

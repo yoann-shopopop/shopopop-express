@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="CharacterDefinition" format=3]
+[gd_resource type="Resource" script_class="CharacterDefinition" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/game/character_definition.gd" id="1_char"]
+[ext_resource type="Texture2D" path="res://assets/player_cards/dolly.jpg" id="2_card"]
 
 [resource]
 script = ExtResource("1_char")
@@ -9,3 +10,4 @@ display_name = "Dolly"
 transport = 1
 colors = Array[int]([0, 1])
 power_id = &"bonne_marcheuse"
+texture = ExtResource("2_card")

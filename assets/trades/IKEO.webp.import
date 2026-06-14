@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://biown3068mxnx"
-path="res://.godot/imported/IKEO.webp-c62bd61b03e5455d33d756758ff8e606.ctex"
+uid="uid://103sk850e1ya"
+path="res://.godot/imported/ikeo.webp-45ccb3af42960d240a1fd6973ff2ece2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/trades/IKEO.webp"
-dest_files=["res://.godot/imported/IKEO.webp-c62bd61b03e5455d33d756758ff8e606.ctex"]
+source_file="res://assets/trades/ikeo.webp"
+dest_files=["res://.godot/imported/ikeo.webp-45ccb3af42960d240a1fd6973ff2ece2.ctex"]
 
 [params]
 

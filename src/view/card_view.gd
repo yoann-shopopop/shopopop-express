@@ -9,7 +9,7 @@ const THICKNESS := 0.06
 ## Radius used by the demo for mouse picking (treats the card as a sphere).
 const PICK_RADIUS := 0.85
 
-const _LOGO := preload("res://assets/logo/LOGO-SHOPOPOP-EXPRESS.png")
+const _LOGO := preload("res://assets/logo/logo_shopopop_express.png")
 const _BODY_COLOR := Color("f5f5f0")
 const _FRONT_PLACEHOLDER := Color("cfe3ff")
 

@@ -31,10 +31,12 @@ func _refresh() -> void:
 	for piece in _board.pieces():
 		var road_cells := TileSprite.road_cells_of(piece.typed_cells)
 		var piece_cells := TileSprite.cells_of(piece.typed_cells)
+		var drive_cell = DeliverySetup.drive_cell_of(piece)  # first urban cell hosts the DRIVE art
 		for i in piece.typed_cells.size():
 			var tc: Dictionary = piece.typed_cells[i]
 			var local: Vector2i = piece.block_def.cells[i]
-			_tiles_root.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, local, piece_cells))
+			var is_drive: bool = drive_cell != null and tc["cell"] == drive_cell
+			_tiles_root.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, local, piece_cells, is_drive))
 	_refresh_outlines()
 	_refresh_markers()
 
@@ -63,6 +65,11 @@ func _refresh_outlines() -> void:
 		var color := PlayerColor.to_color(piece.owner) if piece.owner >= 0 else Color.WHITE
 		for t in BlockOutline.perimeter_edge_transforms(
 				piece.cells(), GameConfig.HEX_SIZE, 1.0, GameConfig.OUTLINE_WIDTH):
+			transforms.append(t)
+			colors.append(color)
+		# Per-cell outline: interior edges, half the perimeter width, same color.
+		for t in BlockOutline.interior_edge_transforms(
+				piece.cells(), GameConfig.HEX_SIZE, 1.0, GameConfig.OUTLINE_WIDTH * 0.5):
 			transforms.append(t)
 			colors.append(color)
 	_outlines.multimesh.instance_count = transforms.size()
@@ -102,8 +109,10 @@ func _placed_start_cell(player: Player):
 func _make_spawn_sprite(cell: Vector2i) -> Sprite3D:
 	var sprite := Sprite3D.new()
 	sprite.texture = TileTextures.spawn()
-	sprite.pixel_size = (2.0 * GameConfig.HEX_SIZE) / TileSprite.TEX_W
-	sprite.offset = Vector2(0, TileSprite.OFFSET_Y_PX)
+	# The spawn marker keeps its own art size (independent of the tile TEX_W, which changed with the
+	# new hex art): scale it to ~one hex wide from its own texture width.
+	sprite.pixel_size = (2.0 * GameConfig.HEX_SIZE) / maxf(float(sprite.texture.get_width()), 1.0)
+	sprite.offset = Vector2(0, 0)
 	sprite.shaded = false
 	sprite.transparent = true
 	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)

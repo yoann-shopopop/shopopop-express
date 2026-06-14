@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="EnseigneDefinition" format=3]
 
 [ext_resource type="Script" path="res://src/enseignes/enseigne_definition.gd" id="1_mduij"]
-[ext_resource type="Texture2D" path="res://assets/trades/IKEO.webp" id="2_em633"]
+[ext_resource type="Texture2D" path="res://assets/trades/ikeo.webp" id="2_em633"]
 
 [resource]
 script = ExtResource("1_mduij")

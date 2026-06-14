@@ -9,9 +9,9 @@
 ### Objectif du jeu
 
 Les joueur·euse·s incarnent des cotransporteur·euse·s qui réalisent des livraisons Shopopop. Elles
-doivent réussir à accomplir toutes les livraisons de la journée avec le plus de points possible. Les
-livraisons doivent être réalisées sur le trajet régulier de chaque cotransporteur·euse pour remporter
-le plus de points.
+doivent réussir à accomplir toutes les livraisons de la journée avec le plus de points possible.
+Réaliser une livraison sur une tuile de **ta couleur** rapporte davantage de points (voir Scoring).
+Chaque joueur·euse n'est représenté·e que par la **couleur de son pion**.
 
 ### Plateau de jeu
 
@@ -28,15 +28,17 @@ touche une route de l'autre.
 Chaque joueur·euse reçoit une carte personnage avec des caractéristiques spécifiques :
 
 - un **mode de déplacement** (vélo, à pied, voiture ou camion), qui détermine le nombre de dés ;
-- **deux couleurs** représentant les quartiers de son trajet régulier quotidien ;
+- **deux couleurs** de trajet régulier (flavor) ; ⚠️ le **score** se fonde sur **ta couleur de joueur**
+  (celle de tes tuiles), pas sur ces deux couleurs ;
 - un **super-pouvoir** propre, utilisable une seule fois dans la partie (voir « Les 8 personnages »).
 
 ### Drives & Destinataires
 
 Chaque tuile-quartier posée porte **1 drive** (point de retrait, à placer sur une zone grise) et
 **1 destinataire** (à placer sur un espace vert) — ce sont des jetons, pas des tuiles séparées. Une
-**livraison** relie un drive à un destinataire et s'étend sur **1 ou 2 tuiles**. Le nombre de
-livraisons d'une partie est donc égal au nombre de tuiles posées (voir Mise en place).
+**livraison** relie le drive et le destinataire **d'une même tuile**. Le nombre de livraisons d'une
+partie est donc égal au nombre de tuiles posées (voir Mise en place). Chaque livraison suit un cycle de
+statut : **Disponible → Réservé → En cours → Terminé**.
 
 ### Mise en place
 
@@ -72,15 +74,19 @@ livraisons de la partie.
 
 Le jeu se déroule en tours jusqu'à ce qu'il n'y ait plus de livraison à effectuer.
 
-1. **Planification** — chaque joueur·euse choisit une livraison disponible. Le ou la premier·ère à
-   jouer est la personne qui porte le plus de vêtements noirs.
-2. **Déplacements** — lancer les dés (selon le mode de transport) pour déterminer le nombre de cases,
-   puis déplacer son pion en suivant les routes.
-3. **Événements** — si le déplacement passe sur une case événement (un arc-en-ciel), le mettre en
-   pause, piocher une carte événement, la résoudre, puis reprendre le déplacement si possible. Penser
-   à utiliser son super-pouvoir au besoin.
-4. **Prise en charge** — prendre une livraison coûte **1 point de déplacement supplémentaire**.
-5. **Livrer** — livrer une livraison **ne coûte pas** de point de déplacement.
+1. **Planification** — lancer les dés (selon le mode de transport) pour déterminer le nombre de cases.
+   Le ou la premier·ère à jouer est la personne qui porte le plus de vêtements noirs.
+2. **Déplacements** — déplacer son pion en suivant les routes. **Pendant** le déplacement :
+   - sur la **tuile** d'un drive *disponible*, on peut **réserver** la livraison (statut **Réservé**).
+     Un·e joueur·euse mène **au plus 2 livraisons** de front (réservées ou en cours, cumulées) ;
+   - arriver sur la **case du drive** d'une livraison qu'on a réservée → elle passe **En cours**
+     (automatique) ;
+   - arriver sur la **case du destinataire** → elle passe **Terminé** (automatique).
+   Réserver, prendre et livrer sont **gratuits** (aucun point de déplacement).
+3. **Événements** — si le déplacement passe sur une case arc-en-ciel, le mettre en pause, piocher une
+   carte événement, la résoudre, puis reprendre. Penser à utiliser son super-pouvoir au besoin.
+4. **Recyclage** — à la livraison, la tuile reçoit un **nouveau destinataire** disponible (roulement) ;
+   si le pool de destinataires est épuisé, le drive reste **libre** (plus de livraison à cet endroit).
 
 ### Fin de la partie
 
@@ -88,19 +94,18 @@ La partie se termine lorsqu'il n'y a plus de livraison à effectuer.
 
 ### Scoring
 
-Une livraison s'étend sur **1 ou 2 tuiles**. Chaque livraison rapporte **5 points de base**, plus
-**+10 points par tuile de la livraison dont la couleur t'appartient** (une de tes 2 couleurs).
-**Exception** : une livraison qui tient sur une **seule tuile t'appartenant** rapporte **20 points**
-pour cette tuile (au lieu de 10).
+Une livraison relie un drive et un destinataire **sur la même tuile**. Chaque livraison terminée
+rapporte **5 points de base**, plus **+10 points si la tuile du drive est de ta couleur** et **+10
+points si la tuile du destinataire est de ta couleur**. En mono-tuile, les deux conditions coïncident
+(c'est la même tuile).
 
 | Cas | Score |
 |---|---|
 | Livraison de base | 5 points |
-| Par tuile de la livraison dont la couleur t'appartient | +10 points |
-| Exception — livraison sur une seule tuile qui t'appartient | 20 points (au lieu de 10) |
+| Tuile du **drive** à ta couleur | +10 points |
+| Tuile du **destinataire** à ta couleur | +10 points |
 
-En pratique : 2 tuiles à toi = 25 pts · 1 tuile à toi = 25 pts · 1 seule tuile pas à toi (ou aucune à
-toi) = 5 pts.
+En pratique (mono-tuile) : tuile à toi = **25 pts** · tuile pas à toi = **5 pts**.
 
 **Bonus et pénalités** : les événements peuvent ajouter des points bonus ou infliger des pénalités.
 
