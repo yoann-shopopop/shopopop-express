@@ -4,3 +4,6 @@
 
 # Brainstorming visual companion (transient mockups)
 .superpowers/
+
+# macOS
+.DS_Store
