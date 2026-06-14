@@ -25,6 +25,7 @@ var _initial_piece_counts: Dictionary = {}  # Player -> initial tile count, for 
 
 func _ready() -> void:
 	UITheme.install_fonts()  # app-wide default font (Nunito); titles opt into the display font
+	add_child(AudioManager.new())  # SFX + looping ambient music (static helpers thereafter)
 	_library = _load_library()
 	_characters = _load_characters()
 	_bridge = load(BRIDGE_PATH)

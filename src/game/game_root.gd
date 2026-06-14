@@ -221,6 +221,7 @@ func _on_roll() -> void:
 	var player := _phase.current_player()
 	var dice_count := player.character.dice_count() if player.character != null else 2
 	_dice.roll(dice_count)
+	AudioManager.sfx(&"dice")
 	_phase.begin_movement(_dice.total())
 	_phase.movement().step_budget_changed.connect(_on_budget_changed)
 	_can_roll = false
@@ -345,6 +346,7 @@ func _on_budget_changed(_remaining: int) -> void:
 
 func _on_reserve() -> void:
 	if _phase.reserve_delivery():
+		AudioManager.sfx(&"reserve")
 		_ui.set_status("Livraison réservée.")
 	else:
 		_ui.set_status("Aucune livraison à réserver sur cette tuile.")
@@ -354,6 +356,8 @@ func _on_reserve() -> void:
 
 # A delivery's status changed (reserved / en cours): refresh its status disc and the action bar.
 func _on_delivery_changed(delivery: Delivery) -> void:
+	if delivery.status == DeliveryStatus.Kind.EN_COURS:
+		AudioManager.sfx(&"pickup")
 	_update_status_ring(delivery)
 	if _delivery_list != null:
 		_delivery_list.refresh_statuses()
@@ -406,6 +410,7 @@ func _on_event_triggered(_cell: Vector2i) -> void:
 	if drawn.is_empty():
 		_phase.end_turn()  # deck somehow empty: don't strand the player in EVENEMENT
 		return
+	AudioManager.sfx(&"event")
 	_ui.show_banner("Événement !", UITheme.ORANGE)
 	_refresh_highlights()  # clears the markers while the cards are up
 	_event_choice = EventCardChoice.new()
@@ -467,6 +472,7 @@ func _on_power() -> void:
 		_begin_interactive_power(pid)
 		return
 	if _phase.use_power():
+		AudioManager.sfx(&"power")
 		_ui.set_status(_power_message(pid))
 		_refresh_highlights()
 		_update_active_marker()
@@ -492,6 +498,7 @@ func _begin_interactive_power(pid: StringName) -> void:
 			if choice < 0:
 				return
 			if _phase.swap_positions(indices[choice]):
+				AudioManager.sfx(&"power")
 				_ui.set_status("Dépassement ! Place échangée.")
 				_refresh_highlights()
 				_update_active_marker()
@@ -510,6 +517,7 @@ func _begin_interactive_power(pid: StringName) -> void:
 			var old_value: int = values[choice]
 			var new_value := _dice.reroll(choice)
 			if _phase.apply_reroll(new_value - old_value):
+				AudioManager.sfx(&"power")
 				_show_dice(_dice.values())
 				_ui.set_status("Coup d'Accélérateur : %d → %d (%+d cases)." % [old_value, new_value, new_value - old_value])
 				_refresh_highlights()
@@ -556,6 +564,7 @@ func _on_turn_changed(player: Player) -> void:
 
 func _on_delivery_completed(delivery: Delivery, points: int) -> void:
 	# The destinataire was recycled (or cleared) — refresh that delivery's recipient card + status.
+	AudioManager.sfx(&"deliver")
 	_celebrate_delivery(delivery.recipient_cell)
 	_rebuild_recipient_marker(delivery)
 	_update_status_ring(delivery)  # back to DISPONIBLE -> ring removed
@@ -604,6 +613,7 @@ func _confetti_ramp() -> Gradient:
 
 
 func _on_game_finished(scores: Dictionary) -> void:
+	AudioManager.sfx(&"victory")
 	_ui.show_end(scores, _players)
 
 

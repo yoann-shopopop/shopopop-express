@@ -175,11 +175,22 @@ func _build_title_bar() -> void:
 	_deliveries_label.add_theme_color_override("font_color", UITheme.TEXT)
 	bar.add_child(_deliveries_label)
 
+	var mute := _small_button("Son")
+	mute.custom_minimum_size = Vector2(60, 34)
+	mute.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		mute.text = "Muet" if AudioManager.toggle_mute() else "Son")
+	bar.add_child(mute)
+
 	var zoom_out := _small_button("−")  # U+2212 minus (renders cleanly, unlike fullwidth －)
-	zoom_out.pressed.connect(func() -> void: zoom_out_requested.emit())
+	zoom_out.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		zoom_out_requested.emit())
 	bar.add_child(zoom_out)
 	var zoom_in := _small_button("+")
-	zoom_in.pressed.connect(func() -> void: zoom_in_requested.emit())
+	zoom_in.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		zoom_in_requested.emit())
 	bar.add_child(zoom_in)
 
 
@@ -203,7 +214,9 @@ func _build_actions() -> void:
 	_power_btn.custom_minimum_size = Vector2(64, 64)
 	_power_btn.add_theme_font_size_override("font_size", 24)
 	_theme_button(_power_btn, UITheme.ORANGE)
-	_power_btn.pressed.connect(func() -> void: power_requested.emit())
+	_power_btn.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		power_requested.emit())
 	box.add_child(_power_btn)
 	set_action(Action.ROLL)
 
@@ -266,6 +279,7 @@ func _small_button(text: String) -> Button:
 
 
 func _on_action_pressed() -> void:
+	AudioManager.sfx(&"ui_click")
 	match _action:
 		Action.ROLL: roll_requested.emit()
 		Action.RESERVE: reserve_requested.emit()
@@ -390,6 +404,7 @@ func show_chooser(prompt: String, options: Array, on_pick: Callable) -> void:
 		_theme_button(btn, opt.get("color", UITheme.BLUE))
 		var idx := i
 		btn.pressed.connect(func() -> void:
+			AudioManager.sfx(&"ui_click")
 			dismiss_chooser()
 			on_pick.call(idx))
 		row.add_child(btn)
