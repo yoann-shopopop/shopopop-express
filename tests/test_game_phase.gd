@@ -252,6 +252,27 @@ func test_use_power_applies_once() -> void:
 	assert_false(phase.use_power(), "one-shot")
 
 
+func test_replay_event_keeps_the_same_player_and_round() -> void:
+	var phase := _phase()  # two players, player 0 is current
+	phase.begin_movement(3)
+	var card := EventCardDefinition.new()
+	card.effect = EventCardDefinition.Effect.REJOUER
+	phase.apply_event(card)
+	var who := phase.current_player().index
+	var round_before := phase.round_number()
+	phase.end_turn()
+	assert_eq(phase.current_player().index, who, "Tous les Feux au Vert : le même joueur rejoue")
+	assert_eq(phase.round_number(), round_before, "pas d'avance de manche sur un rejoue")
+	assert_eq(phase.current_subphase(), GamePhase.SubPhase.PLANIFICATION)
+
+
+func test_turn_without_replay_advances_to_next_player() -> void:
+	var phase := _phase()
+	phase.begin_movement(3)
+	phase.end_turn()
+	assert_eq(phase.current_player().index, 1, "sans rejoue : on passe au joueur suivant")
+
+
 # --- Deliveries fed by a DeliveryGenerator (recycling) ----------------------
 
 # One RED tile, delivery drive (1,0) / recipient (2,0), fed by a generator with [param recipient_count]

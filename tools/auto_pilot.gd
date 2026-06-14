@@ -28,8 +28,8 @@ static func play_turn(phase: GamePhase, board: Board, deliveries: Array, dice: D
 		if safety > 400:
 			break
 		phase.reserve_delivery()  # no-op when nothing reservable on this tile
-		var target = _choose_target(phase, deliveries)
-		var next = _step_toward(phase, board, deliveries, target)
+		var target = choose_target(phase, deliveries)
+		var next = step_toward(phase, board, deliveries, target)
 		if next == null:
 			break
 		if not phase.try_step(next):
@@ -41,7 +41,7 @@ static func play_turn(phase: GamePhase, board: Board, deliveries: Array, dice: D
 
 # The most useful cell to walk toward: finish an EN_COURS parcel (its recipient), then a RESERVE one
 # (its drive), else go pick up the nearest still-available delivery (its drive). null if none left.
-static func _choose_target(phase: GamePhase, _deliveries: Array):
+static func choose_target(phase: GamePhase, _deliveries: Array):
 	var player := phase.current_player()
 	var held := phase.deliveries_in_flight(player.index)
 	for d in held:
@@ -63,7 +63,7 @@ static func _choose_target(phase: GamePhase, _deliveries: Array):
 
 # Picks the legal move that gets closest to [param target] (BFS distance over the turn's walkable set,
 # which includes every delivery's off-road drive/recipient cells). Falls back to any legal move.
-static func _step_toward(phase: GamePhase, board: Board, deliveries: Array, target):
+static func step_toward(phase: GamePhase, board: Board, deliveries: Array, target):
 	var moves := phase.movement().legal_moves()
 	if moves.is_empty():
 		return null

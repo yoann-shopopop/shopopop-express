@@ -27,6 +27,17 @@ var _event_choice: EventCardChoice      # active card choice, if any
 var _delivery_list: DeliveryListView
 
 
+## The pure turn logic, exposed for scripting/demo/screenshot harnesses (the game itself drives it
+## through signals). Returns null before [method setup].
+func phase() -> GamePhase:
+	return _phase
+
+
+## The in-game HUD (CanvasLayer), exposed so a demo/screenshot harness can emit its intents.
+func hud() -> PlayHud:
+	return _ui
+
+
 func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_board = board
 	_players = players
@@ -402,8 +413,30 @@ func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
 	_event_choice = null
 	var tag := "Malus" if chosen.is_malus else "Avantage"
 	_ui.set_status("%s : %s" % [tag, chosen.display_name])
+	_consume_event_aftermath()
 	_refresh_highlights()
+	_update_active_marker()
 	_refresh_ui()
+
+
+# Effects the resolver flags but cannot apply itself (they need the dice / the view): Prime
+# Gouvernementale rolls bonus dice into the current budget; Tous les Feux au Vert is announced here and
+# enacted by GamePhase.end_turn (the same player replays).
+func _consume_event_aftermath() -> void:
+	var ctx := _phase.context()
+	if ctx == null:
+		return
+	if ctx.extra_dice > 0 and _phase.movement() != null:
+		var extra := _dice.roll(ctx.extra_dice)
+		var bonus := 0
+		for v in extra:
+			bonus += v
+		_phase.movement().add_steps(bonus)
+		ctx.extra_dice = 0
+		_show_dice(extra)
+		_ui.set_status("Prime gouvernementale : +%d dé(s) → +%d cases !" % [extra.size(), bonus])
+	if ctx.replay:
+		_ui.set_status("Tous les feux au vert — tu rejoues un tour !")
 
 
 func _on_power() -> void:

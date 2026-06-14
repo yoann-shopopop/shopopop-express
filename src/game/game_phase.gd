@@ -124,10 +124,17 @@ func try_step(cell: Vector2i) -> bool:
 	return true
 
 
-## Ends the current turn and passes to the next player (round-robin), back to PLANIFICATION.
+## Ends the current turn and passes to the next player (round-robin), back to PLANIFICATION. When the
+## turn earned a replay (Tous les Feux au Vert), the SAME player plays again: no seat advance and no
+## new round — the view re-arms the roll on [signal turn_changed].
 func end_turn() -> void:
+	var replay := _context != null and _context.replay
 	_movement = null
 	_context = null
+	if replay:
+		_set_subphase(SubPhase.PLANIFICATION)
+		turn_changed.emit(current_player())
+		return
 	_current = (_current + 1) % _players.size()
 	if _current == 0:
 		_round += 1  # play wrapped back to the first seat: a new round begins

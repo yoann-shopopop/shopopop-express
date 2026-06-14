@@ -7,3 +7,6 @@
 
 # macOS
 .DS_Store
+
+# Screenshot harness output (tools/capture_play.gd)
+captures/
