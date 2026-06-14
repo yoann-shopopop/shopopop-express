@@ -8,7 +8,7 @@ extends Node3D
 ## Emitted once the player has chosen and activated a card.
 signal resolved(chosen: EventCardDefinition, discarded: Array)
 
-enum _State { CHOOSING, ACTIVATING, DONE }
+enum _State { CHOOSING, DONE }
 
 const _REVEAL: Array[Vector3] = [Vector3(-1.3, 0.0, 0.0), Vector3(1.3, 0.0, 0.0)]
 const _ACTIVE := Vector3(0.0, 0.0, 1.8)
@@ -17,7 +17,6 @@ const _AWAY := Vector3(0.0, 0.0, -3.0)
 var _camera: Camera3D
 var _state: int = _State.DONE
 var _entries: Array = []          # [{ "view": CardView, "card": EventCardDefinition }]
-var _chosen: Dictionary = {}
 var _discarded: Array = []
 
 
@@ -32,47 +31,43 @@ func present(cards: Array, camera: Camera3D, anchor: Vector3) -> void:
 		view.bind(cards[i])
 		view.set_face_up(false)
 		view.position = Vector3.ZERO
-		view.animate_deal(_REVEAL[i % _REVEAL.size()], i * 0.12)
+		# A lone forced card is centered; two cards spread left/right for the keep-1 choice.
+		var slot := Vector3.ZERO if cards.size() == 1 else _REVEAL[i % _REVEAL.size()]
+		view.animate_deal(slot, i * 0.12)
 		_entries.append({"view": view, "card": cards[i]})
 	_state = _State.CHOOSING
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _state == _State.DONE or _camera == null:
+	if _state != _State.CHOOSING or _camera == null:
 		return
 	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed):
 		return
-	if _state == _State.CHOOSING:
-		var picked := _pick(_views())
-		if picked != null:
-			get_viewport().set_input_as_handled()
-			_choose(picked)
-	elif _state == _State.ACTIVATING:
-		if _pick([_chosen["view"]]) != null:
-			get_viewport().set_input_as_handled()
-			_activate()
+	var picked := _pick(_views())
+	if picked != null:
+		get_viewport().set_input_as_handled()
+		_keep(picked)
 
 
-func _choose(picked: CardView) -> void:
+# A SINGLE click both keeps and plays the card: the others fly back to the deck, the kept one pops and
+# resolves. Previously this needed a second click to "activate", which read as "I selected it but
+# nothing happened" — the cause of "les cartes événement n'ont pas d'impact".
+func _keep(picked: CardView) -> void:
+	_state = _State.DONE
 	_discarded = []
+	var chosen_card: EventCardDefinition = null
 	for entry in _entries:
 		var view: CardView = entry["view"]
 		if view == picked:
-			_chosen = entry
-			view.animate_move_to(_ACTIVE)
+			chosen_card = entry["card"]
 		else:
 			_discarded.append(entry["card"])
 			view.animate_discard(_AWAY)
-	_state = _State.ACTIVATING
-
-
-func _activate() -> void:
-	_state = _State.DONE
-	var view: CardView = _chosen["view"]
-	await view.animate_activate()
-	view.animate_discard(_AWAY)
-	resolved.emit(_chosen["card"], _discarded)
-	await get_tree().create_timer(0.4).timeout
+	picked.animate_move_to(_ACTIVE)
+	await picked.animate_activate()
+	picked.animate_discard(_AWAY)
+	resolved.emit(chosen_card, _discarded)
+	await get_tree().create_timer(0.35).timeout
 	queue_free()
 
 

@@ -72,6 +72,18 @@ func _run() -> void:
 		await _frames(8)
 	await _capture(out_dir, "03_deplacement")
 
+	# Event-card choice (what shows when a pawn lands on a rainbow cell).
+	var sample := _load_one_event()
+	if sample != null:
+		var choice := EventCardChoice.new()
+		world.add_child(choice)
+		choice.scale = Vector3.ONE * 3.2
+		choice.present([sample], camera, Vector3(camera.global_position.x, 1.0, camera.global_position.z))
+		await _frames(24)
+		await _capture(out_dir, "06_evenement")
+		choice.queue_free()
+		await _frames(2)
+
 	# End-of-game scoreboard (fabricated from the current scores).
 	var phase := game_root.phase()
 	if phase != null:
@@ -90,6 +102,15 @@ func _run() -> void:
 
 	await _frames(4)
 	quit(0)
+
+
+func _load_one_event() -> EventCardDefinition:
+	var dir := DirAccess.open("res://resources/events/")
+	if dir:
+		for file in dir.get_files():
+			if file.ends_with(".tres"):
+				return load("res://resources/events/" + file)
+	return null
 
 
 func _load_characters() -> Array:

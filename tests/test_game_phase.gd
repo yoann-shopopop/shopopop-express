@@ -244,6 +244,48 @@ func test_apply_event_bonus_cases_extends_movement() -> void:
 	assert_eq(phase.movement().remaining(), 5)
 
 
+# A teleport event must move the AUTHORITATIVE pawn position (and fire pawn_moved), not just the
+# movement's internal cursor — otherwise the pawn stays put on screen and the effect "has no impact".
+func test_event_return_to_start_moves_the_pawn() -> void:
+	var phase := _phase_with_event()
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))
+	assert_eq(phase.position_of(phase.current_player()), Vector2i(1, 0))
+	watch_signals(phase)
+	var card := EventCardDefinition.new()
+	card.effect = EventCardDefinition.Effect.RETOUR_DEPART
+	phase.apply_event(card)
+	assert_eq(phase.position_of(phase.current_player()), Vector2i(0, 0), "retour au départ déplace le pion")
+	assert_signal_emitted(phase, "pawn_moved", "le déplacement par event est notifié à la vue")
+
+
+func test_event_teleport_quartier_relocates_to_the_far_drive() -> void:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	var piece: PlacedPiece = board.pieces()[0]
+	var near := Delivery.new(Vector2i(1, 0), Vector2i(2, 0), [piece] as Array[PlacedPiece])
+	near.destinataire = DestinataireDefinition.new()
+	var far := Delivery.new(Vector2i(50, 0), Vector2i(51, 0), [piece] as Array[PlacedPiece])
+	far.destinataire = DestinataireDefinition.new()
+	var phase := GamePhase.new([player] as Array[Player], board, [near, far] as Array[Delivery])
+	phase.begin_movement(3)
+	var card := EventCardDefinition.new()
+	card.effect = EventCardDefinition.Effect.TELEPORT_QUARTIER
+	phase.apply_event(card)
+	assert_eq(phase.position_of(player), Vector2i(50, 0), "Faille: téléporté au drive le plus lointain")
+
+
+func test_event_manifestation_halves_the_remaining_budget() -> void:
+	var phase := _phase_with_event()
+	phase.begin_movement(4)
+	var card := EventCardDefinition.new()
+	card.effect = EventCardDefinition.Effect.BUDGET_UN_DE
+	phase.apply_event(card)
+	assert_eq(phase.movement().remaining(), 2, "Manifestation: budget réduit de moitié")
+
+
 func test_use_power_applies_once() -> void:
 	var phase := _phase_with_event()
 	phase.begin_movement(2)

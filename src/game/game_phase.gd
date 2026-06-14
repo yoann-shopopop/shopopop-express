@@ -151,6 +151,8 @@ func context() -> TurnContext:
 
 ## Resolves a drawn event [param card] against the current turn, then resumes (or ends) the turn. A
 ## malus is cancelled outright when the player has Bouclier Vert armed (the shield is then spent).
+## Any teleport the effect performs (returns, escort, rifts) is propagated to the authoritative pawn
+## position and the view via [method _sync_pawn_after_event] — otherwise the pawn would not move.
 func apply_event(card: EventCardDefinition) -> void:
 	if _context == null:
 		return
@@ -161,7 +163,10 @@ func apply_event(card: EventCardDefinition) -> void:
 		if _subphase == SubPhase.EVENEMENT:
 			_set_subphase(SubPhase.DEPLACEMENT)
 		return
-	EventResolver.resolve(card, _context)
+	var from: Vector2i = _movement.current() if _movement != null else Vector2i.ZERO
+	EventResolver.resolve(card, _context)        # pure effects (budget, flags, return/escort teleports)
+	_apply_spatial_event(card)                    # board-dependent effects (rifts, shortcuts, blockages)
+	_sync_pawn_after_event(from)                  # propagate any teleport to _positions + view + deliveries
 	if _context.score_bonus != 0:
 		_scores[_current] += _context.score_bonus
 		_context.score_bonus = 0
@@ -169,6 +174,72 @@ func apply_event(card: EventCardDefinition) -> void:
 		_set_subphase(SubPhase.FIN_TOUR)
 	elif _subphase == SubPhase.EVENEMENT:
 		_set_subphase(SubPhase.DEPLACEMENT)
+
+
+# Board-dependent event effects that EventResolver (pure, ctx-only) can't do. Kept impactful + simple
+# in V1: rifts/shortcuts teleport the pawn, blockages cost a detour. See CLAUDE.md "événements".
+func _apply_spatial_event(card: EventCardDefinition) -> void:
+	if _movement == null:
+		return
+	var from := _movement.current()
+	match card.effect:
+		EventCardDefinition.Effect.TELEPORT_QUARTIER:        # Faille Spatio-Temporelle: flung to a far district
+			var cell = _farthest_drive_cell(from)
+			if cell != null:
+				_movement.teleport_to(cell)
+		EventCardDefinition.Effect.TELEPORT_PARALLELE:       # Raccourci Secret: jump to the next pickup
+			var cell = _nearest_available_drive(from)
+			if cell != null:
+				_movement.teleport_to(cell)
+		EventCardDefinition.Effect.BUDGET_UN_DE:             # Manifestation: bottleneck, lose half the budget
+			_movement.subtract_steps(_movement.remaining() / 2)
+		EventCardDefinition.Effect.ROUTE_BLOQUEE:            # Fuite de Canalisation: a 3-step detour
+			_movement.subtract_steps(3)
+		EventCardDefinition.Effect.PONTS_FERMES:             # Pluies Torrentielles: bridges closed, 2-step detour
+			_movement.subtract_steps(2)
+		_:
+			pass
+
+
+# After an event, if the movement cursor moved (a teleport), make it the authoritative position, notify
+# the view, and run the delivery transitions (e.g. an escort onto the recipient completes the delivery).
+func _sync_pawn_after_event(from: Vector2i) -> void:
+	if _movement == null:
+		return
+	var to := _movement.current()
+	if to == from:
+		return
+	_positions[_current] = to
+	pawn_moved.emit(current_player(), from, to)
+	_check_delivery_transitions()
+
+
+# The drive cell of the delivery farthest from [param from] (a big relocation). null if none.
+func _farthest_drive_cell(from: Vector2i):
+	var best = null
+	var best_dist := -1
+	for delivery in _deliveries:
+		if delivery.drive_cell == from:
+			continue
+		var dist := HexUtils.distance(from, delivery.drive_cell)
+		if dist > best_dist:
+			best_dist = dist
+			best = delivery.drive_cell
+	return best
+
+
+# The drive cell of the nearest still-reservable delivery (a shortcut to the next pickup). null if none.
+func _nearest_available_drive(from: Vector2i):
+	var best = null
+	var best_dist := 1 << 30
+	for delivery in _deliveries:
+		if not delivery.is_reservable() or delivery.drive_cell == from:
+			continue
+		var dist := HexUtils.distance(from, delivery.drive_cell)
+		if dist < best_dist:
+			best_dist = dist
+			best = delivery.drive_cell
+	return best
 
 
 ## Activates the current player's NON-interactive one-shot super-power. Interactive powers

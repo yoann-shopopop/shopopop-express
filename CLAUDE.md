@@ -269,9 +269,14 @@ d'ambiance procéduraux `assets/audio/`, bouton mute). Écrans : titre (Jouer + 
 joueurs, **sélection des personnages** (`CharacterSelect`, aperçu transport/dés/pouvoir), HUD de jeu,
 **écran de fin classé + total collectif + Rejouer**.
 
-**Points encore en STUB (V1)** : événements `TELEPORT_QUARTIER` / `TELEPORT_PARALLELE` /
-`BUDGET_UN_DE` / `ROUTE_BLOQUEE` (Fuite) / `PONTS_FERMES` (Pluies) — effets interactifs ou persistants
-inter-tours non tranchés. Le pont reste **setup-only** (pas d'usage en jeu).
+**Événements — les 22 cartes ont un effet** (`apply_event`). Les téléportations
+(retour drive/départ, escorte, faille, raccourci) sont propagées à la **position autoritaire**
+(`_positions`) + à la vue + aux transitions de livraison via `_sync_pawn_after_event` (sinon le pion ne
+bougeait pas → « aucun impact »). Les ex-stubs sont câblés en V1 (simplifiés, board-dependent dans
+`GamePhase._apply_spatial_event`) : Faille = téléport au drive le plus loin ; Raccourci = téléport au
+prochain drive dispo ; Manifestation = budget −½ ; Fuite = détour −3 ; Pluies = détour −2 (pont
+toujours setup-only). **UX** : `EventCardChoice` se résout en **un seul clic** (avant : choisir puis
+ré-activer d'un 2ᵉ clic — d'où l'impression d'« effet sans impact »).
 
 ### Restant / à raffiner
 
