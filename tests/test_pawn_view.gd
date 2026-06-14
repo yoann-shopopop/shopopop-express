@@ -30,4 +30,6 @@ func test_view_follows_move() -> void:
 	view.bind(pawn)
 	pawn.place(Vector2i(0, 0))
 	pawn.move_to(Vector2i(3, -2))
+	# A step is animated (a short hop), so the view settles on the target after the tween, not instantly.
+	await get_tree().create_timer(0.4).timeout
 	assert_eq(view.position, _expected_for(Vector2i(3, -2)))

@@ -39,12 +39,46 @@ var _char_card: TextureRect
 var _chooser: Control        # transient modal chooser (interactive powers), null when none
 
 
+var _banner: Label
+
+
 func _ready() -> void:
 	_build_title_bar()
 	_build_actions()
 	_build_card_backings()
 	_build_char_card()
 	_build_toast()
+	_build_banner()
+
+
+# A big, splashy centered banner for headline moments (whose turn, "Événement !"). Distinct from the
+# small running toast: it fades in, holds, and fades out, and never blocks input.
+func _build_banner() -> void:
+	_banner = Label.new()
+	_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_banner.offset_top = 120
+	_banner.offset_bottom = 210
+	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner.modulate.a = 0.0
+	add_child(_banner)
+
+
+## Flashes a headline [param text] tinted [param color] across the centre — for turn changes and big
+## events. Fades on its own.
+func show_banner(text: String, color: Color = UITheme.TEXT) -> void:
+	if _banner == null or text.is_empty():
+		return
+	_banner.text = text
+	UITheme.make_title(_banner, 46, color)
+	_banner.add_theme_constant_override("outline_size", 10)
+	_banner.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
+	_banner.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_banner, "modulate:a", 1.0, 0.22)
+	tween.tween_interval(0.9)
+	tween.tween_property(_banner, "modulate:a", 0.0, 0.5)
 
 
 # A transient banner just under the top bar that announces what just happened (roll, reservation,

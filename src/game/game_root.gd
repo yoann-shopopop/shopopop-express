@@ -95,6 +95,8 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_fit_camera_to_board()
 	_refresh_ui()
 	_update_active_marker()
+	var first := _phase.current_player()
+	_ui.show_banner("Au tour de %s" % PlayerColor.name_of(first.color), PlayerColor.to_color(first.color))
 
 
 # Centers the camera on the placed board and zooms so it fills the framed region at game start (the
@@ -404,6 +406,7 @@ func _on_event_triggered(_cell: Vector2i) -> void:
 	if drawn.is_empty():
 		_phase.end_turn()  # deck somehow empty: don't strand the player in EVENEMENT
 		return
+	_ui.show_banner("Événement !", UITheme.ORANGE)
 	_refresh_highlights()  # clears the markers while the cards are up
 	_event_choice = EventCardChoice.new()
 	add_child(_event_choice)
@@ -541,23 +544,63 @@ func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
 	_refresh_ui()
 
 
-func _on_turn_changed(_player: Player) -> void:
+func _on_turn_changed(player: Player) -> void:
 	_can_roll = true
 	_clear_dice()
 	_refresh_highlights()
 	_update_active_marker()
 	_refresh_ui()
+	_ui.show_banner("Au tour de %s" % PlayerColor.name_of(player.color), PlayerColor.to_color(player.color))
 	_ui.set_status("À toi de jouer — lance les dés.")
 
 
 func _on_delivery_completed(delivery: Delivery, points: int) -> void:
 	# The destinataire was recycled (or cleared) — refresh that delivery's recipient card + status.
+	_celebrate_delivery(delivery.recipient_cell)
 	_rebuild_recipient_marker(delivery)
 	_update_status_ring(delivery)  # back to DISPONIBLE -> ring removed
 	if _delivery_list != null:
 		_delivery_list.refresh_statuses()
 	_ui.set_status("Livré ! +%d points." % points)
 	_refresh_ui()
+
+
+# A short confetti-like burst at [param cell] to celebrate a completed delivery (GL-safe CPU particles).
+func _celebrate_delivery(cell: Vector2i) -> void:
+	var particles := CPUParticles3D.new()
+	particles.emitting = false
+	particles.one_shot = true
+	particles.amount = 28
+	particles.lifetime = 0.9
+	particles.explosiveness = 0.9
+	particles.direction = Vector3.UP
+	particles.spread = 55.0
+	particles.initial_velocity_min = 2.5
+	particles.initial_velocity_max = 4.5
+	particles.gravity = Vector3(0, -6.0, 0)
+	particles.scale_amount_min = 0.12
+	particles.scale_amount_max = 0.2
+	particles.mesh = BoxMesh.new()
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true
+	particles.mesh.material = mat
+	particles.color_ramp = _confetti_ramp()
+	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
+	pos.y = GameConfig.TILE_HEIGHT + 0.3
+	particles.position = pos
+	add_child(particles)
+	particles.emitting = true
+	# Auto-clean once the burst is over.
+	get_tree().create_timer(1.4).timeout.connect(particles.queue_free)
+
+
+func _confetti_ramp() -> Gradient:
+	var g := Gradient.new()
+	g.set_color(0, Color("ffd23f"))
+	g.set_color(1, Color("ff6b6b"))
+	g.add_point(0.5, Color("4ecdc4"))
+	return g
 
 
 func _on_game_finished(scores: Dictionary) -> void:
