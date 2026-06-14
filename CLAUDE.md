@@ -275,8 +275,10 @@ joueurs, **sélection des personnages** (`CharacterSelect`, aperçu transport/d�
 bougeait pas → « aucun impact »). Les ex-stubs sont câblés en V1 (simplifiés, board-dependent dans
 `GamePhase._apply_spatial_event`) : Faille = téléport au drive le plus loin ; Raccourci = téléport au
 prochain drive dispo ; Manifestation = budget −½ ; Fuite = détour −3 ; Pluies = détour −2 (pont
-toujours setup-only). **UX** : `EventCardChoice` se résout en **un seul clic** (avant : choisir puis
-ré-activer d'un 2ᵉ clic — d'où l'impression d'« effet sans impact »).
+toujours setup-only). **UX** : la carte est un **modal 2D net** (`src/ui/event_modal.gd` : bandeau
+Avantage/Malus, titre, effet en évidence, description en clair), résolu en **un seul clic** (avant :
+carte 3D placeholder + 2ᵉ clic d'activation — d'où l'impression d'« effet sans impact »). L'ancienne
+`EventCardChoice` (3D) subsiste pour les démos/tests.
 
 ### Restant / à raffiner
 

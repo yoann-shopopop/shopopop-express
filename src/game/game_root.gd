@@ -23,7 +23,7 @@ var _can_roll: bool = true
 var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
 var _active_marker: Node3D              # ring under the active pawn + floating steps badge above it
-var _event_choice: EventCardChoice      # active card choice, if any
+var _event_modal: EventModal            # active event card choice (2D HUD modal), if any
 var _delivery_panel: DeliveryPanel
 
 
@@ -149,10 +149,7 @@ func _process(_delta: float) -> void:
 	if _dice_views != null and _dice_views.get_child_count() > 0:
 		_dice_views.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.40)
 		_dice_views.scale = Vector3.ONE * 3.2 * zoom
-	if _event_choice != null and is_instance_valid(_event_choice):
-		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
-		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.10)
-		_event_choice.scale = Vector3.ONE * 5.5 * zoom
+	# (The event card choice is a 2D HUD modal now — no world pinning needed.)
 
 
 func _spawn_pawn(player: Player) -> void:
@@ -406,10 +403,10 @@ func _on_event_triggered(_cell: Vector2i) -> void:
 	AudioManager.sfx(&"event")
 	_ui.show_banner("Événement !", UITheme.ORANGE)
 	_refresh_highlights()  # clears the markers while the cards are up
-	_event_choice = EventCardChoice.new()
-	add_child(_event_choice)
-	_event_choice.resolved.connect(_on_event_resolved)
-	_event_choice.present(drawn, _camera, Vector3.ZERO)  # position pinned each frame by _process
+	_event_modal = EventModal.new()
+	_ui.add_child(_event_modal)  # 2D modal on the HUD CanvasLayer
+	_event_modal.resolved.connect(_on_event_resolved)
+	_event_modal.present(drawn)
 	if count == 2:
 		_ui.set_status("Carnet d'Adresses : pioche 2, garde la carte qui t'arrange.")
 	else:
@@ -422,7 +419,7 @@ func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
 	_events.discard(chosen)
 	for card in discarded:
 		_events.return_to_top(card)
-	_event_choice = null
+	_event_modal = null
 	if ctx != null and ctx.shield_consumed:
 		ctx.shield_consumed = false
 		_ui.set_status("Bouclier Vert : malus « %s » annulé !" % chosen.display_name)

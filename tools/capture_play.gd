@@ -72,16 +72,15 @@ func _run() -> void:
 		await _frames(8)
 	await _capture(out_dir, "03_deplacement")
 
-	# Event-card choice (what shows when a pawn lands on a rainbow cell).
+	# Event-card modal (what shows when a pawn lands on a rainbow cell) — 2D, on the HUD CanvasLayer.
 	var sample := _load_one_event()
 	if sample != null:
-		var choice := EventCardChoice.new()
-		world.add_child(choice)
-		choice.scale = Vector3.ONE * 3.2
-		choice.present([sample], camera, Vector3(camera.global_position.x, 1.0, camera.global_position.z))
+		var modal := EventModal.new()
+		game_root.hud().add_child(modal)
+		modal.present([sample])
 		await _frames(24)
 		await _capture(out_dir, "06_evenement")
-		choice.queue_free()
+		modal.queue_free()
 		await _frames(2)
 
 	# End-of-game scoreboard (fabricated from the current scores).
