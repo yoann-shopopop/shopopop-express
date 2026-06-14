@@ -99,7 +99,21 @@ Concepts clés à modéliser. Les entités forment naturellement des `Resource` 
   enseigne, 1 pion, 1 pont) données sans total de plateau clair.
 - Terminologie flottante : « deck de livraison » vs les 9 livraisons construites ; « jetons » vs
   « tuiles » enseigne/destinataire.
-- Le doublement des points au vélo apparaît dans plusieurs événements — vérifier s'ils se cumulent.
+- ~~Cumul des doublements de points~~ **(tranché 2026-06-14)** : un seul ×2 par livraison
+  (`double_score` non cumulatif) en V1.
+
+#### Arbitrages de finition (tranchés 2026-06-14, défauts documentés — modifiables au playtest)
+
+- **Pouvoirs interactifs/différés** : tous les 8 pouvoirs sont jouables (cf. plus bas). Margot
+  (`chargement_pro`) = **+1 livraison simultanée** persistante ; Gégé (`passage_secret`) = **l'eau
+  devient franchissable ce tour** ; Camille (`habitue_quartier`) = **prochaine livraison comptée au
+  max (25)** ; Charlie (`carnet_adresses`) = **prochain événement : pioche 2, garde 1** (par défaut on
+  pioche **1**). Les bénéfices différés (Charlie, Axel·le, Camille, Margot) vivent sur le `Player` →
+  jamais gâchés en silence.
+- **Événements `rejouer` / `dé bonus`** : *Tous les Feux au Vert* = le **même joueur rejoue** un tour ;
+  *Prime Gouvernementale* = on lance le(s) **dé(s) bonus immédiatement** et on les ajoute au budget.
+- **Coopératif** : scores individuels **classés** (meilleur·e mis en avant) + **total collectif** à
+  l'écran de fin ; pas de « perdant ».
 
 Si l'utilisateur·rice demande de **réécrire les règles** (formulations imparfaites, répétitions),
 le faire dans `docs/` en conservant l'original ou via git, et lever les ambiguïtés ci-dessus.
@@ -236,16 +250,42 @@ budget ajustable (events ±) et téléportation (cartes). « Tuile à moi » = l
 (`PlacedPiece.owner`) égale la **couleur du joueur** (`Player.color`) — l'identité de score, pas les
 2 couleurs du personnage.
 
-**Points laissés en STUB (V1, points ouverts non tranchés)** : téléportation « quartier »/« parallèle »,
-Manifestation/Fuite/Pluies (effets persistants), capacité de volume (Margot), pont en jeu, coop vs
-compétitif (scores individuels + total affichés, pas de vainqueur en dur), cumul des doublements.
+**Atteignabilité (anti-softlock)** : `DeliverySetup` ne retient qu'un drive/destinataire **adjacents
+au réseau** (sinon la tuile est ignorée), sinon une livraison resterait à jamais en vol et la partie ne
+finirait pas. `RoadNetwork.distances_from/is_reachable` (BFS) sert ce contrôle et le pilote auto.
+Soak headless `tools/soak_test.gd` (50 parties 2→6 joueurs auto-pilotées, 0 softlock).
+
+**Les 8 super-pouvoirs sont jouables** (`PowerResolver`, `GamePhase`, `GameRoot`/`PlayHud`) :
+Bonne Marcheuse (+2), Carnet d'Adresses (pioche 2/garde 1), Bouclier Vert (annule le prochain malus),
+Habitué·e (livraison comptée au max), Passage Secret (eau franchissable ce tour), Chargement Pro (+1
+livraison simultanée), Dépassement (échange de case — sélecteur), Coup d'Accélérateur (relance d'un dé
+— sélecteur). Bénéfices différés portés par `Player` (jamais gâchés) ; interactifs via méthodes pures
+`swap_positions`/`apply_reroll` + chooser modal.
+
+**Présentation / game feel / audio** : police OFL (Nunito corps, Fredoka titres, `assets/fonts/`),
+`SceneEnvironment` (lumière chaude, tonemap FILMIC, vignette — GL-compat), pions animés (saut
+case→case), bannières de tour/événement, confettis de livraison, et `AudioManager` (SFX + musique
+d'ambiance procéduraux `assets/audio/`, bouton mute). Écrans : titre (Jouer + Son), choix du nombre de
+joueurs, **sélection des personnages** (`CharacterSelect`, aperçu transport/dés/pouvoir), HUD de jeu,
+**écran de fin classé + total collectif + Rejouer**.
+
+**Points encore en STUB (V1)** : événements `TELEPORT_QUARTIER` / `TELEPORT_PARALLELE` /
+`BUDGET_UN_DE` / `ROUTE_BLOQUEE` (Fuite) / `PONTS_FERMES` (Pluies) — effets interactifs ou persistants
+inter-tours non tranchés. Le pont reste **setup-only** (pas d'usage en jeu).
 
 ### Restant / à raffiner
 
-- **A\*** avec preview de trajectoire (le `Board` expose déjà l'index des cases / connecteurs).
+- **A\*** avec preview de trajectoire (le BFS `RoadNetwork.distances_from` est en place ; reste l'UI).
 - **Pose manuelle** des jetons drive/destinataire (V1 : placement auto post-setup, livraisons mono-tuile).
 - Effets d'événement **interactifs** (choix de cible/quartier) et **persistants inter-tours**.
 - **Multijoueur** distant : non implémenté (hot-seat 1 client) ; l'état est découplé et les joueurs identifiés.
 - 5–6 joueurs réutilisent une couleur de quartier (4 couleurs) — distingués par `Player.index`.
+
+### Outils de dev (headless / capture)
+
+- `tools/soak_test.gd` — soak de fiabilité (auto-place + auto-pilote jusqu'à la fin, 2→6 joueurs).
+- `tools/capture_play.gd` — captures d'écran du jeu réel (fenêtré ; plateau, lancer, fin, personnages).
+- `tools/generate_audio.gd` — régénère les WAV de `assets/audio/`.
+- `tools/auto_board.gd` / `tools/auto_pilot.gd` — briques réutilisables (placement légal, IA gloutonne BFS).
 
 > Notes de dev complémentaires (rôle, vision, commandes) : `docs/dev-notes/`.

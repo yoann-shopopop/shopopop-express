@@ -36,3 +36,23 @@ Pose quelques blocs et sauve `user://board_preview.png` (à lancer **en fenêtr�
 ```
 <godot> --path . -s res://tools/capture_preview.gd
 ```
+
+## Soak de fiabilité (anti-softlock)
+Auto-assemble un plateau et auto-pilote des parties **2→6 joueurs** jusqu'à la fin ; échoue (code 1)
+si une partie se bloque. À lancer en headless :
+```
+<godot> --headless --path . -s res://tools/soak_test.gd
+```
+
+## Captures d'écran du jeu (avant/après polish)
+Rend le **vrai** jeu (plateau + HUD), joue quelques tours et sauve des PNG (**fenêtré**) :
+```
+<godot> --path . -s res://tools/capture_play.gd -- <dossier> <seed> <joueurs>
+# ex. : ... -- captures 4 4   → captures/01_plateau.png, 02_apres_lancer, 03_deplacement, 04_fin, 05_personnages
+```
+
+## Régénérer l'audio
+Synthétise les SFX + la boucle d'ambiance dans `assets/audio/` (aucune dépendance externe) :
+```
+<godot> --headless --path . -s res://tools/generate_audio.gd
+```

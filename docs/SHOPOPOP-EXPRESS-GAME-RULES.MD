@@ -200,17 +200,22 @@ pioche-en 2 et garde celle qui t'arrange (défausse l'autre). *Défausse la cart
 
 ## Points ouverts (observations côté repo, hors règles Notion)
 
-À arbitrer lors des playtests ; non figés dans la logique de jeu tant que non tranchés :
+À arbitrer lors des playtests. **Mise à jour finition 2026-06-14** : plusieurs points ont reçu un
+**défaut raisonnable codé** (modifiable au playtest) — voir « Arbitrages de finition » dans `CLAUDE.md`.
 
 - **Objectif coopératif vs compétitif** : l'intro évoque un but collectif (« accomplir toutes les
-  livraisons »), mais le score est individuel. À clarifier (meilleur score gagne ?).
-- **Capacité de volume** : mentionnée par le pouvoir de Margot mais jamais définie ailleurs (combien de
-  livraisons transportables à la fois selon le transport ?).
+  livraisons »), mais le score est individuel. → **Défaut V1** : coopératif ; l'écran de fin montre le
+  **classement individuel + le total collectif** (meilleur·e mis en avant, pas de « perdant »).
+- **Capacité de volume** : mentionnée par le pouvoir de Margot mais jamais définie ailleurs. → **Défaut
+  V1** : 2 livraisons « en vol » max ; *Chargement Pro* (Margot) donne **+1** (donc 3), conservé.
 - **Cohérence super-pouvoir** : la section « Cartes personnage » dit « annuler un événement » alors que
-  les 8 pouvoirs sont variés (seul *Bouclier Vert* annule un malus).
+  les 8 pouvoirs sont variés. → Les **8 pouvoirs sont implémentés** tels que décrits (seul *Bouclier
+  Vert* annule un malus).
 - **Mécanique du pont** : chaque joueur·euse a 1 pont, fermé par *Pluies Torrentielles*, mais son usage
-  n'est pas décrit. Recouvre en partie le pouvoir *Passage Secret* de Gégé.
-- **Cumul des doublements de points** (*Livraison Écologique*) : effet ponctuel ou persistant ? Cumul ?
+  n'est pas décrit. Recouvre en partie le pouvoir *Passage Secret* de Gégé. → **Encore ouvert** : le
+  pont reste *setup-only* ; *Passage Secret* rend l'eau franchissable un tour.
+- **Cumul des doublements de points** (*Livraison Écologique*) : effet ponctuel ou persistant ? → **Défaut
+  V1** : ponctuel, **non cumulatif** (un seul ×2 par livraison).
 - **Score mono-tuile = deux-tuiles** (25 pts) : favorise les livraisons compactes.
 - **Variance** : événements « téléportation » (*Faille Spatio-Temporelle*, *Escorte Policière*,
   *Raccourci Secret*) et **5/5 (+20 pts)** très swingy.
