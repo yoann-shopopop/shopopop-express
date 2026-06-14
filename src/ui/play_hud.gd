@@ -56,8 +56,7 @@ func _build_toast() -> void:
 	_toast.offset_bottom = 92
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_toast.add_theme_font_size_override("font_size", 22)
-	_toast.add_theme_color_override("font_color", UITheme.TEXT)
+	UITheme.make_title(_toast, 24)
 	_toast.modulate.a = 0.0
 	add_child(_toast)
 
@@ -109,15 +108,13 @@ func _build_title_bar() -> void:
 	var title := Label.new()
 	title.text = "Shopopop Express"
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", UITheme.TEXT)
+	UITheme.make_title(title, 24)
 	bar.add_child(title)
 
 	_round_label = Label.new()
 	_round_label.text = "Manche 1"
 	_round_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_round_label.add_theme_font_size_override("font_size", 20)
-	_round_label.add_theme_color_override("font_color", UITheme.ORANGE)
+	UITheme.make_title(_round_label, 20, UITheme.ORANGE)
 	bar.add_child(_round_label)
 
 	var spacer := Control.new()
@@ -135,8 +132,7 @@ func _build_title_bar() -> void:
 
 	_score_label = Label.new()
 	_score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_score_label.add_theme_font_size_override("font_size", 20)
-	_score_label.add_theme_color_override("font_color", UITheme.TEXT)
+	UITheme.make_title(_score_label, 20)
 	bar.add_child(_score_label)
 
 	_deliveries_label = Label.new()
@@ -406,7 +402,7 @@ func show_end(scores: Dictionary, players: Array[Player]) -> void:
 	_end_panel.add_child(box)
 	var title := Label.new()
 	title.text = "Partie terminée"
-	title.add_theme_font_size_override("font_size", 28)
+	UITheme.make_title(title, 34, UITheme.ORANGE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 	var total := 0

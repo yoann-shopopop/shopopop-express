@@ -17,6 +17,7 @@ func _run() -> void:
 	# Let the main loop run one frame so the tree is "started"; otherwise nodes added during
 	# _initialize get their _ready() deferred and GameRoot.setup would touch a half-built HUD.
 	await process_frame
+	UITheme.install_fonts()
 	var args := _script_args()
 	var out_dir: String = args[0] if args.size() > 0 else "captures"
 	var seed_val: int = int(args[1]) if args.size() > 1 else 4
@@ -40,7 +41,7 @@ func _run() -> void:
 
 	var world := Node3D.new()
 	get_root().add_child(world)
-	_build_environment(world)
+	SceneEnvironment.build(world)
 	var camera := _build_camera(world)
 	var grid := HexGridView.new()
 	world.add_child(grid)
@@ -98,22 +99,6 @@ func _build_camera(parent: Node3D) -> CameraRig:
 	camera.current = true
 	parent.add_child(camera)
 	return camera
-
-
-func _build_environment(parent: Node3D) -> void:
-	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-55, -40, 0)
-	light.shadow_enabled = true
-	parent.add_child(light)
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("161b26")
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("8a94a8")
-	env.ambient_light_energy = 0.75
-	var holder := WorldEnvironment.new()
-	holder.environment = env
-	parent.add_child(holder)
 
 
 func _script_args() -> PackedStringArray:

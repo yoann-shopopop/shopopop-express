@@ -14,6 +14,46 @@ const TEXT := Color("f2f5f8")
 const ORANGE := Color("e8851f")
 const RED := Color("d33a30")
 const BLUE := Color("1f8fd0")
+const GREEN := Color("4caf50")
+
+# Bundled OFL fonts (see assets/fonts/OFL-*.txt). Nunito = clean body; Fredoka = rounded display.
+const FONT_BODY := "res://assets/fonts/Nunito.ttf"
+const FONT_DISPLAY := "res://assets/fonts/Fredoka.ttf"
+
+static var _body_font: Font = null
+static var _display_font: Font = null
+
+
+## The UI body font (Nunito, OFL) — legible at small sizes. Cached; null if the file is missing.
+static func body_font() -> Font:
+	if _body_font == null and ResourceLoader.exists(FONT_BODY):
+		_body_font = load(FONT_BODY)
+	return _body_font
+
+
+## The display font (Fredoka, OFL) — rounded and friendly, for titles, banners and the score. Cached.
+static func display_font() -> Font:
+	if _display_font == null and ResourceLoader.exists(FONT_DISPLAY):
+		_display_font = load(FONT_DISPLAY)
+	return _display_font
+
+
+## Installs the body font as the app-wide default ([member ThemeDB.fallback_font]) so every label picks
+## it up without per-control overrides. Call once at startup; titles still opt into [method display_font].
+## A no-op (keeping Godot's default font) if the bundled font is unavailable.
+static func install_fonts() -> void:
+	var body := body_font()
+	if body != null:
+		ThemeDB.fallback_font = body
+
+
+## Applies the rounded display font to [param label] at [param size] with the standard text colour.
+static func make_title(label: Label, size: int, color: Color = TEXT) -> void:
+	var font := display_font()
+	if font != null:
+		label.add_theme_font_override("font", font)
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
 
 
 ## A rounded, bordered, shadowed button background tinted [param base]. [param emphasis] brightens it

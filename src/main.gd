@@ -24,12 +24,12 @@ var _initial_piece_counts: Dictionary = {}  # Player -> initial tile count, for 
 
 
 func _ready() -> void:
+	UITheme.install_fonts()  # app-wide default font (Nunito); titles opt into the display font
 	_library = _load_library()
 	_characters = _load_characters()
 	_bridge = load(BRIDGE_PATH)
 	_camera = _build_camera()
-	_build_light()
-	_build_environment()
+	SceneEnvironment.build(self)
 	_zoom_controls = ZoomControls.new()
 	add_child(_zoom_controls)
 	_zoom_controls.zoom_in_requested.connect(_camera.zoom_in)
@@ -152,44 +152,3 @@ func _build_camera() -> CameraRig:
 	return camera
 
 
-func _build_light() -> void:
-	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-55, -40, 0)
-	light.shadow_enabled = true
-	add_child(light)
-
-
-func _build_environment() -> void:
-	# Dark, soft backdrop (easy on the eyes). The gradient must live in the 3D world, BEHIND the board:
-	# a CanvasLayer (even at a negative layer) always draws on top of the 3D viewport, which would hide
-	# the board and the placement ghost. So we use a large unshaded ground plane below the tiles; the
-	# top-down ortho camera renders it as the background. The flat env clear color matches its bottom.
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("161b26")  # matches the gradient's bottom, for any pan past the plane
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("8a94a8")
-	env.ambient_light_energy = 0.75
-	var holder := WorldEnvironment.new()
-	holder.environment = env
-	add_child(holder)
-
-	# Vertical gradient plane, well below the tile plane so tiles always render in front of it. An
-	# unshaded spatial shader with source_color uniforms paints the gradient with correct color-space
-	# handling (a GradientTexture2D sampled as an albedo texture gets re-linearized and renders dark).
-	var backdrop := MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(200, 200)  # well past the board; gradient maps across the ortho view via UV.y
-	backdrop.mesh = plane
-	backdrop.position = Vector3(0, -2, 0)
-	backdrop.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var shader := Shader.new()
-	shader.code = "shader_type spatial;\nrender_mode unshaded;\n" \
-		+ "uniform vec3 top_color : source_color;\nuniform vec3 bottom_color : source_color;\n" \
-		+ "void fragment() { ALBEDO = mix(top_color, bottom_color, UV.y); }"
-	var mat := ShaderMaterial.new()
-	mat.shader = shader
-	mat.set_shader_parameter("top_color", Color("28324a"))
-	mat.set_shader_parameter("bottom_color", Color("161b26"))
-	backdrop.material_override = mat
-	add_child(backdrop)
