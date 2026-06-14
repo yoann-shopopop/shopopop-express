@@ -22,8 +22,11 @@ const _ACTION_LABEL := {
 	Action.END_TURN: "Fin de tour",
 }
 
+var _round_label: Label
 var _turn_label: Label
 var _score_label: Label
+var _deliveries_label: Label
+var _toast: Label
 var _order_bar: HBoxContainer
 var _action_btn: Button
 var _power_btn: Button
@@ -40,6 +43,22 @@ func _ready() -> void:
 	_build_actions()
 	_build_card_backings()
 	_build_char_card()
+	_build_toast()
+
+
+# A transient banner just under the top bar that announces what just happened (roll, reservation,
+# delivery, event, power). Centered, fades out on its own. This is the game's running feedback.
+func _build_toast() -> void:
+	_toast = Label.new()
+	_toast.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_toast.offset_top = 52
+	_toast.offset_bottom = 92
+	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_toast.add_theme_font_size_override("font_size", 22)
+	_toast.add_theme_color_override("font_color", UITheme.TEXT)
+	_toast.modulate.a = 0.0
+	add_child(_toast)
 
 
 # The current player's character card, framed in their color, on the right edge (whose-turn-it-is).
@@ -93,6 +112,13 @@ func _build_title_bar() -> void:
 	title.add_theme_color_override("font_color", UITheme.TEXT)
 	bar.add_child(title)
 
+	_round_label = Label.new()
+	_round_label.text = "Manche 1"
+	_round_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_round_label.add_theme_font_size_override("font_size", 20)
+	_round_label.add_theme_color_override("font_color", UITheme.ORANGE)
+	bar.add_child(_round_label)
+
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(spacer)
@@ -111,6 +137,12 @@ func _build_title_bar() -> void:
 	_score_label.add_theme_font_size_override("font_size", 20)
 	_score_label.add_theme_color_override("font_color", UITheme.TEXT)
 	bar.add_child(_score_label)
+
+	_deliveries_label = Label.new()
+	_deliveries_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_deliveries_label.add_theme_font_size_override("font_size", 20)
+	_deliveries_label.add_theme_color_override("font_color", UITheme.TEXT)
+	bar.add_child(_deliveries_label)
 
 	var zoom_out := _small_button("−")  # U+2212 minus (renders cleanly, unlike fullwidth －)
 	zoom_out.pressed.connect(func() -> void: zoom_out_requested.emit())
@@ -275,8 +307,28 @@ func _refresh_char_card(player: Player) -> void:
 	_char_frame.add_theme_stylebox_override("panel", frame)
 
 
-func set_status(_text: String) -> void:
-	pass  # status now conveyed by the contextual button + board; kept for call-site compatibility
+## Flashes [param text] as a transient toast under the top bar — the game's running feedback (rolls,
+## reservations, deliveries, events, powers). Fades on its own; calls replace one another.
+func set_status(text: String) -> void:
+	if _toast == null or text.is_empty():
+		return
+	_toast.text = text
+	_toast.modulate.a = 1.0
+	var tween := create_tween()
+	tween.tween_interval(1.8)
+	tween.tween_property(_toast, "modulate:a", 0.0, 0.7)
+
+
+## Updates the round counter shown in the top bar.
+func set_round(round_number: int) -> void:
+	if _round_label != null:
+		_round_label.text = "Manche %d" % round_number
+
+
+## Updates the "deliveries left" indicator (the visible finish line).
+func set_deliveries_remaining(count: int) -> void:
+	if _deliveries_label != null:
+		_deliveries_label.text = "Livraisons : %d" % count
 
 
 ## Shows the final scoreboard. [param scores] maps seat index -> total.

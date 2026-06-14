@@ -4,10 +4,12 @@ extends RefCounted
 ## [member Player.power_used]. Data-driven like [EventResolver]. Pure & static.
 ##
 ## V1 implements the mechanically-simple powers; the positional/interactive ones (Passage Secret,
-## Dépassement, Coup d'Accélérateur, Chargement Pro) are accepted but stubbed (see CLAUDE.md).
+## Dépassement, Coup d'Accélérateur, Chargement Pro) are not available yet. Crucially, an unavailable
+## power returns false WITHOUT spending the one-shot, so the player never wastes it on a no-op.
 
 
-## Activates [param power_id] for the context's player. Returns false if the power was already used.
+## Activates [param power_id] for the context's player. Returns false (without consuming the one-shot)
+## when the power is already spent or not yet implemented.
 static func resolve(power_id: StringName, ctx: TurnContext) -> bool:
 	if ctx.player == null or ctx.player.power_used:
 		return false
@@ -21,6 +23,11 @@ static func resolve(power_id: StringName, ctx: TurnContext) -> bool:
 		&"habitue_quartier":     # Camille — count one delivery as regular-route
 			ctx.force_regular_route = true
 		_:
-			pass  # accepted but stubbed in V1 (passage_secret, depassement, coup_accelerateur, chargement_pro)
+			return false  # not implemented yet — do NOT consume the one-shot (no silent waste)
 	ctx.player.power_used = true
 	return true
+
+
+## True when [param power_id] has a mechanical effect in V1 (so the UI can label/offer it honestly).
+static func is_implemented(power_id: StringName) -> bool:
+	return power_id in [&"bonne_marcheuse", &"carnet_adresses", &"bouclier_vert", &"habitue_quartier"]

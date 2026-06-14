@@ -36,3 +36,17 @@ func test_bouclier_vert_raises_the_shield() -> void:
 	var ctx := _ctx()
 	assert_true(PowerResolver.resolve(&"bouclier_vert", ctx))
 	assert_true(ctx.shield)
+
+
+func test_unimplemented_power_is_not_consumed() -> void:
+	var ctx := _ctx()
+	assert_false(PowerResolver.resolve(&"depassement", ctx), "not implemented in V1")
+	assert_false(ctx.player.power_used, "the one-shot is preserved, never wasted on a no-op")
+	# The player can still spend it later on an implemented power.
+	assert_true(PowerResolver.resolve(&"bonne_marcheuse", ctx))
+	assert_true(ctx.player.power_used)
+
+
+func test_is_implemented_flags_the_v1_powers() -> void:
+	assert_true(PowerResolver.is_implemented(&"bonne_marcheuse"))
+	assert_false(PowerResolver.is_implemented(&"depassement"))
