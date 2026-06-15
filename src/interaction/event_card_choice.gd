@@ -19,6 +19,12 @@ var _state: int = _State.DONE
 var _entries: Array = []          # [{ "view": CardView, "card": EventCardDefinition }]
 var _discarded: Array = []
 
+# World positions of the PIOCHE / DÉFAUSSE piles, so resolved cards visibly fly to them (set by the
+# host each frame). reject_to_discard = Carnet d'Adresses (the rejected card is discarded, not top-decked).
+var pioche_target: Vector3 = Vector3.ZERO
+var defausse_target: Vector3 = Vector3.ZERO
+var reject_to_discard: bool = false
+
 
 ## Shows [param cards] (1 or 2) at [param anchor] world position, picked with [param camera].
 func present(cards: Array, camera: Camera3D, anchor: Vector3) -> void:
@@ -54,9 +60,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_keep(picked)
 
 
-# A SINGLE click both keeps and plays the card: the others fly back to the deck, the kept one pops and
-# resolves. Previously this needed a second click to "activate", which read as "I selected it but
-# nothing happened" — the cause of "les cartes événement n'ont pas d'impact".
+# A SINGLE click both keeps and plays the card: the kept one pops then flies to the DÉFAUSSE; the
+# rejected one flies back ON TOP of the PIOCHE (or to the DÉFAUSSE for Carnet d'Adresses). Seeing each
+# card travel to its pile makes the draw/discard legible.
 func _keep(picked: CardView) -> void:
 	_state = _State.DONE
 	_discarded = []
@@ -67,13 +73,21 @@ func _keep(picked: CardView) -> void:
 			chosen_card = entry["card"]
 		else:
 			_discarded.append(entry["card"])
-			view.animate_discard(_AWAY)
+			view.animate_discard(_pile_local(defausse_target if reject_to_discard else pioche_target))
 	picked.animate_move_to(_ACTIVE)
 	await picked.animate_activate()
-	picked.animate_discard(_AWAY)
+	picked.animate_discard(_pile_local(defausse_target))  # the played card goes to the discard
 	resolved.emit(chosen_card, _discarded)
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.4).timeout
 	queue_free()
+
+
+# Converts a pile's WORLD target into this (scaled) node's local space for the card tween. Falls back
+# to a neutral off-screen slide if the host hasn't provided pile targets.
+func _pile_local(world_target: Vector3) -> Vector3:
+	if world_target == Vector3.ZERO:
+		return _AWAY
+	return to_local(world_target)
 
 
 # Nearest card under the cursor within its PICK_RADIUS (camera ray vs card sphere), or null.

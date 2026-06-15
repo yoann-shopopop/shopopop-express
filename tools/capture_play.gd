@@ -78,7 +78,7 @@ func _run() -> void:
 		var choice := EventCardChoice.new()
 		world.add_child(choice)
 		choice.scale = Vector3.ONE * 8.0
-		choice.present(samples, camera, Vector3(camera.global_position.x, 1.0, camera.global_position.z))
+		choice.present(samples, camera, Vector3(camera.global_position.x, 5.0, camera.global_position.z))
 		await _frames(48)  # let the deal animation finish and the face SubViewports render
 		await _capture(out_dir, "06_evenement")
 		choice.queue_free()

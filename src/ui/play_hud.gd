@@ -280,6 +280,16 @@ func _card_pile(caption: String, accent: Color, active: bool, count_label: Label
 	return col
 
 
+## Screen-space center of the PIOCHE pile (for cards flying to/from it). Zero before the piles exist.
+func pioche_screen_center() -> Vector2:
+	return _deck_count.get_parent().get_global_rect().get_center() if _deck_count != null else Vector2.ZERO
+
+
+## Screen-space center of the DÉFAUSSE pile.
+func defausse_screen_center() -> Vector2:
+	return _discard_count.get_parent().get_global_rect().get_center() if _discard_count != null else Vector2.ZERO
+
+
 ## Updates the PIOCHE / DÉFAUSSE pile counters.
 func set_deck_counts(draw_count: int, discard_count: int) -> void:
 	if _deck_count != null:

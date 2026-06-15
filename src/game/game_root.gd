@@ -151,9 +151,16 @@ func _process(_delta: float) -> void:
 		_dice_views.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.40)
 		_dice_views.scale = Vector3.ONE * 3.2 * zoom
 	if _event_choice != null and is_instance_valid(_event_choice):
-		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
-		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.02)
+		# Drawn event cards: large, centered, and raised well ABOVE the pawns/dice/markers (top-down ortho
+		# sorts by height) so nothing renders in front of them during a rainbow event.
+		var card_y := 5.0
+		_event_choice.position = center + Vector3(0.0, card_y, half_h * 0.02)
 		_event_choice.scale = Vector3.ONE * 8.0 * zoom
+		# Map the HUD PIOCHE / DÉFAUSSE piles to world points at the cards' height, so resolved cards fly
+		# to the real piles.
+		var depth := _camera.global_position.y - card_y
+		_event_choice.pioche_target = _camera.project_position(_ui.pioche_screen_center(), depth)
+		_event_choice.defausse_target = _camera.project_position(_ui.defausse_screen_center(), depth)
 
 
 func _spawn_pawn(player: Player) -> void:
@@ -408,6 +415,7 @@ func _on_event_triggered(_cell: Vector2i) -> void:
 	_refresh_highlights()  # clears the markers while the cards are up
 	_event_choice = EventCardChoice.new()
 	add_child(_event_choice)  # 3D cards dealt over the board, pinned to screen by _process
+	_event_choice.reject_to_discard = _event_discards_rejected  # Charlie: rejected card → discard, not top
 	_event_choice.resolved.connect(_on_event_resolved)
 	_event_choice.present(drawn, _camera, Vector3.ZERO)
 	if _event_discards_rejected:
