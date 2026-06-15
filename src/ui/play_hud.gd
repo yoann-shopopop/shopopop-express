@@ -37,8 +37,8 @@ var _action: int = Action.ROLL
 var _char_frame: Panel       # framed character card of the current player (right of the board)
 var _char_card: TextureRect
 var _chooser: Control        # transient modal chooser (interactive powers), null when none
-var _deck_count: Label       # live PIOCHE count on the deck pile
-var _discard_count: Label    # live DÉFAUSSE count on the discard pile
+var _deck_pile: DeckPileView      # PIOCHE pile (card backs + count)
+var _discard_pile: DeckPileView   # DÉFAUSSE pile (top discarded face + count)
 
 
 var _banner: Label
@@ -238,64 +238,46 @@ func _theme_button(btn: Button, base: Color) -> void:
 
 
 func _build_card_backings() -> void:
-	# DECK (face-down pile) and DÉFAUSSE, always visible at the bottom-right with a live card count.
+	# PIOCHE / DÉFAUSSE as real stacked-card piles (depth + count badge) at the bottom-right.
 	# Drawn event cards appear large at screen center during a rainbow event (pinned by GameRoot).
 	var row := HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	row.offset_right = -70
-	row.offset_bottom = -16
+	row.offset_right = -50
+	row.offset_bottom = -10
 	row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	row.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	row.add_theme_constant_override("separation", 18)
 	add_child(row)
-	# DECK reads as the active pile (blue accent), DÉFAUSSE as a neutral one.
-	_deck_count = Label.new()
-	row.add_child(_card_pile("PIOCHE", UITheme.BLUE, true, _deck_count))
-	_discard_count = Label.new()
-	row.add_child(_card_pile("DÉFAUSSE", UITheme.PANEL_BORDER, false, _discard_count))
+	_deck_pile = DeckPileView.new()
+	_deck_pile.setup("PIOCHE", UITheme.BLUE, false)
+	row.add_child(_deck_pile)
+	_discard_pile = DeckPileView.new()
+	_discard_pile.setup("DÉFAUSSE", UITheme.ORANGE, true)
+	row.add_child(_discard_pile)
 
 
-# A card-shaped backing (shared UITheme tray look) with a big live count on it and a caption under it.
-# [param accent] colors the border; [param active] thickens it (PIOCHE vs DÉFAUSSE).
-func _card_pile(caption: String, accent: Color, active: bool, count_label: Label) -> VBoxContainer:
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 4)
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	var card := Panel.new()
-	card.custom_minimum_size = Vector2(132, 188)
-	card.add_theme_stylebox_override("panel", UITheme.tray_card_style(accent, active))
-	count_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	count_label.text = "0"
-	UITheme.make_title(count_label, 44)
-	card.add_child(count_label)
-	col.add_child(card)
-	var lbl := Label.new()
-	lbl.text = caption
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 18)
-	lbl.add_theme_color_override("font_color", UITheme.TEXT)  # light text on the dark backdrop
-	col.add_child(lbl)
-	return col
-
-
-## Screen-space center of the PIOCHE pile (for cards flying to/from it). Zero before the piles exist.
+## Screen-space center of the PIOCHE pile's top card (for cards flying to/from it).
 func pioche_screen_center() -> Vector2:
-	return _deck_count.get_parent().get_global_rect().get_center() if _deck_count != null else Vector2.ZERO
+	return _deck_pile.top_card_center() if _deck_pile != null else Vector2.ZERO
 
 
-## Screen-space center of the DÉFAUSSE pile.
+## Screen-space center of the DÉFAUSSE pile's top card.
 func defausse_screen_center() -> Vector2:
-	return _discard_count.get_parent().get_global_rect().get_center() if _discard_count != null else Vector2.ZERO
+	return _discard_pile.top_card_center() if _discard_pile != null else Vector2.ZERO
 
 
-## Updates the PIOCHE / DÉFAUSSE pile counters.
+## Updates the PIOCHE / DÉFAUSSE pile counts (drives the badge and the stack thickness).
 func set_deck_counts(draw_count: int, discard_count: int) -> void:
-	if _deck_count != null:
-		_deck_count.text = str(draw_count)
-	if _discard_count != null:
-		_discard_count.text = str(discard_count)
+	if _deck_pile != null:
+		_deck_pile.set_count(draw_count)
+	if _discard_pile != null:
+		_discard_pile.set_count(discard_count)
+
+
+## Shows [param card]'s face on top of the DÉFAUSSE pile.
+func set_discard_top(card: EventCardDefinition) -> void:
+	if _discard_pile != null:
+		_discard_pile.set_top_face(card)
 
 
 func _small_button(text: String) -> Button:

@@ -11,7 +11,7 @@ const THICKNESS := 0.06
 const PICK_RADIUS := 0.85
 
 const _LOGO := preload("res://assets/logo/logo_shopopop_express.png")
-const _BODY_COLOR := Color("f5f5f0")
+const _BODY_COLOR := Color("141a26")  # dark slab (no white border around the designed face/back)
 const _FRONT_PLACEHOLDER := Color("cfe3ff")
 
 const _DEAL_TIME := 0.5
@@ -26,7 +26,7 @@ const _SLIDE_TIME := 0.35
 func bind(card: CardDefinition, face_override: Texture2D = null, back_override: Texture2D = null) -> void:
 	_build_body()
 	if face_override != null:
-		_build_front(face_override)
+		_build_front(face_override, true)  # designed face covers the whole card — no body showing
 	else:
 		_build_front(card.front_texture)
 		_build_front_label(card.display_name)
@@ -103,10 +103,11 @@ func _build_body() -> void:
 	add_child(body)
 
 
-func _build_front(texture: Texture2D) -> void:
+func _build_front(texture: Texture2D, full: bool = false) -> void:
 	var front := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(WIDTH * 0.92, HEIGHT * 0.92)
+	# A designed face covers the whole card (edge to edge); placeholder art keeps a small inset.
+	plane.size = Vector2(WIDTH, HEIGHT) if full else Vector2(WIDTH * 0.92, HEIGHT * 0.92)
 	front.mesh = plane
 	front.position = Vector3(0.0, THICKNESS * 0.5 + 0.004, 0.0)
 	var material := StandardMaterial3D.new()
@@ -140,7 +141,7 @@ func _build_front_label(text: String) -> void:
 func _build_back_texture(texture: Texture2D) -> void:
 	var back := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(WIDTH * 0.92, HEIGHT * 0.92)
+	plane.size = Vector2(WIDTH, HEIGHT)  # designed back covers the whole card — no body showing
 	back.mesh = plane
 	back.position = Vector3(0.0, -THICKNESS * 0.5 - 0.004, 0.0)
 	back.rotation_degrees = Vector3(180, 0, 0)

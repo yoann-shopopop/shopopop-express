@@ -436,6 +436,7 @@ func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
 			_events.return_to_top(card)
 	_event_discards_rejected = false
 	_event_choice = null
+	_ui.set_discard_top(chosen)  # the played card now sits face-up on the DÉFAUSSE pile
 	if ctx != null and ctx.shield_consumed:
 		ctx.shield_consumed = false
 		_ui.set_status("Bouclier Vert : malus « %s » annulé !" % chosen.display_name)
