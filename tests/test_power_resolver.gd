@@ -1,5 +1,7 @@
 extends GutTest
-## Tests for PowerResolver — one-shot super-powers mutate the TurnContext; a power can be used once.
+## Tests for PowerResolver — one-shot super-powers either mutate the turn TurnContext or arm a
+## persistent benefit on the Player; a power can be used once. Interactive powers (Dépassement, Coup
+## d'Accélérateur) are NOT resolved here (GamePhase drives them) — see test_game_phase.gd.
 
 
 func _movement(budget: int) -> TurnMovement:
@@ -26,27 +28,51 @@ func test_a_power_can_only_be_used_once() -> void:
 	assert_eq(ctx.movement.remaining(), 5, "no second bonus")
 
 
-func test_carnet_adresses_sets_draw_two() -> void:
+func test_carnet_adresses_arms_draw_two_on_the_player() -> void:
 	var ctx := _ctx()
 	assert_true(PowerResolver.resolve(&"carnet_adresses", ctx))
-	assert_true(ctx.draw_two)
+	assert_true(ctx.player.pending_draw_two, "Charlie arms a persistent draw-2")
 
 
-func test_bouclier_vert_raises_the_shield() -> void:
+func test_bouclier_vert_arms_the_shield_on_the_player() -> void:
 	var ctx := _ctx()
 	assert_true(PowerResolver.resolve(&"bouclier_vert", ctx))
-	assert_true(ctx.shield)
+	assert_true(ctx.player.shield_charged)
 
 
-func test_unimplemented_power_is_not_consumed() -> void:
+func test_habitue_quartier_arms_a_full_score_charge() -> void:
 	var ctx := _ctx()
-	assert_false(PowerResolver.resolve(&"depassement", ctx), "not implemented in V1")
-	assert_false(ctx.player.power_used, "the one-shot is preserved, never wasted on a no-op")
-	# The player can still spend it later on an implemented power.
-	assert_true(PowerResolver.resolve(&"bonne_marcheuse", ctx))
-	assert_true(ctx.player.power_used)
+	assert_true(PowerResolver.resolve(&"habitue_quartier", ctx))
+	assert_true(ctx.player.regular_route_charge)
 
 
-func test_is_implemented_flags_the_v1_powers() -> void:
-	assert_true(PowerResolver.is_implemented(&"bonne_marcheuse"))
-	assert_false(PowerResolver.is_implemented(&"depassement"))
+func test_passage_secret_opens_water_this_turn() -> void:
+	var ctx := _ctx()
+	assert_true(PowerResolver.resolve(&"passage_secret", ctx))
+	assert_true(ctx.water_crossing)
+
+
+func test_chargement_pro_raises_capacity() -> void:
+	var ctx := _ctx()
+	assert_true(PowerResolver.resolve(&"chargement_pro", ctx))
+	assert_eq(ctx.player.bonus_capacity, 1)
+
+
+func test_interactive_powers_are_not_resolved_here() -> void:
+	var ctx := _ctx()
+	assert_false(PowerResolver.resolve(&"depassement", ctx), "Dépassement is interactive (GamePhase)")
+	assert_false(PowerResolver.resolve(&"coup_accelerateur", ctx), "Coup d'Accélérateur is interactive")
+	assert_false(ctx.player.power_used, "the one-shot is preserved for the interactive method")
+
+
+func test_is_implemented_covers_all_eight_powers() -> void:
+	for pid in [&"bonne_marcheuse", &"carnet_adresses", &"bouclier_vert", &"habitue_quartier",
+			&"passage_secret", &"chargement_pro", &"depassement", &"coup_accelerateur"]:
+		assert_true(PowerResolver.is_implemented(pid), "%s should be playable" % pid)
+	assert_false(PowerResolver.is_implemented(&"inconnu"))
+
+
+func test_is_interactive_flags_swap_and_reroll() -> void:
+	assert_true(PowerResolver.is_interactive(&"depassement"))
+	assert_true(PowerResolver.is_interactive(&"coup_accelerateur"))
+	assert_false(PowerResolver.is_interactive(&"bonne_marcheuse"))

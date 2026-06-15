@@ -18,3 +18,9 @@ static func score_delivery(delivery: Delivery, color: int) -> int:
 	if delivery.recipient_tile_owner() == color:
 		score += PER_TILE_OWNED
 	return score
+
+
+## The most a single delivery can score (base + both tile bonuses). Habitué·e (Camille) makes one
+## delivery count as if both its tiles were the player's color, regardless of the real owners.
+static func full_score() -> int:
+	return BASE + 2 * PER_TILE_OWNED

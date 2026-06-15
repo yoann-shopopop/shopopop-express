@@ -36,8 +36,9 @@ Chaque joueur·euse reçoit une carte personnage avec des caractéristiques spé
 
 Chaque tuile-quartier posée porte **1 drive** (point de retrait, à placer sur une zone grise) et
 **1 destinataire** (à placer sur un espace vert) — ce sont des jetons, pas des tuiles séparées. Une
-**livraison** relie le drive et le destinataire **d'une même tuile**. Le nombre de livraisons d'une
-partie est donc égal au nombre de tuiles posées (voir Mise en place). Chaque livraison suit un cycle de
+**livraison** relie un drive (case urbaine) à un destinataire (case verte). *Mise à jour 2026-06-15 :
+le placement est aléatoire et le drive et le destinataire ne sont pas forcément sur la même tuile.*
+Chaque livraison suit un cycle de
 statut : **Disponible → Réservé → En cours → Terminé**.
 
 ### Mise en place
@@ -94,10 +95,11 @@ La partie se termine lorsqu'il n'y a plus de livraison à effectuer.
 
 ### Scoring
 
-Une livraison relie un drive et un destinataire **sur la même tuile**. Chaque livraison terminée
-rapporte **5 points de base**, plus **+10 points si la tuile du drive est de ta couleur** et **+10
-points si la tuile du destinataire est de ta couleur**. En mono-tuile, les deux conditions coïncident
-(c'est la même tuile).
+Une livraison relie un drive (case urbaine) et un destinataire (case verte). **Mise à jour 2026-06-15
+(implémentation)** : le placement est désormais **aléatoire** et le drive et le destinataire ne sont
+**pas forcément sur la même tuile** (mono- OU bi-tuile). Chaque livraison terminée rapporte **5 points
+de base**, plus **+10 points si la tuile du drive est de ta couleur** et **+10 points si la tuile du
+destinataire est de ta couleur**.
 
 | Cas | Score |
 |---|---|
@@ -105,7 +107,8 @@ points si la tuile du destinataire est de ta couleur**. En mono-tuile, les deux 
 | Tuile du **drive** à ta couleur | +10 points |
 | Tuile du **destinataire** à ta couleur | +10 points |
 
-En pratique (mono-tuile) : tuile à toi = **25 pts** · tuile pas à toi = **5 pts**.
+En pratique : **5** (aucune tuile à toi) · **15** (une seule) · **25** (les deux, p. ex. mono-tuile à
+ta couleur).
 
 **Bonus et pénalités** : les événements peuvent ajouter des points bonus ou infliger des pénalités.
 
@@ -200,18 +203,27 @@ pioche-en 2 et garde celle qui t'arrange (défausse l'autre). *Défausse la cart
 
 ## Points ouverts (observations côté repo, hors règles Notion)
 
-À arbitrer lors des playtests ; non figés dans la logique de jeu tant que non tranchés :
+À arbitrer lors des playtests. **Mise à jour finition 2026-06-14** : plusieurs points ont reçu un
+**défaut raisonnable codé** (modifiable au playtest) — voir « Arbitrages de finition » dans `CLAUDE.md`.
 
 - **Objectif coopératif vs compétitif** : l'intro évoque un but collectif (« accomplir toutes les
-  livraisons »), mais le score est individuel. À clarifier (meilleur score gagne ?).
-- **Capacité de volume** : mentionnée par le pouvoir de Margot mais jamais définie ailleurs (combien de
-  livraisons transportables à la fois selon le transport ?).
+  livraisons »), mais le score est individuel. → **Défaut V1** : coopératif ; l'écran de fin montre le
+  **classement individuel + le total collectif** (meilleur·e mis en avant, pas de « perdant »).
+- **Capacité de volume** : mentionnée par le pouvoir de Margot mais jamais définie ailleurs. → **Défaut
+  V1** : 2 livraisons « en vol » max ; *Chargement Pro* (Margot) donne **+1** (donc 3), conservé.
 - **Cohérence super-pouvoir** : la section « Cartes personnage » dit « annuler un événement » alors que
-  les 8 pouvoirs sont variés (seul *Bouclier Vert* annule un malus).
+  les 8 pouvoirs sont variés. → Les **8 pouvoirs sont implémentés** tels que décrits (seul *Bouclier
+  Vert* annule un malus).
 - **Mécanique du pont** : chaque joueur·euse a 1 pont, fermé par *Pluies Torrentielles*, mais son usage
-  n'est pas décrit. Recouvre en partie le pouvoir *Passage Secret* de Gégé.
-- **Cumul des doublements de points** (*Livraison Écologique*) : effet ponctuel ou persistant ? Cumul ?
-- **Score mono-tuile = deux-tuiles** (25 pts) : favorise les livraisons compactes.
+  n'est pas décrit. Recouvre en partie le pouvoir *Passage Secret* de Gégé. → **Encore ouvert** : le
+  pont reste *setup-only* ; *Passage Secret* rend l'eau franchissable un tour.
+- **Cumul des doublements de points** (*Livraison Écologique*) : effet ponctuel ou persistant ? → **Défaut
+  V1** : ponctuel, **non cumulatif** (un seul ×2 par livraison).
+- **Placement aléatoire cross-tuile** *(implémenté 2026-06-15)* : **1 drive (case urbaine) + 1
+  destinataire (case verte) par tuile** (donc 1 livraison par tuile), puis drives et destinataires
+  **appariés au hasard** — le destinataire n'est pas forcément sur la tuile de son drive (mono- ou
+  bi-tuile), atteignabilité garantie. Le score 5/15/25 récompense séparément la tuile du drive et celle
+  du destinataire (une livraison mono-tuile à ta couleur vaut le max, 25).
 - **Variance** : événements « téléportation » (*Faille Spatio-Temporelle*, *Escorte Policière*,
   *Raccourci Secret*) et **5/5 (+20 pts)** très swingy.
 - **Mini-effets de destinataire** : le catalogue des destinataires (sous-page Notion « 📦 Les

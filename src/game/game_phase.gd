@@ -124,10 +124,17 @@ func try_step(cell: Vector2i) -> bool:
 	return true
 
 
-## Ends the current turn and passes to the next player (round-robin), back to PLANIFICATION.
+## Ends the current turn and passes to the next player (round-robin), back to PLANIFICATION. When the
+## turn earned a replay (Tous les Feux au Vert), the SAME player plays again: no seat advance and no
+## new round — the view re-arms the roll on [signal turn_changed].
 func end_turn() -> void:
+	var replay := _context != null and _context.replay
 	_movement = null
 	_context = null
+	if replay:
+		_set_subphase(SubPhase.PLANIFICATION)
+		turn_changed.emit(current_player())
+		return
 	_current = (_current + 1) % _players.size()
 	if _current == 0:
 		_round += 1  # play wrapped back to the first seat: a new round begins
@@ -142,11 +149,24 @@ func context() -> TurnContext:
 	return _context
 
 
-## Resolves a drawn event [param card] against the current turn, then resumes (or ends) the turn.
+## Resolves a drawn event [param card] against the current turn, then resumes (or ends) the turn. A
+## malus is cancelled outright when the player has Bouclier Vert armed (the shield is then spent).
+## Any teleport the effect performs (returns, escort, rifts) is propagated to the authoritative pawn
+## position and the view via [method _sync_pawn_after_event] — otherwise the pawn would not move.
 func apply_event(card: EventCardDefinition) -> void:
 	if _context == null:
 		return
-	EventResolver.resolve(card, _context)
+	var player := current_player()
+	if card.is_malus and player.shield_charged:
+		player.shield_charged = false
+		_context.shield_consumed = true
+		if _subphase == SubPhase.EVENEMENT:
+			_set_subphase(SubPhase.DEPLACEMENT)
+		return
+	var from: Vector2i = _movement.current() if _movement != null else Vector2i.ZERO
+	EventResolver.resolve(card, _context)        # pure effects (budget, flags, return/escort teleports)
+	_apply_spatial_event(card)                    # board-dependent effects (rifts, shortcuts, blockages)
+	_sync_pawn_after_event(from)                  # propagate any teleport to _positions + view + deliveries
 	if _context.score_bonus != 0:
 		_scores[_current] += _context.score_bonus
 		_context.score_bonus = 0
@@ -156,14 +176,139 @@ func apply_event(card: EventCardDefinition) -> void:
 		_set_subphase(SubPhase.DEPLACEMENT)
 
 
-## Activates the current player's one-shot super-power. Returns false if unavailable/already used.
+# Board-dependent event effects that EventResolver (pure, ctx-only) can't do. Kept impactful + simple
+# in V1: rifts/shortcuts teleport the pawn, blockages cost a detour. See CLAUDE.md "événements".
+func _apply_spatial_event(card: EventCardDefinition) -> void:
+	if _movement == null:
+		return
+	var from := _movement.current()
+	match card.effect:
+		EventCardDefinition.Effect.TELEPORT_QUARTIER:        # Faille Spatio-Temporelle: flung to a far district
+			var cell = _farthest_drive_cell(from)
+			if cell != null:
+				_movement.teleport_to(cell)
+		EventCardDefinition.Effect.TELEPORT_PARALLELE:       # Raccourci Secret: jump to the next pickup
+			var cell = _nearest_available_drive(from)
+			if cell != null:
+				_movement.teleport_to(cell)
+		EventCardDefinition.Effect.BUDGET_UN_DE:             # Manifestation: bottleneck, lose half the budget
+			_movement.subtract_steps(_movement.remaining() / 2)
+		EventCardDefinition.Effect.ROUTE_BLOQUEE:            # Fuite de Canalisation: a 3-step detour
+			_movement.subtract_steps(3)
+		EventCardDefinition.Effect.PONTS_FERMES:             # Pluies Torrentielles: bridges closed, 2-step detour
+			_movement.subtract_steps(2)
+		_:
+			pass
+
+
+# After an event, if the movement cursor moved (a teleport), make it the authoritative position, notify
+# the view, and run the delivery transitions (e.g. an escort onto the recipient completes the delivery).
+func _sync_pawn_after_event(from: Vector2i) -> void:
+	if _movement == null:
+		return
+	var to := _movement.current()
+	if to == from:
+		return
+	_positions[_current] = to
+	pawn_moved.emit(current_player(), from, to)
+	_check_delivery_transitions()
+
+
+# The drive cell of the delivery farthest from [param from] (a big relocation). null if none.
+func _farthest_drive_cell(from: Vector2i):
+	var best = null
+	var best_dist := -1
+	for delivery in _deliveries:
+		if delivery.drive_cell == from:
+			continue
+		var dist := HexUtils.distance(from, delivery.drive_cell)
+		if dist > best_dist:
+			best_dist = dist
+			best = delivery.drive_cell
+	return best
+
+
+# The drive cell of the nearest still-reservable delivery (a shortcut to the next pickup). null if none.
+func _nearest_available_drive(from: Vector2i):
+	var best = null
+	var best_dist := 1 << 30
+	for delivery in _deliveries:
+		if not delivery.is_reservable() or delivery.drive_cell == from:
+			continue
+		var dist := HexUtils.distance(from, delivery.drive_cell)
+		if dist < best_dist:
+			best_dist = dist
+			best = delivery.drive_cell
+	return best
+
+
+## Activates the current player's NON-interactive one-shot super-power. Interactive powers
+## (Dépassement, Coup d'Accélérateur) are handled by [method swap_positions] / [method apply_reroll].
+## Returns false if unavailable/already used/interactive. Applies effects the resolver only flags
+## (Passage Secret opens the water).
 func use_power() -> bool:
 	if _context == null:
 		return false
 	var character := current_player().character
 	if character == null:
 		return false
-	return PowerResolver.resolve(character.power_id, _context)
+	if PowerResolver.is_interactive(character.power_id):
+		return false
+	if not PowerResolver.resolve(character.power_id, _context):
+		return false
+	if _context.water_crossing:
+		_open_water_crossing()
+	return true
+
+
+# Passage Secret (Gégé): make every water cell passable for the rest of this turn.
+func _open_water_crossing() -> void:
+	if _movement == null:
+		return
+	var water := {}
+	for cell in _board.cells_of_type(CellType.Kind.WATER):
+		water[cell] = true
+	_movement.allow_cells(water)
+
+
+## Dépassement (Sam): swaps the current pawn's cell with player [param other_index]'s, consuming the
+## one-shot. The acting pawn's movement continues from the new cell. Returns false if unavailable or
+## the target is invalid.
+func swap_positions(other_index: int) -> bool:
+	if _context == null or _subphase != SubPhase.DEPLACEMENT:
+		return false
+	var player := current_player()
+	if player.character == null or player.power_used or player.character.power_id != &"depassement":
+		return false
+	if other_index == player.index or not _positions.has(other_index):
+		return false
+	var mine: Vector2i = _positions[player.index]
+	var theirs: Vector2i = _positions[other_index]
+	_positions[player.index] = theirs
+	_positions[other_index] = mine
+	if _movement != null:
+		_movement.teleport_to(theirs)
+	player.power_used = true
+	pawn_moved.emit(player, mine, theirs)
+	pawn_moved.emit(_players[other_index], theirs, mine)
+	_check_delivery_transitions()
+	return true
+
+
+## Coup d'Accélérateur (Vic): adjusts the turn budget by [param delta] (new die value − old) after the
+## view re-rolled a die, consuming the one-shot. Returns false if unavailable.
+func apply_reroll(delta: int) -> bool:
+	if _context == null or _subphase != SubPhase.DEPLACEMENT or _movement == null:
+		return false
+	var player := current_player()
+	if player.character == null or player.power_used or player.character.power_id != &"coup_accelerateur":
+		return false
+	if delta >= 0:
+		_movement.add_steps(delta)
+	else:
+		_movement.subtract_steps(-delta)
+	player.power_used = true
+	return true
 
 
 # --- Deliveries -------------------------------------------------------------
@@ -191,7 +336,7 @@ func deliveries_in_flight(player_index: int) -> Array[Delivery]:
 ## The reservable delivery on the current pawn's tile, or null. Requires the player to hold fewer than
 ## [constant MAX_IN_FLIGHT] deliveries. Only the drive tile is checked (tiles[0]).
 func reservable_delivery() -> Delivery:
-	if deliveries_in_flight(_current).size() >= MAX_IN_FLIGHT:
+	if deliveries_in_flight(_current).size() >= MAX_IN_FLIGHT + current_player().bonus_capacity:
 		return null
 	var tile := _board.piece_at(position_of(current_player()))
 	if tile == null:
@@ -232,7 +377,11 @@ func _check_delivery_transitions() -> void:
 
 # Scores [param delivery], recycles a new recipient (or leaves the drive free), checks for game end.
 func _complete_delivery(delivery: Delivery) -> void:
-	var points := _score_for(current_player(), delivery)
+	var player := current_player()
+	var points := _score_for(player, delivery)
+	if player.regular_route_charge:
+		points = maxi(points, ScoreCalculator.full_score())  # Habitué·e: count as if on your colour
+		player.regular_route_charge = false
 	if _context != null and _context.double_score:
 		points *= 2  # Livraison Écologique
 	_scores[_current] += points

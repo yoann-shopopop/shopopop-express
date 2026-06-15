@@ -7,9 +7,9 @@ extends GutTest
 func _tile() -> BlockDefinition:
 	var b := BlockDefinition.new()
 	b.id = &"start_tile"
-	# GREEN (start + recipient), ROUTE, URBAN (drive) -> one deliverable tile.
-	b.cells = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)] as Array[Vector2i]
-	b.cell_types = [CellType.Kind.GREEN, CellType.Kind.ROUTE, CellType.Kind.URBAN]
+	# GREEN (start, excluded from recipients), ROUTE, URBAN (drive), GREEN (recipient, road-adjacent).
+	b.cells = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(1, -1)] as Array[Vector2i]
+	b.cell_types = [CellType.Kind.GREEN, CellType.Kind.ROUTE, CellType.Kind.URBAN, CellType.Kind.GREEN]
 	b.connectors = [Vector2i(1, 0)] as Array[Vector2i]
 	return b
 

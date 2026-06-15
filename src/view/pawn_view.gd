@@ -9,6 +9,12 @@ extends Node3D
 
 ## Extra height above the tile surface so the token never z-fights with the board.
 const SPRITE_LIFT := 0.1
+## Duration of one cell-to-cell hop when the pawn steps (seconds). Snappy but readable.
+const _STEP_TIME := 0.16
+## Height of the little arc the figure makes mid-step (world units).
+const _HOP_HEIGHT := 0.35
+
+var _move_tween: Tween
 ## Radius of the chip, in world units — nearly fills the cell (its inscribed circle radius is ~0.87).
 const CHIP_RADIUS := 0.82
 ## Thickness of the chip — enough relief to read as a token under the top-down light.
@@ -107,13 +113,36 @@ func _build_token(texture: Texture2D) -> void:
 
 
 func _on_pawn_placed(cell: Vector2i) -> void:
-	_move_to_cell(cell)
+	_move_to_cell(cell)  # placement / teleport: snap, no animation
 
 
 func _on_pawn_moved(_from: Vector2i, to: Vector2i) -> void:
-	_move_to_cell(to)
+	_animate_to_cell(to)
+
+
+# The world position of the centre of [param cell], at the figure's resting height.
+func _cell_position(cell: Vector2i) -> Vector3:
+	var ground := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
+	return ground + Vector3(0.0, GameConfig.TILE_HEIGHT * 0.5 + SPRITE_LIFT, 0.0)
 
 
 func _move_to_cell(cell: Vector2i) -> void:
-	var ground := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
-	position = ground + Vector3(0.0, GameConfig.TILE_HEIGHT * 0.5 + SPRITE_LIFT, 0.0)
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	position = _cell_position(cell)
+
+
+# Slides the figure to [param cell] with a small hop, so steps read as movement rather than teleports.
+# Snaps if the view is not in the tree yet (e.g. during initial binding).
+func _animate_to_cell(cell: Vector2i) -> void:
+	var target := _cell_position(cell)
+	if not is_inside_tree():
+		position = target
+		return
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	var apex := position.lerp(target, 0.5) + Vector3(0.0, _HOP_HEIGHT, 0.0)
+	_move_tween = create_tween()
+	_move_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_move_tween.tween_property(self, "position", apex, _STEP_TIME * 0.5)
+	_move_tween.tween_property(self, "position", target, _STEP_TIME * 0.5).set_ease(Tween.EASE_IN)

@@ -8,17 +8,22 @@ extends Node3D
 ## Emitted once the player has chosen and activated a card.
 signal resolved(chosen: EventCardDefinition, discarded: Array)
 
-enum _State { CHOOSING, ACTIVATING, DONE }
+enum _State { CHOOSING, DONE }
 
-const _REVEAL: Array[Vector3] = [Vector3(-1.3, 0.0, 0.0), Vector3(1.3, 0.0, 0.0)]
+const _REVEAL: Array[Vector3] = [Vector3(-1.18, 0.0, 0.0), Vector3(1.18, 0.0, 0.0)]
 const _ACTIVE := Vector3(0.0, 0.0, 1.8)
 const _AWAY := Vector3(0.0, 0.0, -3.0)
 
 var _camera: Camera3D
 var _state: int = _State.DONE
 var _entries: Array = []          # [{ "view": CardView, "card": EventCardDefinition }]
-var _chosen: Dictionary = {}
 var _discarded: Array = []
+
+# World positions of the PIOCHE / DÉFAUSSE piles, so resolved cards visibly fly to them (set by the
+# host each frame). reject_to_discard = Carnet d'Adresses (the rejected card is discarded, not top-decked).
+var pioche_target: Vector3 = Vector3.ZERO
+var defausse_target: Vector3 = Vector3.ZERO
+var reject_to_discard: bool = false
 
 
 ## Shows [param cards] (1 or 2) at [param anchor] world position, picked with [param camera].
@@ -26,54 +31,64 @@ func present(cards: Array, camera: Camera3D, anchor: Vector3) -> void:
 	_camera = camera
 	position = anchor
 	# Scale is driven by the host (GameRoot pins/sizes the choice to the screen); default to 1 here.
+	var back_texture := CardBackFace.build_texture(self)  # shared designed back for the drawn cards
 	for i in cards.size():
 		var view := CardView.new()
 		add_child(view)
-		view.bind(cards[i])
+		var card = cards[i]
+		# Event cards wear the designed 2D face + back (rendered to textures); other cards use their art.
+		if card is EventCardDefinition:
+			view.bind(card, EventCardFace.build_texture(card, view), back_texture)
+		else:
+			view.bind(card)
 		view.set_face_up(false)
 		view.position = Vector3.ZERO
-		view.animate_deal(_REVEAL[i % _REVEAL.size()], i * 0.12)
-		_entries.append({"view": view, "card": cards[i]})
+		# A lone forced card is centered; two cards spread left/right for the keep-1 choice.
+		var slot := Vector3.ZERO if cards.size() == 1 else _REVEAL[i % _REVEAL.size()]
+		view.animate_deal(slot, i * 0.12)
+		_entries.append({"view": view, "card": card})
 	_state = _State.CHOOSING
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _state == _State.DONE or _camera == null:
+	if _state != _State.CHOOSING or _camera == null:
 		return
 	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed):
 		return
-	if _state == _State.CHOOSING:
-		var picked := _pick(_views())
-		if picked != null:
-			get_viewport().set_input_as_handled()
-			_choose(picked)
-	elif _state == _State.ACTIVATING:
-		if _pick([_chosen["view"]]) != null:
-			get_viewport().set_input_as_handled()
-			_activate()
+	var picked := _pick(_views())
+	if picked != null:
+		get_viewport().set_input_as_handled()
+		_keep(picked)
 
 
-func _choose(picked: CardView) -> void:
+# A SINGLE click both keeps and plays the card: the kept one pops then flies to the DÉFAUSSE; the
+# rejected one flies back ON TOP of the PIOCHE (or to the DÉFAUSSE for Carnet d'Adresses). Seeing each
+# card travel to its pile makes the draw/discard legible.
+func _keep(picked: CardView) -> void:
+	_state = _State.DONE
 	_discarded = []
+	var chosen_card: EventCardDefinition = null
 	for entry in _entries:
 		var view: CardView = entry["view"]
 		if view == picked:
-			_chosen = entry
-			view.animate_move_to(_ACTIVE)
+			chosen_card = entry["card"]
 		else:
 			_discarded.append(entry["card"])
-			view.animate_discard(_AWAY)
-	_state = _State.ACTIVATING
-
-
-func _activate() -> void:
-	_state = _State.DONE
-	var view: CardView = _chosen["view"]
-	await view.animate_activate()
-	view.animate_discard(_AWAY)
-	resolved.emit(_chosen["card"], _discarded)
+			view.animate_discard(_pile_local(defausse_target if reject_to_discard else pioche_target))
+	picked.animate_move_to(_ACTIVE)
+	await picked.animate_activate()
+	picked.animate_discard(_pile_local(defausse_target))  # the played card goes to the discard
+	resolved.emit(chosen_card, _discarded)
 	await get_tree().create_timer(0.4).timeout
 	queue_free()
+
+
+# Converts a pile's WORLD target into this (scaled) node's local space for the card tween. Falls back
+# to a neutral off-screen slide if the host hasn't provided pile targets.
+func _pile_local(world_target: Vector3) -> Vector3:
+	if world_target == Vector3.ZERO:
+		return _AWAY
+	return to_local(world_target)
 
 
 # Nearest card under the cursor within its PICK_RADIUS (camera ray vs card sphere), or null.

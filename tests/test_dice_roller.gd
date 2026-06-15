@@ -75,3 +75,18 @@ func test_consume_emits_consumed_signal() -> void:
 	watch_signals(roller)
 	roller.consume()
 	assert_signal_emitted(roller, "consumed")
+
+
+func test_reroll_replaces_one_die_in_range() -> void:
+	var roller := DiceRoller.new(_seeded(3))
+	roller.roll(2)
+	var v := roller.reroll(0)
+	assert_between(v, 1, 6, "rerolled die is a valid face")
+	assert_eq(roller.values()[0], v, "the recorded result reflects the reroll")
+
+
+func test_reroll_out_of_range_is_a_noop() -> void:
+	var roller := DiceRoller.new(_seeded(3))
+	roller.roll(2)
+	assert_eq(roller.reroll(5), 0, "out-of-range reroll returns 0")
+	assert_eq(roller.values().size(), 2, "result is unchanged")

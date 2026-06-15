@@ -36,6 +36,12 @@ var _chips: Array[Panel] = []
 var _action: int = Action.ROLL
 var _char_frame: Panel       # framed character card of the current player (right of the board)
 var _char_card: TextureRect
+var _chooser: Control        # transient modal chooser (interactive powers), null when none
+var _deck_pile: DeckPileView      # PIOCHE pile (card backs + count)
+var _discard_pile: DeckPileView   # DÉFAUSSE pile (top discarded face + count)
+
+
+var _banner: Label
 
 
 func _ready() -> void:
@@ -44,6 +50,37 @@ func _ready() -> void:
 	_build_card_backings()
 	_build_char_card()
 	_build_toast()
+	_build_banner()
+
+
+# A big, splashy centered banner for headline moments (whose turn, "Événement !"). Distinct from the
+# small running toast: it fades in, holds, and fades out, and never blocks input.
+func _build_banner() -> void:
+	_banner = Label.new()
+	_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_banner.offset_top = 120
+	_banner.offset_bottom = 210
+	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner.modulate.a = 0.0
+	add_child(_banner)
+
+
+## Flashes a headline [param text] tinted [param color] across the centre — for turn changes and big
+## events. Fades on its own.
+func show_banner(text: String, color: Color = UITheme.TEXT) -> void:
+	if _banner == null or text.is_empty():
+		return
+	_banner.text = text
+	UITheme.make_title(_banner, 46, color)
+	_banner.add_theme_constant_override("outline_size", 10)
+	_banner.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
+	_banner.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_banner, "modulate:a", 1.0, 0.22)
+	tween.tween_interval(0.9)
+	tween.tween_property(_banner, "modulate:a", 0.0, 0.5)
 
 
 # A transient banner just under the top bar that announces what just happened (roll, reservation,
@@ -55,8 +92,7 @@ func _build_toast() -> void:
 	_toast.offset_bottom = 92
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_toast.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_toast.add_theme_font_size_override("font_size", 22)
-	_toast.add_theme_color_override("font_color", UITheme.TEXT)
+	UITheme.make_title(_toast, 24)
 	_toast.modulate.a = 0.0
 	add_child(_toast)
 
@@ -108,15 +144,13 @@ func _build_title_bar() -> void:
 	var title := Label.new()
 	title.text = "Shopopop Express"
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", UITheme.TEXT)
+	UITheme.make_title(title, 24)
 	bar.add_child(title)
 
 	_round_label = Label.new()
 	_round_label.text = "Manche 1"
 	_round_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_round_label.add_theme_font_size_override("font_size", 20)
-	_round_label.add_theme_color_override("font_color", UITheme.ORANGE)
+	UITheme.make_title(_round_label, 20, UITheme.ORANGE)
 	bar.add_child(_round_label)
 
 	var spacer := Control.new()
@@ -134,8 +168,7 @@ func _build_title_bar() -> void:
 
 	_score_label = Label.new()
 	_score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_score_label.add_theme_font_size_override("font_size", 20)
-	_score_label.add_theme_color_override("font_color", UITheme.TEXT)
+	UITheme.make_title(_score_label, 20)
 	bar.add_child(_score_label)
 
 	_deliveries_label = Label.new()
@@ -144,20 +177,34 @@ func _build_title_bar() -> void:
 	_deliveries_label.add_theme_color_override("font_color", UITheme.TEXT)
 	bar.add_child(_deliveries_label)
 
+	var mute := _small_button("Son")
+	mute.custom_minimum_size = Vector2(60, 34)
+	mute.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		mute.text = "Muet" if AudioManager.toggle_mute() else "Son")
+	bar.add_child(mute)
+
 	var zoom_out := _small_button("−")  # U+2212 minus (renders cleanly, unlike fullwidth －)
-	zoom_out.pressed.connect(func() -> void: zoom_out_requested.emit())
+	zoom_out.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		zoom_out_requested.emit())
 	bar.add_child(zoom_out)
 	var zoom_in := _small_button("+")
-	zoom_in.pressed.connect(func() -> void: zoom_in_requested.emit())
+	zoom_in.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		zoom_in_requested.emit())
 	bar.add_child(zoom_in)
 
 
 func _build_actions() -> void:
+	# Bottom-CENTER (the left edge is the delivery panel, the right the character card / deck piles).
 	var box := HBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	box.offset_left = 20
-	box.offset_top = -84
+	box.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.offset_top = -86
+	box.offset_bottom = -18
 	box.add_theme_constant_override("separation", 10)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE  # only the buttons capture; board clicks pass through
 	add_child(box)
 
 	_action_btn = Button.new()
@@ -172,7 +219,9 @@ func _build_actions() -> void:
 	_power_btn.custom_minimum_size = Vector2(64, 64)
 	_power_btn.add_theme_font_size_override("font_size", 24)
 	_theme_button(_power_btn, UITheme.ORANGE)
-	_power_btn.pressed.connect(func() -> void: power_requested.emit())
+	_power_btn.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		power_requested.emit())
 	box.add_child(_power_btn)
 	set_action(Action.ROLL)
 
@@ -189,38 +238,46 @@ func _theme_button(btn: Button, base: Color) -> void:
 
 
 func _build_card_backings() -> void:
-	# DECK (face-down pile) and DÉFAUSSE, always visible at the bottom-right as card-shaped backings.
-	# The two drawn event cards appear large at screen center during a rainbow event (pinned by GameRoot).
+	# PIOCHE / DÉFAUSSE as real stacked-card piles (depth + count badge) at the bottom-right.
+	# Drawn event cards appear large at screen center during a rainbow event (pinned by GameRoot).
 	var row := HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	row.offset_right = -70
-	row.offset_bottom = -16
+	row.offset_right = -50
+	row.offset_bottom = -10
 	row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	row.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	row.add_theme_constant_override("separation", 18)
 	add_child(row)
-	# DECK reads as the active pile (blue accent), DÉFAUSSE as a neutral one.
-	row.add_child(_card_pile("DECK", UITheme.BLUE, true))
-	row.add_child(_card_pile("DÉFAUSSE", UITheme.PANEL_BORDER, false))
+	_deck_pile = DeckPileView.new()
+	_deck_pile.setup("PIOCHE", UITheme.BLUE, false)
+	row.add_child(_deck_pile)
+	_discard_pile = DeckPileView.new()
+	_discard_pile.setup("DÉFAUSSE", UITheme.ORANGE, true)
+	row.add_child(_discard_pile)
 
 
-# A card-shaped backing (shared UITheme tray look) with a caption under it. [param accent] colors the
-# border; [param active] thickens it (DECK vs DÉFAUSSE).
-func _card_pile(caption: String, accent: Color, active: bool) -> VBoxContainer:
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 4)
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	var card := Panel.new()
-	card.custom_minimum_size = Vector2(132, 188)
-	card.add_theme_stylebox_override("panel", UITheme.tray_card_style(accent, active))
-	col.add_child(card)
-	var lbl := Label.new()
-	lbl.text = caption
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 18)
-	lbl.add_theme_color_override("font_color", UITheme.TEXT)  # light text on the dark backdrop
-	col.add_child(lbl)
-	return col
+## Screen-space center of the PIOCHE pile's top card (for cards flying to/from it).
+func pioche_screen_center() -> Vector2:
+	return _deck_pile.top_card_center() if _deck_pile != null else Vector2.ZERO
+
+
+## Screen-space center of the DÉFAUSSE pile's top card.
+func defausse_screen_center() -> Vector2:
+	return _discard_pile.top_card_center() if _discard_pile != null else Vector2.ZERO
+
+
+## Updates the PIOCHE / DÉFAUSSE pile counts (drives the badge and the stack thickness).
+func set_deck_counts(draw_count: int, discard_count: int) -> void:
+	if _deck_pile != null:
+		_deck_pile.set_count(draw_count)
+	if _discard_pile != null:
+		_discard_pile.set_count(discard_count)
+
+
+## Shows [param card]'s face on top of the DÉFAUSSE pile.
+func set_discard_top(card: EventCardDefinition) -> void:
+	if _discard_pile != null:
+		_discard_pile.set_top_face(card)
 
 
 func _small_button(text: String) -> Button:
@@ -235,6 +292,7 @@ func _small_button(text: String) -> Button:
 
 
 func _on_action_pressed() -> void:
+	AudioManager.sfx(&"ui_click")
 	match _action:
 		Action.ROLL: roll_requested.emit()
 		Action.RESERVE: reserve_requested.emit()
@@ -319,6 +377,68 @@ func set_status(text: String) -> void:
 	tween.tween_property(_toast, "modulate:a", 0.0, 0.7)
 
 
+## Shows a transient modal chooser centered on screen: [param prompt] then one button per option
+## ([code]{ "text": String, "color": Color }[/code]); calls [param on_pick] with the chosen index, then
+## dismisses. A "Annuler" button dismisses with index -1. The dim backdrop blocks board clicks while
+## open. Used by the interactive super-powers (Dépassement target, Coup d'Accélérateur die).
+func show_chooser(prompt: String, options: Array, on_pick: Callable) -> void:
+	dismiss_chooser()
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0, 0, 0, 0.5)
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP  # eats clicks so the board isn't moved meanwhile
+	add_child(backdrop)
+	_chooser = backdrop
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UITheme.pill_style())
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	panel.add_child(box)
+	var label := Label.new()
+	label.text = prompt
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_color", UITheme.TEXT)
+	box.add_child(label)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	box.add_child(row)
+	for i in options.size():
+		var opt: Dictionary = options[i]
+		var btn := Button.new()
+		btn.text = opt.get("text", "?")
+		btn.custom_minimum_size = Vector2(132, 60)
+		btn.add_theme_font_size_override("font_size", 20)
+		_theme_button(btn, opt.get("color", UITheme.BLUE))
+		var idx := i
+		btn.pressed.connect(func() -> void:
+			AudioManager.sfx(&"ui_click")
+			dismiss_chooser()
+			on_pick.call(idx))
+		row.add_child(btn)
+	var cancel := Button.new()
+	cancel.text = "Annuler"
+	cancel.custom_minimum_size = Vector2(132, 40)
+	cancel.add_theme_font_size_override("font_size", 18)
+	_theme_button(cancel, UITheme.PANEL_BORDER)
+	cancel.pressed.connect(func() -> void:
+		dismiss_chooser()
+		on_pick.call(-1))
+	box.add_child(cancel)
+
+
+## Dismisses the modal chooser if one is open.
+func dismiss_chooser() -> void:
+	if _chooser != null and is_instance_valid(_chooser):
+		_chooser.queue_free()
+	_chooser = null
+
+
 ## Updates the round counter shown in the top bar.
 func set_round(round_number: int) -> void:
 	if _round_label != null:
@@ -331,32 +451,69 @@ func set_deliveries_remaining(count: int) -> void:
 		_deliveries_label.text = "Livraisons : %d" % count
 
 
-## Shows the final scoreboard. [param scores] maps seat index -> total.
+## Shows the final scoreboard: a dimmed backdrop, the ranking (best first, top one highlighted), the
+## cooperative total, and a "Rejouer" button. [param scores] maps seat index -> total.
 func show_end(scores: Dictionary, players: Array[Player]) -> void:
+	dismiss_chooser()
 	_action_btn.hide()
 	_power_btn.hide()
-	_end_panel = CenterContainer.new()
+	if _char_frame != null:
+		_char_frame.hide()
+	_end_panel = ColorRect.new()
+	_end_panel.color = Color(0.05, 0.07, 0.1, 0.82)
 	_end_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_end_panel)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_end_panel.add_child(center)
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_theme_constant_override("separation", 10)
-	_end_panel.add_child(box)
+	center.add_child(box)
+
 	var title := Label.new()
-	title.text = "Partie terminée"
-	title.add_theme_font_size_override("font_size", 28)
+	title.text = "Partie terminée !"
+	UITheme.make_title(title, 38, UITheme.ORANGE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+
+	# Rank players best-first; ties keep seat order.
+	var ranked := players.duplicate()
+	ranked.sort_custom(func(a: Player, b: Player) -> bool:
+		return scores.get(a.index, 0) > scores.get(b.index, 0))
 	var total := 0
-	for player in players:
+	for i in ranked.size():
+		var player: Player = ranked[i]
 		var pts: int = scores.get(player.index, 0)
 		total += pts
 		var line := Label.new()
-		line.text = "%s : %d pts" % [PlayerColor.name_of(player.color), pts]
-		line.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if i == 0:
+			line.text = "Meilleur·e : %s — %d pts" % [PlayerColor.name_of(player.color), pts]
+			UITheme.make_title(line, 28, PlayerColor.to_color(player.color))
+		else:
+			line.text = "%d.  %s — %d pts" % [i + 1, PlayerColor.name_of(player.color), pts]
+			line.add_theme_font_size_override("font_size", 20)
+			line.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
 		box.add_child(line)
+
 	var sum := Label.new()
 	sum.text = "Total collectif : %d pts" % total
+	UITheme.make_title(sum, 22, UITheme.GREEN)
 	sum.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sum)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 12)
+	box.add_child(spacer)
+
+	var replay := Button.new()
+	replay.text = "Rejouer"
+	replay.custom_minimum_size = Vector2(220, 60)
+	replay.add_theme_font_size_override("font_size", 24)
+	replay.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_theme_button(replay, UITheme.BLUE)
+	replay.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		get_tree().reload_current_scene())
+	box.add_child(replay)

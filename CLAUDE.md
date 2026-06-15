@@ -99,7 +99,22 @@ Concepts clés à modéliser. Les entités forment naturellement des `Resource` 
   enseigne, 1 pion, 1 pont) données sans total de plateau clair.
 - Terminologie flottante : « deck de livraison » vs les 9 livraisons construites ; « jetons » vs
   « tuiles » enseigne/destinataire.
-- Le doublement des points au vélo apparaît dans plusieurs événements — vérifier s'ils se cumulent.
+- ~~Cumul des doublements de points~~ **(tranché 2026-06-14)** : un seul ×2 par livraison
+  (`double_score` non cumulatif) en V1.
+
+#### Arbitrages de finition (tranchés 2026-06-14, défauts documentés — modifiables au playtest)
+
+- **Pouvoirs interactifs/différés** : tous les 8 pouvoirs sont jouables (cf. plus bas). Margot
+  (`chargement_pro`) = **+1 livraison simultanée** persistante ; Gégé (`passage_secret`) = **l'eau
+  devient franchissable ce tour** ; Camille (`habitue_quartier`) = **prochaine livraison comptée au
+  max (25)**. **Pioche d'événement (règle de base, tous)** : **pioche 2, garde 1, l'autre revient
+  AU-DESSUS du deck**. Charlie (`carnet_adresses`) ne change que le sort de la carte écartée : elle est
+  **défaussée** (retirée) au lieu de revenir au-dessus. Les bénéfices différés (Charlie, Axel·le,
+  Camille, Margot) vivent sur le `Player` → jamais gâchés en silence.
+- **Événements `rejouer` / `dé bonus`** : *Tous les Feux au Vert* = le **même joueur rejoue** un tour ;
+  *Prime Gouvernementale* = on lance le(s) **dé(s) bonus immédiatement** et on les ajoute au budget.
+- **Coopératif** : scores individuels **classés** (meilleur·e mis en avant) + **total collectif** à
+  l'écran de fin ; pas de « perdant ».
 
 Si l'utilisateur·rice demande de **réécrire les règles** (formulations imparfaites, répétitions),
 le faire dans `docs/` en conservant l'original ou via git, et lever les ambiguïtés ci-dessus.
@@ -210,7 +225,7 @@ src/logic/      road_network.gd (RoadNetwork)  set de cases praticables (ROUTE+E
 src/movement/   turn_movement.gd (TurnMovement) marche réelle : revisite, ±budget, teleport_to
 src/game/       character_definition.gd        CharacterDefinition (Resource) : transport→dés, 2 couleurs, power_id
                 game_phase.gd (GamePhase)       boucle de tour + sous-phases + livraisons + events + score
-                delivery.gd / delivery_setup.gd Delivery (drive→destinataire, statut Disponible/Réservé/En cours/Livré) + génération (1/ tuile)
+                delivery.gd / delivery_setup.gd Delivery (drive→destinataire, statut Disponible/Réservé/En cours/Livré) + placement aléatoire cross-tuile (drive urbain / dest vert, atteignable)
                 score_calculator.gd             5 + 10 (tuile drive à ma couleur) + 10 (tuile destinataire à ma couleur)
                 turn_context.gd (TurnContext)   état mutable du tour (effets events/pouvoirs)
                 event_resolver.gd / power_resolver.gd  effets data-driven (match, pas de if géant)
@@ -236,16 +251,61 @@ budget ajustable (events ±) et téléportation (cartes). « Tuile à moi » = l
 (`PlacedPiece.owner`) égale la **couleur du joueur** (`Player.color`) — l'identité de score, pas les
 2 couleurs du personnage.
 
-**Points laissés en STUB (V1, points ouverts non tranchés)** : téléportation « quartier »/« parallèle »,
-Manifestation/Fuite/Pluies (effets persistants), capacité de volume (Margot), pont en jeu, coop vs
-compétitif (scores individuels + total affichés, pas de vainqueur en dur), cumul des doublements.
+**Placement aléatoire des livraisons** : `DeliverySetup.build(board, rng, max_count, excluded)` pose
+**1 drive (case URBAINE) + 1 destinataire (case VERTE) par tuile**, puis **apparie drives et
+destinataires 1-à-1 dans un ordre mélangé** (RNG injecté) → le destinataire d'une livraison n'est **pas
+forcément sur la tuile de son drive** (mono- OU bi-tuile). 1 livraison par tuile.
+`Delivery.tiles = [tuile_drive, tuile_destinataire]` (drive d'abord) ; le scoring `ScoreCalculator`
+5 + 10 (tuile drive) + 10 (tuile destinataire) gère le cross-tuile (5/15/25). Les identités (enseigne +
+destinataire) sont attribuées par livraison via `DeliveryGenerator` (`GameRoot`). Les cases de départ
+des joueurs sont exclues du pool destinataires. L'art « storefront » du drive est posé sur les **vraies**
+cases via `HexGridView.set_drive_cells(...)` (appelé par `Main`/le harnais après le build).
+
+**Atteignabilité (anti-softlock)** : seules des cases **adjacentes au réseau** entrent dans les pools, et
+chaque paire drive→destinataire est validée par `RoadNetwork.is_reachable` (BFS) — sinon une livraison
+resterait à jamais en vol et la partie ne finirait pas. Soak headless `tools/soak_test.gd` (50 parties
+2→6 joueurs auto-pilotées, **0 softlock**, livraisons cross-tuile incluses).
+
+**Les 8 super-pouvoirs sont jouables** (`PowerResolver`, `GamePhase`, `GameRoot`/`PlayHud`) :
+Bonne Marcheuse (+2), Carnet d'Adresses (défausse la carte écartée au lieu de la remettre au-dessus),
+Bouclier Vert (annule le prochain malus),
+Habitué·e (livraison comptée au max), Passage Secret (eau franchissable ce tour), Chargement Pro (+1
+livraison simultanée), Dépassement (échange de case — sélecteur), Coup d'Accélérateur (relance d'un dé
+— sélecteur). Bénéfices différés portés par `Player` (jamais gâchés) ; interactifs via méthodes pures
+`swap_positions`/`apply_reroll` + chooser modal.
+
+**Présentation / game feel / audio** : police OFL (Nunito corps, Fredoka titres, `assets/fonts/`),
+`SceneEnvironment` (lumière chaude, tonemap FILMIC, vignette — GL-compat), pions animés (saut
+case→case), bannières de tour/événement, confettis de livraison, et `AudioManager` (SFX + musique
+d'ambiance procéduraux `assets/audio/`, bouton mute). Écrans : titre (Jouer + Son), choix du nombre de
+joueurs, **sélection des personnages** (`CharacterSelect`, aperçu transport/dés/pouvoir), HUD de jeu,
+**écran de fin classé + total collectif + Rejouer**.
+
+**Événements — les 22 cartes ont un effet** (`apply_event`). Les téléportations
+(retour drive/départ, escorte, faille, raccourci) sont propagées à la **position autoritaire**
+(`_positions`) + à la vue + aux transitions de livraison via `_sync_pawn_after_event` (sinon le pion ne
+bougeait pas → « aucun impact »). Les ex-stubs sont câblés en V1 (simplifiés, board-dependent dans
+`GamePhase._apply_spatial_event`) : Faille = téléport au drive le plus loin ; Raccourci = téléport au
+prochain drive dispo ; Manifestation = budget −½ ; Fuite = détour −3 ; Pluies = détour −2 (pont
+toujours setup-only). **UX** : la carte est un **modal 2D net** (`src/ui/event_modal.gd` : bandeau
+Avantage/Malus, titre, effet en évidence, description en clair), résolu en **un seul clic** (avant :
+carte 3D placeholder + 2ᵉ clic d'activation — d'où l'impression d'« effet sans impact »). L'ancienne
+`EventCardChoice` (3D) subsiste pour les démos/tests.
 
 ### Restant / à raffiner
 
-- **A\*** avec preview de trajectoire (le `Board` expose déjà l'index des cases / connecteurs).
-- **Pose manuelle** des jetons drive/destinataire (V1 : placement auto post-setup, livraisons mono-tuile).
+- **A\*** avec preview de trajectoire (le BFS `RoadNetwork.distances_from` est en place ; reste l'UI).
+- **Pose manuelle** des jetons drive/destinataire (V1 : placement **auto aléatoire** post-setup, drives
+  urbains / destinataires verts, mono- ou bi-tuile, atteignabilité garantie).
 - Effets d'événement **interactifs** (choix de cible/quartier) et **persistants inter-tours**.
 - **Multijoueur** distant : non implémenté (hot-seat 1 client) ; l'état est découplé et les joueurs identifiés.
 - 5–6 joueurs réutilisent une couleur de quartier (4 couleurs) — distingués par `Player.index`.
+
+### Outils de dev (headless / capture)
+
+- `tools/soak_test.gd` — soak de fiabilité (auto-place + auto-pilote jusqu'à la fin, 2→6 joueurs).
+- `tools/capture_play.gd` — captures d'écran du jeu réel (fenêtré ; plateau, lancer, fin, personnages).
+- `tools/generate_audio.gd` — régénère les WAV de `assets/audio/`.
+- `tools/auto_board.gd` / `tools/auto_pilot.gd` — briques réutilisables (placement légal, IA gloutonne BFS).
 
 > Notes de dev complémentaires (rôle, vision, commandes) : `docs/dev-notes/`.

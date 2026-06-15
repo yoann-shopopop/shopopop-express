@@ -12,6 +12,7 @@ const _REF_SIZE := 30.0  # the camera's default ortho size; overlays scale relat
 var _board: Board
 var _players: Array[Player]
 var _camera: Camera3D
+var _deliveries: Array[Delivery] = []  # the built deliveries (drive/recipient cells), exposed to the view
 var _phase: GamePhase
 var _dice: DiceRoller
 var _events: Deck
@@ -23,24 +24,68 @@ var _can_roll: bool = true
 var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
 var _active_marker: Node3D              # ring under the active pawn + floating steps badge above it
-var _event_choice: EventCardChoice      # active card choice, if any
-var _delivery_list: DeliveryListView
+var _event_choice: EventCardChoice      # active animated card draw (CardView), if any
+var _event_discards_rejected: bool = false  # Carnet d'Adresses: discard the rejected card instead of top-decking
+var _delivery_panel: DeliveryPanel
+
+
+## The pure turn logic, exposed for scripting/demo/screenshot harnesses (the game itself drives it
+## through signals). Returns null before [method setup].
+func phase() -> GamePhase:
+	return _phase
+
+
+## The in-game HUD (CanvasLayer), exposed so a demo/screenshot harness can emit its intents.
+func hud() -> PlayHud:
+	return _ui
+
+
+## The built deliveries, exposed for scripting/demo/screenshot harnesses. Valid after [method setup].
+func deliveries() -> Array[Delivery]:
+	return _deliveries
+
+
+## The cells hosting a delivery's drive (for [HexGridView] to draw the storefront art on the real,
+## possibly cross-tile, drives). Valid after [method setup].
+func drive_cells() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for delivery in _deliveries:
+		cells.append(delivery.drive_cell)
+	return cells
+
+
+# Absolute board cells of the players' starts (same formula as GamePhase), excluded from the recipient
+# pool so a recipient never spawns under a pawn.
+func _start_cells() -> Dictionary:
+	var cells := {}
+	for player in _players:
+		if player.start_block == null:
+			continue
+		for piece in _board.pieces():
+			if piece.block_def == player.start_block:
+				cells[HexUtils.rotate(player.start_cell, piece.rotation) + piece.anchor] = true
+				break
+	return cells
 
 
 func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_board = board
 	_players = players
 	_camera = camera
-	var deliveries := DeliverySetup.build(board)
-	# Each tile becomes an enseigne slot clipped with a random destinataire; delivering recycles a new
-	# one until the pool is exhausted (DeliveryGenerator). One slot per deliverable tile.
-	var generator := DeliveryGenerator.new(_load_enseignes(), _load_destinataires(), deliveries.size())
+	# Random placement: drives (urban) and recipients (green) are drawn board-wide and paired at random
+	# (mono- or bi-tile), all reachable. Up to one per available destinataire; player starts are excluded
+	# from the recipient pool so a recipient never lands under a pawn's spawn.
+	var destinataires := _load_destinataires()
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	_deliveries = DeliverySetup.build(board, rng, destinataires.size(), _start_cells())
+	var generator := DeliveryGenerator.new(_load_enseignes(), destinataires, _deliveries.size(), rng)
 	var combos := generator.combos()
-	for i in deliveries.size():
+	for i in _deliveries.size():
 		if i < combos.size():
-			deliveries[i].enseigne = combos[i].enseigne
-			deliveries[i].destinataire = combos[i].destinataire
-	_phase = GamePhase.new(players, board, deliveries, generator)
+			_deliveries[i].enseigne = combos[i].enseigne
+			_deliveries[i].destinataire = combos[i].destinataire
+	_phase = GamePhase.new(players, board, _deliveries, generator)
 	_dice = DiceRoller.new()
 	_events = Deck.new(_load_events())
 	_events.shuffle()
@@ -57,10 +102,11 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 
 	for player in players:
 		_spawn_pawn(player)
-	_build_delivery_markers(deliveries)
-	_delivery_list = DeliveryListView.new()
-	add_child(_delivery_list)
-	_delivery_list.build(deliveries, _players)
+	_build_delivery_markers(_deliveries)
+	# The delivery list is a crisp 2D HUD panel (left column), child of the PlayHud CanvasLayer.
+	_delivery_panel = DeliveryPanel.new()
+	_ui.add_child(_delivery_panel)
+	_delivery_panel.build(_deliveries, _players)
 
 	var move_controller := MovementController.new()
 	add_child(move_controller)
@@ -84,6 +130,8 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_fit_camera_to_board()
 	_refresh_ui()
 	_update_active_marker()
+	var first := _phase.current_player()
+	_ui.show_banner("Au tour de %s" % PlayerColor.name_of(first.color), PlayerColor.to_color(first.color))
 
 
 # Centers the camera on the placed board and zooms so it fills the framed region at game start (the
@@ -105,10 +153,10 @@ func _fit_camera_to_board() -> void:
 	var board_h := (max_z - min_z) + pad
 	var vp := get_viewport().get_visible_rect().size
 	var aspect := vp.aspect() if vp.y > 0.0 else 1.78
-	# The board sits between the left delivery column and the right character card: ~80% of the height,
-	# ~54% of the width. Take the larger so it always fits both ways.
-	var size_for_h := board_h / 0.80
-	var size_for_w := board_w / (0.54 * aspect)
+	# The board sits between the left delivery panel (~342 px) and the right character card (~317 px):
+	# ~78% of the height, ~62% of the width. Take the larger so it always fits both ways.
+	var size_for_h := board_h / 0.78
+	var size_for_w := board_w / (0.62 * aspect)
 	var target := maxf(size_for_h, size_for_w)
 	var rig := _camera as CameraRig
 	if rig != null:
@@ -116,15 +164,14 @@ func _fit_camera_to_board() -> void:
 	_camera.size = target
 	var half_h := target * 0.5
 	var half_w := half_h * aspect
-	# Center the board between the left delivery column and the right character card (nx ≈ 0.08, just
-	# right of screen center; vertically centered).
+	# Center the board just right of screen centre (the left panel is a touch wider than the right card).
 	var board_cx := (min_x + max_x) * 0.5
 	var board_cz := (min_z + max_z) * 0.5
-	_camera.position = Vector3(board_cx - 0.08 * half_w, _camera.position.y, board_cz + 0.0 * half_h)
+	_camera.position = Vector3(board_cx - 0.02 * half_w, _camera.position.y, board_cz + 0.0 * half_h)
 
 
-# Pins the dice (bottom-left) and the event-card choice (centered) to fixed screen regions, scaled to
-# the zoom, so they keep a consistent size and use the available space whatever the pan/zoom.
+# Pins the 3D dice and the event-card choice to fixed screen regions, scaled to the zoom, so they keep a
+# consistent size whatever the pan/zoom. (The delivery list is now a crisp 2D HUD panel — see PlayHud.)
 func _process(_delta: float) -> void:
 	if _camera == null:
 		return
@@ -132,21 +179,21 @@ func _process(_delta: float) -> void:
 	var half_h := _camera.size * 0.5
 	var half_w := half_h * get_viewport().get_visible_rect().size.aspect()
 	var center := Vector3(_camera.global_position.x, 0.0, _camera.global_position.z)
-	# All HUD overlays use a constant world-scale × zoom and screen-edge anchoring, so they keep a fixed
-	# on-screen size/position: zooming only changes the terrain, never the side elements.
+	# Dice sit low, just right of the left delivery panel (clear of both the panel and the centre action).
 	if _dice_views != null and _dice_views.get_child_count() > 0:
-		_dice_views.position = center + Vector3(-half_w * 0.70, 1.0, half_h * 0.42)
+		_dice_views.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.40)
 		_dice_views.scale = Vector3.ONE * 3.2 * zoom
 	if _event_choice != null and is_instance_valid(_event_choice):
-		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
-		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.10)
-		_event_choice.scale = Vector3.ONE * 5.5 * zoom
-	if _delivery_list != null:
-		# Left column: big readable cards with a CONSTANT on-screen gap (row_step is constant×zoom, not
-		# size-dependent), stacked down the left edge. Anchor pulled back to 0.83 so the wider cards
-		# (scale 1.7) still sit ~16 px from the screen edge instead of clipping off-screen.
-		var left_origin := center + Vector3(-half_w * 0.83, 1.0, -half_h * 0.58)
-		_delivery_list.layout(left_origin, 4.6 * zoom, 1.7 * zoom)
+		# Drawn event cards: large, centered, and raised well ABOVE the pawns/dice/markers (top-down ortho
+		# sorts by height) so nothing renders in front of them during a rainbow event.
+		var card_y := 5.0
+		_event_choice.position = center + Vector3(0.0, card_y, half_h * 0.02)
+		_event_choice.scale = Vector3.ONE * 8.0 * zoom
+		# Map the HUD PIOCHE / DÉFAUSSE piles to world points at the cards' height, so resolved cards fly
+		# to the real piles.
+		var depth := _camera.global_position.y - card_y
+		_event_choice.pioche_target = _camera.project_position(_ui.pioche_screen_center(), depth)
+		_event_choice.defausse_target = _camera.project_position(_ui.defausse_screen_center(), depth)
 
 
 func _spawn_pawn(player: Player) -> void:
@@ -208,6 +255,7 @@ func _on_roll() -> void:
 	var player := _phase.current_player()
 	var dice_count := player.character.dice_count() if player.character != null else 2
 	_dice.roll(dice_count)
+	AudioManager.sfx(&"dice")
 	_phase.begin_movement(_dice.total())
 	_phase.movement().step_budget_changed.connect(_on_budget_changed)
 	_can_roll = false
@@ -332,6 +380,7 @@ func _on_budget_changed(_remaining: int) -> void:
 
 func _on_reserve() -> void:
 	if _phase.reserve_delivery():
+		AudioManager.sfx(&"reserve")
 		_ui.set_status("Livraison réservée.")
 	else:
 		_ui.set_status("Aucune livraison à réserver sur cette tuile.")
@@ -341,9 +390,11 @@ func _on_reserve() -> void:
 
 # A delivery's status changed (reserved / en cours): refresh its status disc and the action bar.
 func _on_delivery_changed(delivery: Delivery) -> void:
+	if delivery.status == DeliveryStatus.Kind.EN_COURS:
+		AudioManager.sfx(&"pickup")
 	_update_status_ring(delivery)
-	if _delivery_list != null:
-		_delivery_list.refresh_statuses()
+	if _delivery_panel != null:
+		_delivery_panel.refresh()
 	_refresh_ui()
 
 
@@ -380,40 +431,157 @@ func _update_status_ring(delivery: Delivery) -> void:
 	_status_rings[delivery] = inst
 
 
-func _on_event_triggered(cell: Vector2i) -> void:
-	# Draw two event cards and show them: the player keeps one (the other returns to the deck) and
-	# activates it. Movement is paused (EVENEMENT) until the choice resolves.
+func _on_event_triggered(_cell: Vector2i) -> void:
+	# Base rule: draw TWO event cards, keep one, the other goes back ON TOP of the deck. Carnet
+	# d'Adresses (Charlie) changes only the fate of the rejected card — it is DISCARDED instead of put
+	# back on top. Movement is paused (EVENEMENT) until the choice resolves.
+	var player := _phase.current_player()
 	var drawn := _events.draw(2)
 	if drawn.is_empty():
+		_phase.end_turn()  # deck somehow empty: don't strand the player in EVENEMENT
 		return
+	_event_discards_rejected = player.pending_draw_two
+	player.pending_draw_two = false
+	_ui.set_deck_counts(_events.draw_count(), _events.discard_count())  # pile drops as the cards are drawn
+	AudioManager.sfx(&"event")
+	_ui.show_banner("Événement !", UITheme.ORANGE)
 	_refresh_highlights()  # clears the markers while the cards are up
 	_event_choice = EventCardChoice.new()
-	add_child(_event_choice)
+	add_child(_event_choice)  # 3D cards dealt over the board, pinned to screen by _process
+	_event_choice.reject_to_discard = _event_discards_rejected  # Charlie: rejected card → discard, not top
 	_event_choice.resolved.connect(_on_event_resolved)
-	_event_choice.present(drawn, _camera, Vector3.ZERO)  # position pinned each frame by _process
-	_ui.set_status("Événement ! Choisis une carte, puis clique-la pour l'activer.")
+	_event_choice.present(drawn, _camera, Vector3.ZERO)
+	if _event_discards_rejected:
+		_ui.set_status("Carnet d'Adresses : garde 1 carte, l'autre est défaussée.")
+	else:
+		_ui.set_status("Garde 1 carte — l'autre repart au-dessus du deck.")
 
 
 func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
+	var ctx := _phase.context()
 	_phase.apply_event(chosen)
 	_events.discard(chosen)
+	# Base: the rejected card returns to the top of the deck. Carnet d'Adresses discards it instead.
 	for card in discarded:
-		_events.return_to_top(card)
+		if _event_discards_rejected:
+			_events.discard(card)
+		else:
+			_events.return_to_top(card)
+	_event_discards_rejected = false
 	_event_choice = null
-	var tag := "Malus" if chosen.is_malus else "Avantage"
-	_ui.set_status("%s : %s" % [tag, chosen.display_name])
+	_ui.set_discard_top(chosen)  # the played card now sits face-up on the DÉFAUSSE pile
+	if ctx != null and ctx.shield_consumed:
+		ctx.shield_consumed = false
+		_ui.set_status("Bouclier Vert : malus « %s » annulé !" % chosen.display_name)
+	else:
+		var tag := "Malus" if chosen.is_malus else "Avantage"
+		_ui.set_status("%s : %s" % [tag, chosen.display_name])
+	_consume_event_aftermath()
 	_refresh_highlights()
+	_update_active_marker()
 	_refresh_ui()
+
+
+# Effects the resolver flags but cannot apply itself (they need the dice / the view): Prime
+# Gouvernementale rolls bonus dice into the current budget; Tous les Feux au Vert is announced here and
+# enacted by GamePhase.end_turn (the same player replays).
+func _consume_event_aftermath() -> void:
+	var ctx := _phase.context()
+	if ctx == null:
+		return
+	if ctx.extra_dice > 0 and _phase.movement() != null:
+		var extra := _dice.roll(ctx.extra_dice)
+		var bonus := 0
+		for v in extra:
+			bonus += v
+		_phase.movement().add_steps(bonus)
+		ctx.extra_dice = 0
+		_show_dice(extra)
+		_ui.set_status("Prime gouvernementale : +%d dé(s) → +%d cases !" % [extra.size(), bonus])
+	if ctx.replay:
+		_ui.set_status("Tous les feux au vert — tu rejoues un tour !")
 
 
 func _on_power() -> void:
 	var player := _phase.current_player()
+	if player.character == null or player.power_used or _phase.context() == null:
+		_ui.set_status("Aucun pouvoir disponible pour l'instant.")
+		return
+	var pid := player.character.power_id
+	if PowerResolver.is_interactive(pid):
+		_begin_interactive_power(pid)
+		return
 	if _phase.use_power():
-		_ui.set_status("Super-pouvoir activé !")
+		AudioManager.sfx(&"power")
+		_ui.set_status(_power_message(pid))
 		_refresh_highlights()
-	elif player.character != null and not player.power_used:
-		_ui.set_status("Ce pouvoir n'est pas encore disponible.")
+		_update_active_marker()
+	else:
+		_ui.set_status("Ce pouvoir n'est pas disponible maintenant.")
 	_refresh_ui()
+
+
+# Interactive powers ask the player to pick a target first, then call the matching GamePhase method.
+func _begin_interactive_power(pid: StringName) -> void:
+	if pid == &"depassement":
+		var options: Array = []
+		var indices: Array = []
+		for p in _players:
+			if p.index == _phase.current_player().index:
+				continue
+			options.append({"text": PlayerColor.name_of(p.color), "color": PlayerColor.to_color(p.color)})
+			indices.append(p.index)
+		if options.is_empty():
+			_ui.set_status("Dépassement : aucun autre joueur à dépasser.")
+			return
+		_ui.show_chooser("Dépassement — échange ta place avec :", options, func(choice: int) -> void:
+			if choice < 0:
+				return
+			if _phase.swap_positions(indices[choice]):
+				AudioManager.sfx(&"power")
+				_ui.set_status("Dépassement ! Place échangée.")
+				_refresh_highlights()
+				_update_active_marker()
+				_refresh_ui())
+	elif pid == &"coup_accelerateur":
+		var values := _dice.values()
+		if values.is_empty():
+			_ui.set_status("Coup d'Accélérateur : lance d'abord les dés.")
+			return
+		var options: Array = []
+		for v in values:
+			options.append({"text": "Dé : %d" % v, "color": UITheme.ORANGE})
+		_ui.show_chooser("Coup d'Accélérateur — relance quel dé ?", options, func(choice: int) -> void:
+			if choice < 0:
+				return
+			var old_value: int = values[choice]
+			var new_value := _dice.reroll(choice)
+			if _phase.apply_reroll(new_value - old_value):
+				AudioManager.sfx(&"power")
+				_show_dice(_dice.values())
+				_ui.set_status("Coup d'Accélérateur : %d → %d (%+d cases)." % [old_value, new_value, new_value - old_value])
+				_refresh_highlights()
+				_update_active_marker()
+				_refresh_ui())
+
+
+# Toast describing the effect of a non-interactive power that was just used.
+func _power_message(pid: StringName) -> String:
+	match pid:
+		&"bonne_marcheuse":
+			return "Bonne Marcheuse : +2 cases !"
+		&"carnet_adresses":
+			return "Carnet d'Adresses : ton prochain événement, pioche 2 et garde 1."
+		&"bouclier_vert":
+			return "Bouclier Vert : le prochain malus sera annulé."
+		&"habitue_quartier":
+			return "Habitué·e : ta prochaine livraison comptera au maximum."
+		&"passage_secret":
+			return "Passage Secret : tu peux franchir l'eau ce tour-ci !"
+		&"chargement_pro":
+			return "Chargement Pro : +1 livraison transportable."
+		_:
+			return "Super-pouvoir activé !"
 
 
 func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
@@ -424,26 +592,68 @@ func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
 	_refresh_ui()
 
 
-func _on_turn_changed(_player: Player) -> void:
+func _on_turn_changed(player: Player) -> void:
 	_can_roll = true
 	_clear_dice()
 	_refresh_highlights()
 	_update_active_marker()
 	_refresh_ui()
+	_ui.show_banner("Au tour de %s" % PlayerColor.name_of(player.color), PlayerColor.to_color(player.color))
 	_ui.set_status("À toi de jouer — lance les dés.")
 
 
 func _on_delivery_completed(delivery: Delivery, points: int) -> void:
 	# The destinataire was recycled (or cleared) — refresh that delivery's recipient card + status.
+	AudioManager.sfx(&"deliver")
+	_celebrate_delivery(delivery.recipient_cell)
 	_rebuild_recipient_marker(delivery)
 	_update_status_ring(delivery)  # back to DISPONIBLE -> ring removed
-	if _delivery_list != null:
-		_delivery_list.refresh_statuses()
+	if _delivery_panel != null:
+		_delivery_panel.refresh()
 	_ui.set_status("Livré ! +%d points." % points)
 	_refresh_ui()
 
 
+# A short confetti-like burst at [param cell] to celebrate a completed delivery (GL-safe CPU particles).
+func _celebrate_delivery(cell: Vector2i) -> void:
+	var particles := CPUParticles3D.new()
+	particles.emitting = false
+	particles.one_shot = true
+	particles.amount = 28
+	particles.lifetime = 0.9
+	particles.explosiveness = 0.9
+	particles.direction = Vector3.UP
+	particles.spread = 55.0
+	particles.initial_velocity_min = 2.5
+	particles.initial_velocity_max = 4.5
+	particles.gravity = Vector3(0, -6.0, 0)
+	particles.scale_amount_min = 0.12
+	particles.scale_amount_max = 0.2
+	particles.mesh = BoxMesh.new()
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true
+	particles.mesh.material = mat
+	particles.color_ramp = _confetti_ramp()
+	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
+	pos.y = GameConfig.TILE_HEIGHT + 0.3
+	particles.position = pos
+	add_child(particles)
+	particles.emitting = true
+	# Auto-clean once the burst is over.
+	get_tree().create_timer(1.4).timeout.connect(particles.queue_free)
+
+
+func _confetti_ramp() -> Gradient:
+	var g := Gradient.new()
+	g.set_color(0, Color("ffd23f"))
+	g.set_color(1, Color("ff6b6b"))
+	g.add_point(0.5, Color("4ecdc4"))
+	return g
+
+
 func _on_game_finished(scores: Dictionary) -> void:
+	AudioManager.sfx(&"victory")
 	_ui.show_end(scores, _players)
 
 
@@ -452,6 +662,10 @@ func _refresh_ui() -> void:
 	_ui.refresh(player, _phase.score_of(player))
 	_ui.set_round(_phase.round_number())
 	_ui.set_deliveries_remaining(_phase.deliveries_remaining())
+	if _delivery_panel != null:
+		_delivery_panel.set_remaining(_phase.deliveries_remaining())
+		_delivery_panel.set_current_player(player.index)
+	_ui.set_deck_counts(_events.draw_count(), _events.discard_count())
 	# The power needs the turn context (it acts during movement), so only offer it then — never a dead
 	# press during planning, and never silently wasted on an unimplemented effect.
 	var power_ready := player.character != null and not player.power_used and _phase.context() != null
@@ -467,19 +681,6 @@ func _current_action() -> int:
 	if _phase.current_subphase() == GamePhase.SubPhase.DEPLACEMENT and _phase.reservable_delivery() != null:
 		return PlayHud.Action.RESERVE
 	return PlayHud.Action.END_TURN
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and _delivery_list != null:
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed and _over_left_region():
-			_delivery_list.scroll_by(1)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed and _over_left_region():
-			_delivery_list.scroll_by(-1)
-
-
-# True if the mouse is over the left third of the screen (the delivery column).
-func _over_left_region() -> bool:
-	return get_viewport().get_mouse_position().x < get_viewport().get_visible_rect().size.x * 0.26
 
 
 func _load_events() -> Array[CardDefinition]:

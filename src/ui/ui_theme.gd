@@ -14,6 +14,46 @@ const TEXT := Color("f2f5f8")
 const ORANGE := Color("e8851f")
 const RED := Color("d33a30")
 const BLUE := Color("1f8fd0")
+const GREEN := Color("4caf50")
+
+# Bundled OFL fonts (see assets/fonts/OFL-*.txt). Nunito = clean body; Fredoka = rounded display.
+const FONT_BODY := "res://assets/fonts/Nunito.ttf"
+const FONT_DISPLAY := "res://assets/fonts/Fredoka.ttf"
+
+static var _body_font: Font = null
+static var _display_font: Font = null
+
+
+## The UI body font (Nunito, OFL) — legible at small sizes. Cached; null if the file is missing.
+static func body_font() -> Font:
+	if _body_font == null and ResourceLoader.exists(FONT_BODY):
+		_body_font = load(FONT_BODY)
+	return _body_font
+
+
+## The display font (Fredoka, OFL) — rounded and friendly, for titles, banners and the score. Cached.
+static func display_font() -> Font:
+	if _display_font == null and ResourceLoader.exists(FONT_DISPLAY):
+		_display_font = load(FONT_DISPLAY)
+	return _display_font
+
+
+## Installs the body font as the app-wide default ([member ThemeDB.fallback_font]) so every label picks
+## it up without per-control overrides. Call once at startup; titles still opt into [method display_font].
+## A no-op (keeping Godot's default font) if the bundled font is unavailable.
+static func install_fonts() -> void:
+	var body := body_font()
+	if body != null:
+		ThemeDB.fallback_font = body
+
+
+## Applies the rounded display font to [param label] at [param size] with the standard text colour.
+static func make_title(label: Label, size: int, color: Color = TEXT) -> void:
+	var font := display_font()
+	if font != null:
+		label.add_theme_font_override("font", font)
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
 
 
 ## A rounded, bordered, shadowed button background tinted [param base]. [param emphasis] brightens it
@@ -56,6 +96,33 @@ static func pill_style() -> StyleBoxFlat:
 	sb.content_margin_right = 16
 	sb.content_margin_top = 8
 	sb.content_margin_bottom = 8
+	return sb
+
+
+## A cohesive HUD panel/card background: rounded, subtle border + soft drop shadow. Shared by the side
+## panels and the delivery cards so the whole 2D chrome reads as one design.
+static func panel_card(bg: Color = Color("212734")) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.set_corner_radius_all(10)
+	sb.set_border_width_all(1)
+	sb.border_color = PANEL_BORDER
+	sb.shadow_color = SHADOW
+	sb.shadow_size = 5
+	sb.shadow_offset = Vector2(0, 2)
+	sb.set_content_margin_all(10)
+	return sb
+
+
+## A small filled, rounded status-pill background tinted [param color] (delivery status, badges).
+static func status_pill(color: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.set_corner_radius_all(8)
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
 	return sb
 
 

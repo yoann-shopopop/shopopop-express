@@ -44,5 +44,21 @@ func _ready() -> void:
 	play.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.BLUE, 1.6))
 	play.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.BLUE))
 	play.add_theme_color_override("font_color", UITheme.TEXT)
-	play.pressed.connect(func() -> void: start_requested.emit())
+	play.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		start_requested.emit())
 	box.add_child(play)
+
+	var sound := Button.new()
+	sound.text = "Son : activé"
+	sound.custom_minimum_size = Vector2(280, 52)
+	sound.focus_mode = Control.FOCUS_NONE
+	sound.add_theme_font_size_override("font_size", 22)
+	sound.add_theme_stylebox_override("normal", UITheme.button_style(UITheme.PANEL_BORDER))
+	sound.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.PANEL_BORDER, 1.6))
+	sound.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.PANEL_BORDER))
+	sound.add_theme_color_override("font_color", UITheme.TEXT)
+	sound.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		sound.text = "Son : coupé" if AudioManager.toggle_mute() else "Son : activé")
+	box.add_child(sound)
