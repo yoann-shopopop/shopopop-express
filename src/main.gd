@@ -127,6 +127,8 @@ func _on_setup_finished() -> void:
 	_game_root = GameRoot.new()
 	add_child(_game_root)
 	_game_root.setup(board, _players, _camera)
+	# The deliveries (random, possibly cross-tile) now exist: tell the board view where the drives are.
+	grid_view.set_drive_cells(_game_root.drive_cells())
 
 
 # --- Static library ---------------------------------------------------------

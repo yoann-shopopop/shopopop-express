@@ -49,6 +49,7 @@ func _run() -> void:
 	var game_root := GameRoot.new()
 	world.add_child(game_root)
 	game_root.setup(board, typed_players, camera)
+	grid.set_drive_cells(game_root.drive_cells())  # storefront art on the real (random) drives
 
 	await _frames(20)
 	await _capture(out_dir, "01_plateau")
@@ -59,7 +60,7 @@ func _run() -> void:
 	await _capture(out_dir, "02_apres_lancer")
 
 	# Walk a couple of greedy steps so the pawn is mid-board with the trajectory shown.
-	var deliveries := DeliverySetup.build(board)
+	var deliveries := game_root.deliveries()
 	for _i in range(3):
 		var phase := game_root.phase()
 		if phase == null or phase.movement() == null:

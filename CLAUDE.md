@@ -225,7 +225,7 @@ src/logic/      road_network.gd (RoadNetwork)  set de cases praticables (ROUTE+E
 src/movement/   turn_movement.gd (TurnMovement) marche réelle : revisite, ±budget, teleport_to
 src/game/       character_definition.gd        CharacterDefinition (Resource) : transport→dés, 2 couleurs, power_id
                 game_phase.gd (GamePhase)       boucle de tour + sous-phases + livraisons + events + score
-                delivery.gd / delivery_setup.gd Delivery (drive→destinataire, statut Disponible/Réservé/En cours/Livré) + génération (1/ tuile)
+                delivery.gd / delivery_setup.gd Delivery (drive→destinataire, statut Disponible/Réservé/En cours/Livré) + placement aléatoire cross-tuile (drive urbain / dest vert, atteignable)
                 score_calculator.gd             5 + 10 (tuile drive à ma couleur) + 10 (tuile destinataire à ma couleur)
                 turn_context.gd (TurnContext)   état mutable du tour (effets events/pouvoirs)
                 event_resolver.gd / power_resolver.gd  effets data-driven (match, pas de if géant)
@@ -251,10 +251,18 @@ budget ajustable (events ±) et téléportation (cartes). « Tuile à moi » = l
 (`PlacedPiece.owner`) égale la **couleur du joueur** (`Player.color`) — l'identité de score, pas les
 2 couleurs du personnage.
 
-**Atteignabilité (anti-softlock)** : `DeliverySetup` ne retient qu'un drive/destinataire **adjacents
-au réseau** (sinon la tuile est ignorée), sinon une livraison resterait à jamais en vol et la partie ne
-finirait pas. `RoadNetwork.distances_from/is_reachable` (BFS) sert ce contrôle et le pilote auto.
-Soak headless `tools/soak_test.gd` (50 parties 2→6 joueurs auto-pilotées, 0 softlock).
+**Placement aléatoire des livraisons** : `DeliverySetup.build(board, rng, max_count, excluded)` tire les
+**drives dans le pool global des cases URBAINES** et les **destinataires dans celui des cases VERTES**,
+puis les **apparie au hasard** (RNG injecté) — drive et destinataire **pas forcément sur la même tuile**
+(mono- OU bi-tuile). `Delivery.tiles = [tuile_drive, tuile_destinataire]` (drive d'abord) ; le scoring
+`ScoreCalculator` 5 + 10 (tuile drive) + 10 (tuile destinataire) gère le cross-tuile (5/15/25). Les cases
+de départ des joueurs sont exclues du pool destinataires. L'art « storefront » du drive est posé sur les
+**vraies** cases via `HexGridView.set_drive_cells(...)` (appelé par `Main`/le harnais après le build).
+
+**Atteignabilité (anti-softlock)** : seules des cases **adjacentes au réseau** entrent dans les pools, et
+chaque paire drive→destinataire est validée par `RoadNetwork.is_reachable` (BFS) — sinon une livraison
+resterait à jamais en vol et la partie ne finirait pas. Soak headless `tools/soak_test.gd` (50 parties
+2→6 joueurs auto-pilotées, **0 softlock**, livraisons cross-tuile incluses).
 
 **Les 8 super-pouvoirs sont jouables** (`PowerResolver`, `GamePhase`, `GameRoot`/`PlayHud`) :
 Bonne Marcheuse (+2), Carnet d'Adresses (défausse la carte écartée au lieu de la remettre au-dessus),
@@ -285,7 +293,8 @@ carte 3D placeholder + 2ᵉ clic d'activation — d'où l'impression d'« effet 
 ### Restant / à raffiner
 
 - **A\*** avec preview de trajectoire (le BFS `RoadNetwork.distances_from` est en place ; reste l'UI).
-- **Pose manuelle** des jetons drive/destinataire (V1 : placement auto post-setup, livraisons mono-tuile).
+- **Pose manuelle** des jetons drive/destinataire (V1 : placement **auto aléatoire** post-setup, drives
+  urbains / destinataires verts, mono- ou bi-tuile, atteignabilité garantie).
 - Effets d'événement **interactifs** (choix de cible/quartier) et **persistants inter-tours**.
 - **Multijoueur** distant : non implémenté (hot-seat 1 client) ; l'état est découplé et les joueurs identifiés.
 - 5–6 joueurs réutilisent une couleur de quartier (4 couleurs) — distingués par `Player.index`.

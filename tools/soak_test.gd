@@ -37,7 +37,7 @@ func _init() -> void:
 				continue
 			var board: Board = built["board"]
 			var players: Array = built["players"]
-			var deliveries := DeliverySetup.build(board)
+			var deliveries := DeliverySetup.build(board, rng, destinataires.size())
 			var generator := DeliveryGenerator.new(enseignes, destinataires, deliveries.size(), rng)
 			var combos := generator.combos()
 			for i in deliveries.size():

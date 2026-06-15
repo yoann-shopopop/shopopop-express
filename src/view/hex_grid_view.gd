@@ -14,6 +14,7 @@ var _markers: Node3D
 var _grounding: Node3D       # light pool + soft contact shadow under the whole assembled board
 var _shadow_tex: Texture2D
 var _glow_tex: Texture2D
+var _drive_cells: Dictionary = {}  # cells (set) that host a delivery's DRIVE storefront art
 
 
 func setup(board: Board, players: Array[Player]) -> void:
@@ -30,6 +31,16 @@ func setup(board: Board, players: Array[Player]) -> void:
 	_refresh()
 
 
+## Sets which cells host a delivery's DRIVE storefront art (the real, possibly cross-tile drives), then
+## redraws. Called by [Main] once [GameRoot] has built the deliveries.
+func set_drive_cells(cells: Array) -> void:
+	_drive_cells.clear()
+	for cell in cells:
+		_drive_cells[cell] = true
+	if _tiles_root != null:
+		_refresh()
+
+
 func _refresh() -> void:
 	_refresh_grounding()
 	for child in _tiles_root.get_children():
@@ -37,11 +48,10 @@ func _refresh() -> void:
 	for piece in _board.pieces():
 		var road_cells := TileSprite.road_cells_of(piece.typed_cells)
 		var piece_cells := TileSprite.cells_of(piece.typed_cells)
-		var drive_cell = DeliverySetup.drive_cell_of(piece, _board)  # road-reachable urban cell hosts the DRIVE art
 		for i in piece.typed_cells.size():
 			var tc: Dictionary = piece.typed_cells[i]
 			var local: Vector2i = piece.block_def.cells[i]
-			var is_drive: bool = drive_cell != null and tc["cell"] == drive_cell
+			var is_drive: bool = _drive_cells.has(tc["cell"])  # storefront art on the real delivery drives
 			_tiles_root.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, local, piece_cells, is_drive))
 	_refresh_outlines()
 	_refresh_markers()

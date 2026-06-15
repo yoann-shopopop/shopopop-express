@@ -1,63 +1,78 @@
 class_name DeliverySetup
 extends RefCounted
-## Builds the deliveries once the board is assembled: each placed tile carrying both a road-reachable
-## drive (urban cell) and a road-reachable recipient (green cell) yields one single-tile delivery.
-## Pieces without both — bridges, or tiles whose urban/green cells are all walled off from the road —
-## are skipped. So the number of deliveries equals the number of deliverable tiles posed. Pure & static.
-##
-## V1 keeps deliveries single-tile (drive + recipient on the same tile); the 1-or-2-tile span and
-## manual token placement (rules step 5-6) are a later refinement.
+## Builds the deliveries once the board is assembled, with RANDOM placement: each delivery pairs a
+## drive (any URBAN cell) with a recipient (any GREEN cell) drawn from board-wide pools — so a drive
+## and its recipient may sit on DIFFERENT tiles (mono- or bi-tile at random). Pure & static; the RNG is
+## injected for deterministic tests.
 ##
 ## REACHABILITY (critical): [TurnMovement.step] only advances onto a *walkable neighbour*, and the
-## turn's walkable set is roads + events + every delivery's drive/recipient cell. A drive/recipient
-## buried inside a tile with no road neighbour could therefore never be reached, leaving a delivery
-## permanently in flight so [member GamePhase.is_finished] never holds — the game would not end. We
-## guard against that here by only ever selecting cells adjacent to the walkable network.
+## turn's walkable set is roads + events + every delivery's drive/recipient cell. So we only pick cells
+## adjacent to the road network, and we verify each drive→recipient pair is actually reachable —
+## otherwise a delivery could never be completed and [member GamePhase.is_finished] would never hold.
+##
+## Tile order convention: [member Delivery.tiles] is [drive_tile] (mono) or [drive_tile, recipient_tile]
+## (bi) — drive first — matching [method Delivery.drive_tile_owner]/[method Delivery.recipient_tile_owner]
+## and the reservation check in [GamePhase] (reserve on the drive's tile).
 
 
-## Returns one [Delivery] per qualifying placed tile of [param board]. A tile qualifies only when it
-## has both a road-reachable drive and a road-reachable recipient (so the delivery can be completed).
-static func build(board: Board) -> Array[Delivery]:
+## Returns up to [param max_count] random deliveries (all of them when [param max_count] < 0). Drives
+## come from URBAN cells, recipients from GREEN cells, both reachable from the road network; cells in
+## [param excluded] are kept out of the recipient pool (e.g. player start cells).
+static func build(board: Board, rng: RandomNumberGenerator, max_count: int = -1, excluded: Dictionary = {}) -> Array[Delivery]:
 	var walkable := RoadNetwork.walkable_from_board(board)
+	var drives := _reachable_cells(board, CellType.Kind.URBAN, walkable, {})
+	var recipients := _reachable_cells(board, CellType.Kind.GREEN, walkable, excluded)
+	_shuffle(drives, rng)
+	_shuffle(recipients, rng)
+	# Every chosen drive/recipient cell becomes walkable during a turn, so treat all candidates as
+	# passable 'extra' when checking that a pair is mutually reachable.
+	var extra := {}
+	for cell in drives:
+		extra[cell] = true
+	for cell in recipients:
+		extra[cell] = true
+
+	var target := mini(drives.size(), recipients.size())
+	if max_count >= 0:
+		target = mini(target, max_count)
 	var deliveries: Array[Delivery] = []
-	for piece in board.pieces():
-		var drive = _reachable_cell_of_type(piece, CellType.Kind.URBAN, walkable)
-		if drive == null:
-			continue  # no urban cell next to a road: nothing pickable here (e.g. a bridge)
-		# The recipient may sit next to its own drive rather than the road — once picked up, the drive
-		# cell itself becomes walkable, so accept green cells adjacent to roads OR to the chosen drive.
-		var augmented := walkable.duplicate()
-		augmented[drive] = true
-		var recipient = _reachable_cell_of_type(piece, CellType.Kind.GREEN, augmented)
-		if recipient == null:
+	var di := 0
+	var ri := 0
+	while deliveries.size() < target and di < drives.size() and ri < recipients.size():
+		var drive: Vector2i = drives[di]
+		var recipient: Vector2i = recipients[ri]
+		if not RoadNetwork.is_reachable(walkable, drive, recipient, extra):
+			ri += 1  # unreachable pair (rare on a connected board): try the next recipient
 			continue
-		deliveries.append(Delivery.new(drive, recipient, [piece] as Array[PlacedPiece]))
+		var drive_piece := board.piece_at(drive)
+		var recipient_piece := board.piece_at(recipient)
+		var tiles: Array[PlacedPiece] = [drive_piece]
+		if recipient_piece != drive_piece:
+			tiles.append(recipient_piece)
+		deliveries.append(Delivery.new(drive, recipient, tiles))
+		di += 1
+		ri += 1
 	return deliveries
 
 
-## The drive (pickup) cell of [param piece]: a road-reachable URBAN cell, or null if none. Single
-## source of the "drive cell" rule, shared with the tile rendering (DRIVE storefront art) so the art
-## always sits on the same cell the delivery uses. [param board] supplies the road network.
-static func drive_cell_of(piece: PlacedPiece, board: Board):
-	return _reachable_cell_of_type(piece, CellType.Kind.URBAN, RoadNetwork.walkable_from_board(board))
-
-
-## The recipient (drop-off) cell of [param piece]: a road-reachable GREEN cell, or null if none.
-static func recipient_cell_of(piece: PlacedPiece, board: Board):
-	var walkable := RoadNetwork.walkable_from_board(board)
-	var drive = _reachable_cell_of_type(piece, CellType.Kind.URBAN, walkable)
-	if drive != null:
-		walkable[drive] = true
-	return _reachable_cell_of_type(piece, CellType.Kind.GREEN, walkable)
-
-
-# The first absolute cell of [param piece] of terrain [param kind] adjacent to a [param walkable] cell
-# — hence steppable onto from the network. null when the piece has no such cell (the caller skips it).
-static func _reachable_cell_of_type(piece: PlacedPiece, kind: int, walkable: Dictionary):
-	for tc in piece.typed_cells:
-		if tc["type"] != kind:
+# All cells of [param board] of terrain [param kind] adjacent to a [param walkable] cell (hence
+# steppable onto from the network), minus any cell in [param excluded].
+static func _reachable_cells(board: Board, kind: int, walkable: Dictionary, excluded: Dictionary) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for cell in board.cells_of_type(kind):
+		if excluded.has(cell):
 			continue
-		for neighbor in HexUtils.neighbors(tc["cell"]):
+		for neighbor in HexUtils.neighbors(cell):
 			if walkable.has(neighbor):
-				return tc["cell"]
-	return null
+				cells.append(cell)
+				break
+	return cells
+
+
+# Seeded Fisher-Yates shuffle in place (same pattern as SetupDistributor).
+static func _shuffle(cells: Array, rng: RandomNumberGenerator) -> void:
+	for i in range(cells.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp: Vector2i = cells[i]
+		cells[i] = cells[j]
+		cells[j] = tmp

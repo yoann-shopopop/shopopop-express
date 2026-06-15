@@ -12,6 +12,7 @@ const _REF_SIZE := 30.0  # the camera's default ortho size; overlays scale relat
 var _board: Board
 var _players: Array[Player]
 var _camera: Camera3D
+var _deliveries: Array[Delivery] = []  # the built deliveries (drive/recipient cells), exposed to the view
 var _phase: GamePhase
 var _dice: DiceRoller
 var _events: Deck
@@ -39,20 +40,52 @@ func hud() -> PlayHud:
 	return _ui
 
 
+## The built deliveries, exposed for scripting/demo/screenshot harnesses. Valid after [method setup].
+func deliveries() -> Array[Delivery]:
+	return _deliveries
+
+
+## The cells hosting a delivery's drive (for [HexGridView] to draw the storefront art on the real,
+## possibly cross-tile, drives). Valid after [method setup].
+func drive_cells() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for delivery in _deliveries:
+		cells.append(delivery.drive_cell)
+	return cells
+
+
+# Absolute board cells of the players' starts (same formula as GamePhase), excluded from the recipient
+# pool so a recipient never spawns under a pawn.
+func _start_cells() -> Dictionary:
+	var cells := {}
+	for player in _players:
+		if player.start_block == null:
+			continue
+		for piece in _board.pieces():
+			if piece.block_def == player.start_block:
+				cells[HexUtils.rotate(player.start_cell, piece.rotation) + piece.anchor] = true
+				break
+	return cells
+
+
 func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_board = board
 	_players = players
 	_camera = camera
-	var deliveries := DeliverySetup.build(board)
-	# Each tile becomes an enseigne slot clipped with a random destinataire; delivering recycles a new
-	# one until the pool is exhausted (DeliveryGenerator). One slot per deliverable tile.
-	var generator := DeliveryGenerator.new(_load_enseignes(), _load_destinataires(), deliveries.size())
+	# Random placement: drives (urban) and recipients (green) are drawn board-wide and paired at random
+	# (mono- or bi-tile), all reachable. Up to one per available destinataire; player starts are excluded
+	# from the recipient pool so a recipient never lands under a pawn's spawn.
+	var destinataires := _load_destinataires()
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	_deliveries = DeliverySetup.build(board, rng, destinataires.size(), _start_cells())
+	var generator := DeliveryGenerator.new(_load_enseignes(), destinataires, _deliveries.size(), rng)
 	var combos := generator.combos()
-	for i in deliveries.size():
+	for i in _deliveries.size():
 		if i < combos.size():
-			deliveries[i].enseigne = combos[i].enseigne
-			deliveries[i].destinataire = combos[i].destinataire
-	_phase = GamePhase.new(players, board, deliveries, generator)
+			_deliveries[i].enseigne = combos[i].enseigne
+			_deliveries[i].destinataire = combos[i].destinataire
+	_phase = GamePhase.new(players, board, _deliveries, generator)
 	_dice = DiceRoller.new()
 	_events = Deck.new(_load_events())
 	_events.shuffle()
@@ -69,11 +102,11 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 
 	for player in players:
 		_spawn_pawn(player)
-	_build_delivery_markers(deliveries)
+	_build_delivery_markers(_deliveries)
 	# The delivery list is a crisp 2D HUD panel (left column), child of the PlayHud CanvasLayer.
 	_delivery_panel = DeliveryPanel.new()
 	_ui.add_child(_delivery_panel)
-	_delivery_panel.build(deliveries, _players)
+	_delivery_panel.build(_deliveries, _players)
 
 	var move_controller := MovementController.new()
 	add_child(move_controller)
