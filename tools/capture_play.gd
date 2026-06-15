@@ -72,12 +72,12 @@ func _run() -> void:
 		await _frames(8)
 	await _capture(out_dir, "03_deplacement")
 
-	# Event-card modal (what shows when a pawn lands on a rainbow cell) — 2D, on the HUD CanvasLayer.
-	var sample := _load_one_event()
-	if sample != null:
+	# Event-card modal — base rule draws TWO, keep one (2D, on the HUD CanvasLayer).
+	var samples := _load_events(2)
+	if not samples.is_empty():
 		var modal := EventModal.new()
 		game_root.hud().add_child(modal)
-		modal.present([sample])
+		modal.present(samples)
 		await _frames(24)
 		await _capture(out_dir, "06_evenement")
 		modal.queue_free()
@@ -103,13 +103,14 @@ func _run() -> void:
 	quit(0)
 
 
-func _load_one_event() -> EventCardDefinition:
+func _load_events(count: int) -> Array:
+	var result: Array = []
 	var dir := DirAccess.open("res://resources/events/")
 	if dir:
 		for file in dir.get_files():
-			if file.ends_with(".tres"):
-				return load("res://resources/events/" + file)
-	return null
+			if file.ends_with(".tres") and result.size() < count:
+				result.append(load("res://resources/events/" + file))
+	return result
 
 
 func _load_characters() -> Array:

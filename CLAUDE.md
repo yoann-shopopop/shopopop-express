@@ -107,9 +107,10 @@ Concepts clés à modéliser. Les entités forment naturellement des `Resource` 
 - **Pouvoirs interactifs/différés** : tous les 8 pouvoirs sont jouables (cf. plus bas). Margot
   (`chargement_pro`) = **+1 livraison simultanée** persistante ; Gégé (`passage_secret`) = **l'eau
   devient franchissable ce tour** ; Camille (`habitue_quartier`) = **prochaine livraison comptée au
-  max (25)** ; Charlie (`carnet_adresses`) = **prochain événement : pioche 2, garde 1** (par défaut on
-  pioche **1**). Les bénéfices différés (Charlie, Axel·le, Camille, Margot) vivent sur le `Player` →
-  jamais gâchés en silence.
+  max (25)**. **Pioche d'événement (règle de base, tous)** : **pioche 2, garde 1, l'autre revient
+  AU-DESSUS du deck**. Charlie (`carnet_adresses`) ne change que le sort de la carte écartée : elle est
+  **défaussée** (retirée) au lieu de revenir au-dessus. Les bénéfices différés (Charlie, Axel·le,
+  Camille, Margot) vivent sur le `Player` → jamais gâchés en silence.
 - **Événements `rejouer` / `dé bonus`** : *Tous les Feux au Vert* = le **même joueur rejoue** un tour ;
   *Prime Gouvernementale* = on lance le(s) **dé(s) bonus immédiatement** et on les ajoute au budget.
 - **Coopératif** : scores individuels **classés** (meilleur·e mis en avant) + **total collectif** à
@@ -256,7 +257,8 @@ finirait pas. `RoadNetwork.distances_from/is_reachable` (BFS) sert ce contrôle 
 Soak headless `tools/soak_test.gd` (50 parties 2→6 joueurs auto-pilotées, 0 softlock).
 
 **Les 8 super-pouvoirs sont jouables** (`PowerResolver`, `GamePhase`, `GameRoot`/`PlayHud`) :
-Bonne Marcheuse (+2), Carnet d'Adresses (pioche 2/garde 1), Bouclier Vert (annule le prochain malus),
+Bonne Marcheuse (+2), Carnet d'Adresses (défausse la carte écartée au lieu de la remettre au-dessus),
+Bouclier Vert (annule le prochain malus),
 Habitué·e (livraison comptée au max), Passage Secret (eau franchissable ce tour), Chargement Pro (+1
 livraison simultanée), Dépassement (échange de case — sélecteur), Coup d'Accélérateur (relance d'un dé
 — sélecteur). Bénéfices différés portés par `Player` (jamais gâchés) ; interactifs via méthodes pures

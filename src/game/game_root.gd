@@ -24,6 +24,7 @@ var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
 var _active_marker: Node3D              # ring under the active pawn + floating steps badge above it
 var _event_modal: EventModal            # active event card choice (2D HUD modal), if any
+var _event_discards_rejected: bool = false  # Carnet d'Adresses: discard the rejected card instead of top-decking
 var _delivery_panel: DeliveryPanel
 
 
@@ -388,18 +389,16 @@ func _update_status_ring(delivery: Delivery) -> void:
 
 
 func _on_event_triggered(_cell: Vector2i) -> void:
-	# Draw the event card(s): normally one (forced), but two when the player armed Carnet d'Adresses
-	# (Charlie) — then they keep one and the other returns to the deck. Movement is paused (EVENEMENT)
-	# until the choice resolves.
+	# Base rule: draw TWO event cards, keep one, the other goes back ON TOP of the deck. Carnet
+	# d'Adresses (Charlie) changes only the fate of the rejected card — it is DISCARDED instead of put
+	# back on top. Movement is paused (EVENEMENT) until the choice resolves.
 	var player := _phase.current_player()
-	var count := 1
-	if player.pending_draw_two:
-		count = 2
-		player.pending_draw_two = false
-	var drawn := _events.draw(count)
+	var drawn := _events.draw(2)
 	if drawn.is_empty():
 		_phase.end_turn()  # deck somehow empty: don't strand the player in EVENEMENT
 		return
+	_event_discards_rejected = player.pending_draw_two
+	player.pending_draw_two = false
 	AudioManager.sfx(&"event")
 	_ui.show_banner("Événement !", UITheme.ORANGE)
 	_refresh_highlights()  # clears the markers while the cards are up
@@ -407,18 +406,23 @@ func _on_event_triggered(_cell: Vector2i) -> void:
 	_ui.add_child(_event_modal)  # 2D modal on the HUD CanvasLayer
 	_event_modal.resolved.connect(_on_event_resolved)
 	_event_modal.present(drawn)
-	if count == 2:
-		_ui.set_status("Carnet d'Adresses : pioche 2, garde la carte qui t'arrange.")
+	if _event_discards_rejected:
+		_ui.set_status("Carnet d'Adresses : garde 1 carte, l'autre est défaussée.")
 	else:
-		_ui.set_status("Événement ! Clique la carte pour l'activer.")
+		_ui.set_status("Garde 1 carte — l'autre repart au-dessus du deck.")
 
 
 func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
 	var ctx := _phase.context()
 	_phase.apply_event(chosen)
 	_events.discard(chosen)
+	# Base: the rejected card returns to the top of the deck. Carnet d'Adresses discards it instead.
 	for card in discarded:
-		_events.return_to_top(card)
+		if _event_discards_rejected:
+			_events.discard(card)
+		else:
+			_events.return_to_top(card)
+	_event_discards_rejected = false
 	_event_modal = null
 	if ctx != null and ctx.shield_consumed:
 		ctx.shield_consumed = false
