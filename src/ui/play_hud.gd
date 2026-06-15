@@ -37,6 +37,8 @@ var _action: int = Action.ROLL
 var _char_frame: Panel       # framed character card of the current player (right of the board)
 var _char_card: TextureRect
 var _chooser: Control        # transient modal chooser (interactive powers), null when none
+var _deck_count: Label       # live PIOCHE count on the deck pile
+var _discard_count: Label    # live DÉFAUSSE count on the discard pile
 
 
 var _banner: Label
@@ -236,8 +238,8 @@ func _theme_button(btn: Button, base: Color) -> void:
 
 
 func _build_card_backings() -> void:
-	# DECK (face-down pile) and DÉFAUSSE, always visible at the bottom-right as card-shaped backings.
-	# The two drawn event cards appear large at screen center during a rainbow event (pinned by GameRoot).
+	# DECK (face-down pile) and DÉFAUSSE, always visible at the bottom-right with a live card count.
+	# Drawn event cards appear large at screen center during a rainbow event (pinned by GameRoot).
 	var row := HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	row.offset_right = -70
@@ -247,19 +249,27 @@ func _build_card_backings() -> void:
 	row.add_theme_constant_override("separation", 18)
 	add_child(row)
 	# DECK reads as the active pile (blue accent), DÉFAUSSE as a neutral one.
-	row.add_child(_card_pile("DECK", UITheme.BLUE, true))
-	row.add_child(_card_pile("DÉFAUSSE", UITheme.PANEL_BORDER, false))
+	_deck_count = Label.new()
+	row.add_child(_card_pile("PIOCHE", UITheme.BLUE, true, _deck_count))
+	_discard_count = Label.new()
+	row.add_child(_card_pile("DÉFAUSSE", UITheme.PANEL_BORDER, false, _discard_count))
 
 
-# A card-shaped backing (shared UITheme tray look) with a caption under it. [param accent] colors the
-# border; [param active] thickens it (DECK vs DÉFAUSSE).
-func _card_pile(caption: String, accent: Color, active: bool) -> VBoxContainer:
+# A card-shaped backing (shared UITheme tray look) with a big live count on it and a caption under it.
+# [param accent] colors the border; [param active] thickens it (PIOCHE vs DÉFAUSSE).
+func _card_pile(caption: String, accent: Color, active: bool, count_label: Label) -> VBoxContainer:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	var card := Panel.new()
 	card.custom_minimum_size = Vector2(132, 188)
 	card.add_theme_stylebox_override("panel", UITheme.tray_card_style(accent, active))
+	count_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	count_label.text = "0"
+	UITheme.make_title(count_label, 44)
+	card.add_child(count_label)
 	col.add_child(card)
 	var lbl := Label.new()
 	lbl.text = caption
@@ -268,6 +278,14 @@ func _card_pile(caption: String, accent: Color, active: bool) -> VBoxContainer:
 	lbl.add_theme_color_override("font_color", UITheme.TEXT)  # light text on the dark backdrop
 	col.add_child(lbl)
 	return col
+
+
+## Updates the PIOCHE / DÉFAUSSE pile counters.
+func set_deck_counts(draw_count: int, discard_count: int) -> void:
+	if _deck_count != null:
+		_deck_count.text = str(draw_count)
+	if _discard_count != null:
+		_discard_count.text = str(discard_count)
 
 
 func _small_button(text: String) -> Button:

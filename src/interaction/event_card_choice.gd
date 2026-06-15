@@ -10,7 +10,7 @@ signal resolved(chosen: EventCardDefinition, discarded: Array)
 
 enum _State { CHOOSING, DONE }
 
-const _REVEAL: Array[Vector3] = [Vector3(-1.3, 0.0, 0.0), Vector3(1.3, 0.0, 0.0)]
+const _REVEAL: Array[Vector3] = [Vector3(-1.18, 0.0, 0.0), Vector3(1.18, 0.0, 0.0)]
 const _ACTIVE := Vector3(0.0, 0.0, 1.8)
 const _AWAY := Vector3(0.0, 0.0, -3.0)
 
@@ -28,13 +28,18 @@ func present(cards: Array, camera: Camera3D, anchor: Vector3) -> void:
 	for i in cards.size():
 		var view := CardView.new()
 		add_child(view)
-		view.bind(cards[i])
+		var card = cards[i]
+		# Event cards wear the designed 2D face (rendered to a texture); other cards use their own art.
+		if card is EventCardDefinition:
+			view.bind(card, EventCardFace.build_texture(card, view))
+		else:
+			view.bind(card)
 		view.set_face_up(false)
 		view.position = Vector3.ZERO
 		# A lone forced card is centered; two cards spread left/right for the keep-1 choice.
 		var slot := Vector3.ZERO if cards.size() == 1 else _REVEAL[i % _REVEAL.size()]
 		view.animate_deal(slot, i * 0.12)
-		_entries.append({"view": view, "card": cards[i]})
+		_entries.append({"view": view, "card": card})
 	_state = _State.CHOOSING
 
 

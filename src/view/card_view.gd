@@ -18,12 +18,16 @@ const _DEAL_ARC_HEIGHT := 1.6
 const _SLIDE_TIME := 0.35
 
 
-## Builds the card meshes for [param card]. The front uses the card's placeholder art (or a flat
-## color when none); the back is the shared logo + "CARD_TYPE".
-func bind(card: CardDefinition) -> void:
+## Builds the card meshes for [param card]. The front uses [param face_override] when given (a fully
+## designed 2D face rendered to a texture — it already carries the title/effect, so no extra label),
+## otherwise the card's placeholder art + its name label. The back is the shared logo + "CARD_TYPE".
+func bind(card: CardDefinition, face_override: Texture2D = null) -> void:
 	_build_body()
-	_build_front(card.front_texture)
-	_build_front_label(card.display_name)
+	if face_override != null:
+		_build_front(face_override)
+	else:
+		_build_front(card.front_texture)
+		_build_front_label(card.display_name)
 	_build_back()
 
 

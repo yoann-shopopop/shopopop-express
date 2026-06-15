@@ -23,7 +23,7 @@ var _can_roll: bool = true
 var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
 var _active_marker: Node3D              # ring under the active pawn + floating steps badge above it
-var _event_modal: EventModal            # active event card choice (2D HUD modal), if any
+var _event_choice: EventCardChoice      # active animated card draw (CardView), if any
 var _event_discards_rejected: bool = false  # Carnet d'Adresses: discard the rejected card instead of top-decking
 var _delivery_panel: DeliveryPanel
 
@@ -150,7 +150,10 @@ func _process(_delta: float) -> void:
 	if _dice_views != null and _dice_views.get_child_count() > 0:
 		_dice_views.position = center + Vector3(-half_w * 0.30, 1.0, half_h * 0.40)
 		_dice_views.scale = Vector3.ONE * 3.2 * zoom
-	# (The event card choice is a 2D HUD modal now — no world pinning needed.)
+	if _event_choice != null and is_instance_valid(_event_choice):
+		# Drawn event cards: large, near screen center so they're unmistakable during a rainbow event.
+		_event_choice.position = center + Vector3(0.0, 1.0, half_h * 0.02)
+		_event_choice.scale = Vector3.ONE * 8.0 * zoom
 
 
 func _spawn_pawn(player: Player) -> void:
@@ -399,13 +402,14 @@ func _on_event_triggered(_cell: Vector2i) -> void:
 		return
 	_event_discards_rejected = player.pending_draw_two
 	player.pending_draw_two = false
+	_ui.set_deck_counts(_events.draw_count(), _events.discard_count())  # pile drops as the cards are drawn
 	AudioManager.sfx(&"event")
 	_ui.show_banner("Événement !", UITheme.ORANGE)
 	_refresh_highlights()  # clears the markers while the cards are up
-	_event_modal = EventModal.new()
-	_ui.add_child(_event_modal)  # 2D modal on the HUD CanvasLayer
-	_event_modal.resolved.connect(_on_event_resolved)
-	_event_modal.present(drawn)
+	_event_choice = EventCardChoice.new()
+	add_child(_event_choice)  # 3D cards dealt over the board, pinned to screen by _process
+	_event_choice.resolved.connect(_on_event_resolved)
+	_event_choice.present(drawn, _camera, Vector3.ZERO)
 	if _event_discards_rejected:
 		_ui.set_status("Carnet d'Adresses : garde 1 carte, l'autre est défaussée.")
 	else:
@@ -423,7 +427,7 @@ func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
 		else:
 			_events.return_to_top(card)
 	_event_discards_rejected = false
-	_event_modal = null
+	_event_choice = null
 	if ctx != null and ctx.shield_consumed:
 		ctx.shield_consumed = false
 		_ui.set_status("Bouclier Vert : malus « %s » annulé !" % chosen.display_name)
@@ -619,6 +623,7 @@ func _refresh_ui() -> void:
 	if _delivery_panel != null:
 		_delivery_panel.set_remaining(_phase.deliveries_remaining())
 		_delivery_panel.set_current_player(player.index)
+	_ui.set_deck_counts(_events.draw_count(), _events.discard_count())
 	# The power needs the turn context (it acts during movement), so only offer it then — never a dead
 	# press during planning, and never silently wasted on an unimplemented effect.
 	var power_ready := player.character != null and not player.power_used and _phase.context() != null

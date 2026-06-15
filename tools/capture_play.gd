@@ -72,15 +72,16 @@ func _run() -> void:
 		await _frames(8)
 	await _capture(out_dir, "03_deplacement")
 
-	# Event-card modal — base rule draws TWO, keep one (2D, on the HUD CanvasLayer).
+	# Event-card draw — base rule draws TWO, keep one (animated CardView with the designed 2D face).
 	var samples := _load_events(2)
 	if not samples.is_empty():
-		var modal := EventModal.new()
-		game_root.hud().add_child(modal)
-		modal.present(samples)
-		await _frames(24)
+		var choice := EventCardChoice.new()
+		world.add_child(choice)
+		choice.scale = Vector3.ONE * 8.0
+		choice.present(samples, camera, Vector3(camera.global_position.x, 1.0, camera.global_position.z))
+		await _frames(48)  # let the deal animation finish and the face SubViewports render
 		await _capture(out_dir, "06_evenement")
-		modal.queue_free()
+		choice.queue_free()
 		await _frames(2)
 
 	# End-of-game scoreboard (fabricated from the current scores).
