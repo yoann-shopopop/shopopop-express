@@ -1,7 +1,7 @@
 extends GutTest
-## Tests for DeliverySetup — RANDOM placement: drives on URBAN cells, recipients on GREEN cells, drawn
-## board-wide and paired at random (mono- or bi-tile), all reachable. Cells walled off from the road
-## are excluded so no delivery is ever undeliverable.
+## Tests for DeliverySetup — RANDOM placement under per-tile quotas: 1 drive (URBAN) + 1 recipient
+## (GREEN) per tile, paired 1-to-1 in shuffled order (so a recipient may sit on another tile). All cells
+## reachable; cells walled off from the road are excluded so no delivery is ever undeliverable.
 
 
 func _rng(seed_value: int) -> RandomNumberGenerator:
@@ -105,6 +105,25 @@ func test_excluded_cells_are_never_recipients() -> void:
 	var excluded := {Vector2i(-1, 1): true}  # tile A's green cell
 	for delivery in DeliverySetup.build(board, _rng(3), -1, excluded):
 		assert_ne(delivery.recipient_cell, Vector2i(-1, 1), "excluded green cell is kept out of recipients")
+
+
+# Per-tile quota: a tile rich in urban/green cells still yields exactly one drive and one recipient.
+func test_one_drive_and_one_recipient_per_tile() -> void:
+	var board := Board.new()
+	var b := BlockDefinition.new()
+	b.id = &"rich_tile"
+	# route + 2 urban (both road-adjacent) + 2 green (both road-adjacent).
+	b.cells = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)] as Array[Vector2i]
+	b.cell_types = [
+		CellType.Kind.ROUTE, CellType.Kind.URBAN, CellType.Kind.URBAN,
+		CellType.Kind.GREEN, CellType.Kind.GREEN,
+	]
+	b.connectors = [Vector2i(0, 0)] as Array[Vector2i]
+	board.place(b, Vector2i.ZERO, 0, PlayerColor.Kind.RED, false)
+	var deliveries := DeliverySetup.build(board, _rng(1))
+	assert_eq(deliveries.size(), 1, "one tile -> one delivery (1 drive + 1 recipient)")
+	assert_eq(board.cell_type_at(deliveries[0].drive_cell), CellType.Kind.URBAN)
+	assert_eq(board.cell_type_at(deliveries[0].recipient_cell), CellType.Kind.GREEN)
 
 
 func _adjacent_to_any(cell: Vector2i, walkable: Dictionary) -> bool:

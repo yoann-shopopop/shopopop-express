@@ -251,13 +251,15 @@ budget ajustable (events ±) et téléportation (cartes). « Tuile à moi » = l
 (`PlacedPiece.owner`) égale la **couleur du joueur** (`Player.color`) — l'identité de score, pas les
 2 couleurs du personnage.
 
-**Placement aléatoire des livraisons** : `DeliverySetup.build(board, rng, max_count, excluded)` tire les
-**drives dans le pool global des cases URBAINES** et les **destinataires dans celui des cases VERTES**,
-puis les **apparie au hasard** (RNG injecté) — drive et destinataire **pas forcément sur la même tuile**
-(mono- OU bi-tuile). `Delivery.tiles = [tuile_drive, tuile_destinataire]` (drive d'abord) ; le scoring
-`ScoreCalculator` 5 + 10 (tuile drive) + 10 (tuile destinataire) gère le cross-tuile (5/15/25). Les cases
-de départ des joueurs sont exclues du pool destinataires. L'art « storefront » du drive est posé sur les
-**vraies** cases via `HexGridView.set_drive_cells(...)` (appelé par `Main`/le harnais après le build).
+**Placement aléatoire des livraisons** : `DeliverySetup.build(board, rng, max_count, excluded)` pose
+**1 drive (case URBAINE) + 1 destinataire (case VERTE) par tuile**, puis **apparie drives et
+destinataires 1-à-1 dans un ordre mélangé** (RNG injecté) → le destinataire d'une livraison n'est **pas
+forcément sur la tuile de son drive** (mono- OU bi-tuile). 1 livraison par tuile.
+`Delivery.tiles = [tuile_drive, tuile_destinataire]` (drive d'abord) ; le scoring `ScoreCalculator`
+5 + 10 (tuile drive) + 10 (tuile destinataire) gère le cross-tuile (5/15/25). Les identités (enseigne +
+destinataire) sont attribuées par livraison via `DeliveryGenerator` (`GameRoot`). Les cases de départ
+des joueurs sont exclues du pool destinataires. L'art « storefront » du drive est posé sur les **vraies**
+cases via `HexGridView.set_drive_cells(...)` (appelé par `Main`/le harnais après le build).
 
 **Atteignabilité (anti-softlock)** : seules des cases **adjacentes au réseau** entrent dans les pools, et
 chaque paire drive→destinataire est validée par `RoadNetwork.is_reachable` (BFS) — sinon une livraison

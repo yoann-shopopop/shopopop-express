@@ -219,10 +219,11 @@ pioche-en 2 et garde celle qui t'arrange (défausse l'autre). *Défausse la cart
   pont reste *setup-only* ; *Passage Secret* rend l'eau franchissable un tour.
 - **Cumul des doublements de points** (*Livraison Écologique*) : effet ponctuel ou persistant ? → **Défaut
   V1** : ponctuel, **non cumulatif** (un seul ×2 par livraison).
-- **Placement aléatoire cross-tuile** *(implémenté 2026-06-15)* : drives (cases urbaines) et
-  destinataires (cases vertes) tirés au hasard sur tout le plateau, appariés aléatoirement (mono- ou
-  bi-tuile), atteignabilité garantie. Le score 5/15/25 récompense donc séparément la tuile du drive et
-  celle du destinataire (les livraisons « compactes » mono-tuile à ta couleur valent le max, 25).
+- **Placement aléatoire cross-tuile** *(implémenté 2026-06-15)* : **1 drive (case urbaine) + 1
+  destinataire (case verte) par tuile** (donc 1 livraison par tuile), puis drives et destinataires
+  **appariés au hasard** — le destinataire n'est pas forcément sur la tuile de son drive (mono- ou
+  bi-tuile), atteignabilité garantie. Le score 5/15/25 récompense séparément la tuile du drive et celle
+  du destinataire (une livraison mono-tuile à ta couleur vaut le max, 25).
 - **Variance** : événements « téléportation » (*Faille Spatio-Temporelle*, *Escorte Policière*,
   *Raccourci Secret*) et **5/5 (+20 pts)** très swingy.
 - **Mini-effets de destinataire** : le catalogue des destinataires (sous-page Notion « 📦 Les
