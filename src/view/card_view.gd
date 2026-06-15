@@ -1,7 +1,8 @@
 class_name CardView
 extends Node3D
-## Minimal 3D view of a single card: a thin slab with a placeholder front and a shared back
-## (logo + "CARD_TYPE"). Flip it with [method set_face_up]. Pure rendering, no game logic.
+## Minimal 3D view of a single card: a thin slab whose front/back can be a designed 2D texture (see
+## [method bind]'s overrides — used by the event cards) or the legacy placeholder art + logo. Flip it
+## with [method set_face_up]. Pure rendering, no game logic.
 
 const WIDTH := 1.0
 const HEIGHT := 1.4
@@ -20,15 +21,19 @@ const _SLIDE_TIME := 0.35
 
 ## Builds the card meshes for [param card]. The front uses [param face_override] when given (a fully
 ## designed 2D face rendered to a texture — it already carries the title/effect, so no extra label),
-## otherwise the card's placeholder art + its name label. The back is the shared logo + "CARD_TYPE".
-func bind(card: CardDefinition, face_override: Texture2D = null) -> void:
+## otherwise the card's placeholder art + its name label. The back uses [param back_override] when given
+## (a designed back texture), otherwise the legacy logo + "CARD_TYPE" placeholder.
+func bind(card: CardDefinition, face_override: Texture2D = null, back_override: Texture2D = null) -> void:
 	_build_body()
 	if face_override != null:
 		_build_front(face_override)
 	else:
 		_build_front(card.front_texture)
 		_build_front_label(card.display_name)
-	_build_back()
+	if back_override != null:
+		_build_back_texture(back_override)
+	else:
+		_build_back()
 
 
 ## Face up (front on top) or face down (back/logo on top).
@@ -128,6 +133,22 @@ func _build_front_label(text: String) -> void:
 	label.position = Vector3(0.0, THICKNESS * 0.5 + 0.006, 0.0)
 	label.rotation_degrees = Vector3(-90, 0, 0)  # lie flat on the front face, readable from above
 	add_child(label)
+
+
+# A designed back: a single plane on the underside carrying [param texture]. Reads upright when the
+# card is flipped face-down (the plane's 180° pre-flip cancels the card's flip). No placeholder label.
+func _build_back_texture(texture: Texture2D) -> void:
+	var back := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(WIDTH * 0.92, HEIGHT * 0.92)
+	back.mesh = plane
+	back.position = Vector3(0.0, -THICKNESS * 0.5 - 0.004, 0.0)
+	back.rotation_degrees = Vector3(180, 0, 0)
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_texture = texture
+	back.material_override = material
+	add_child(back)
 
 
 func _build_back() -> void:

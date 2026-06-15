@@ -31,13 +31,14 @@ func present(cards: Array, camera: Camera3D, anchor: Vector3) -> void:
 	_camera = camera
 	position = anchor
 	# Scale is driven by the host (GameRoot pins/sizes the choice to the screen); default to 1 here.
+	var back_texture := CardBackFace.build_texture(self)  # shared designed back for the drawn cards
 	for i in cards.size():
 		var view := CardView.new()
 		add_child(view)
 		var card = cards[i]
-		# Event cards wear the designed 2D face (rendered to a texture); other cards use their own art.
+		# Event cards wear the designed 2D face + back (rendered to textures); other cards use their art.
 		if card is EventCardDefinition:
-			view.bind(card, EventCardFace.build_texture(card, view))
+			view.bind(card, EventCardFace.build_texture(card, view), back_texture)
 		else:
 			view.bind(card)
 		view.set_face_up(false)

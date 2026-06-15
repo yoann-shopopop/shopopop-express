@@ -84,6 +84,18 @@ func _run() -> void:
 		choice.queue_free()
 		await _frames(2)
 
+		# Card back design (face-down card).
+		var back_card := CardView.new()
+		world.add_child(back_card)
+		back_card.scale = Vector3.ONE * 8.0
+		back_card.position = Vector3(camera.global_position.x, 5.0, camera.global_position.z)
+		back_card.bind(samples[0], null, CardBackFace.build_texture(back_card))
+		back_card.set_face_up(false)
+		await _frames(20)
+		await _capture(out_dir, "07_dos")
+		back_card.queue_free()
+		await _frames(2)
+
 	# End-of-game scoreboard (fabricated from the current scores).
 	var phase := game_root.phase()
 	if phase != null:
