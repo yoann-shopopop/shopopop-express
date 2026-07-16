@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="EnseigneDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/enseignes/enseigne_definition.gd" id="1_ens"]
+
+[resource]
+script = ExtResource("1_ens")
+id = &"fanfan_fleurs"
+display_name = "Fanfan Fleurs"
+color = Color(0.2627451, 0.6666667, 0.545098, 1)

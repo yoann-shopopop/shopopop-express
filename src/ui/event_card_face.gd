@@ -38,13 +38,13 @@ func populate(card: EventCardDefinition) -> void:
 	box.add_theme_constant_override("separation", 16)
 	add_child(box)
 
-	box.add_child(_pill("MALUS" if card.is_malus else "AVANTAGE", accent, 22))
+	box.add_child(_pill(tr("MALUS") if card.is_malus else tr("AVANTAGE"), accent, 22))
 
 	var name_lbl := Label.new()
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	UITheme.make_title(name_lbl, 36)
-	name_lbl.text = card.display_name
+	name_lbl.text = tr(card.display_name)
 	box.add_child(name_lbl)
 
 	box.add_child(_pill(_headline(card), accent.darkened(0.12), 30))
@@ -66,7 +66,7 @@ func populate(card: EventCardDefinition) -> void:
 		velo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		velo.add_theme_font_size_override("font_size", 18)
 		velo.add_theme_color_override("font_color", UITheme.BLUE)
-		velo.text = "À vélo uniquement"
+		velo.text = tr("À vélo uniquement")
 		box.add_child(velo)
 
 
@@ -90,37 +90,37 @@ func _pill(text: String, color: Color, font_size: int) -> Control:
 func _headline(card: EventCardDefinition) -> String:
 	match card.effect:
 		E.BONUS_CASES:
-			return "+%d cases" % card.amount
+			return tr("+%d cases") % card.amount
 		E.MALUS_CASES:
-			return "−%d cases" % card.amount
+			return tr("−%d cases") % card.amount
 		E.BONUS_SCORE:
-			return "+%d pts" % card.amount
+			return tr("+%d pts") % card.amount
 		E.DOUBLE_DICE:
-			return "Déplacement ×2"
+			return tr("Déplacement ×2")
 		E.DOUBLE_SCORE_LIVRAISON:
-			return "Livraison ×2"
+			return tr("Livraison ×2")
 		E.EXTRA_DIE:
-			return "Dé bonus"
+			return tr("Dé bonus")
 		E.REJOUER:
-			return "Rejoue !"
+			return tr("Rejoue !")
 		E.FIN_TOUR:
-			return "Fin du tour"
+			return tr("Fin du tour")
 		E.RETOUR_DRIVE:
-			return "Retour drive"
+			return tr("Retour drive")
 		E.RETOUR_DEPART:
-			return "Retour départ"
+			return tr("Retour départ")
 		E.TELEPORT_DESTINATION:
-			return "Téléportation"
+			return tr("Téléportation")
 		E.TELEPORT_QUARTIER:
-			return "Faille"
+			return tr("Faille")
 		E.TELEPORT_PARALLELE:
-			return "Raccourci"
+			return tr("Raccourci")
 		E.BUDGET_UN_DE:
-			return "Budget ÷2"
+			return tr("Budget ÷2")
 		E.ROUTE_BLOQUEE:
-			return "−3 cases"
+			return tr("−3 cases")
 		E.PONTS_FERMES:
-			return "−2 cases"
+			return tr("−2 cases")
 		_:
 			return "—"
 
@@ -129,36 +129,36 @@ func _headline(card: EventCardDefinition) -> String:
 func _describe(card: EventCardDefinition) -> String:
 	match card.effect:
 		E.BONUS_CASES:
-			return "Avance de %d cases supplémentaires ce tour." % card.amount
+			return tr("Avance de %d cases supplémentaires ce tour.") % card.amount
 		E.MALUS_CASES:
-			return "Tu perds %d cases de déplacement." % card.amount
+			return tr("Tu perds %d cases de déplacement.") % card.amount
 		E.BONUS_SCORE:
-			return "Gagne %d points immédiatement." % card.amount
+			return tr("Gagne %d points immédiatement.") % card.amount
 		E.DOUBLE_DICE:
-			return "Double ton déplacement restant."
+			return tr("Double ton déplacement restant.")
 		E.DOUBLE_SCORE_LIVRAISON:
-			return "Ta prochaine livraison rapporte le double."
+			return tr("Tes livraisons terminées ce tour-ci rapportent le double.")
 		E.EXTRA_DIE:
-			return "Lance un dé de plus, ajouté à ton déplacement."
+			return tr("Lance un dé de plus, ajouté à ton déplacement.")
 		E.REJOUER:
-			return "Tu rejoues un tour complet juste après."
+			return tr("Tu rejoues un tour complet juste après.")
 		E.FIN_TOUR:
-			return "Ton déplacement s'arrête immédiatement."
+			return tr("Ton déplacement s'arrête immédiatement.")
 		E.RETOUR_DRIVE:
-			return "Retourne au point de retrait de ta livraison."
+			return tr("Retourne au point de retrait de ta livraison.")
 		E.RETOUR_DEPART:
-			return "Retourne à ton point de départ."
+			return tr("Retourne à ton point de départ.")
 		E.TELEPORT_DESTINATION:
-			return "Saute directement à ta livraison en cours."
+			return tr("Saute directement à ta livraison en cours.")
 		E.TELEPORT_QUARTIER:
-			return "Une faille te projette dans un quartier lointain."
+			return tr("Une faille te projette au drive le plus éloigné.")
 		E.TELEPORT_PARALLELE:
-			return "Un raccourci te mène au prochain drive disponible."
+			return tr("Un raccourci te mène au prochain drive disponible.")
 		E.BUDGET_UN_DE:
-			return "Embouteillage : tu perds la moitié de ton déplacement."
+			return tr("Embouteillage : tu perds la moitié de ton déplacement.")
 		E.ROUTE_BLOQUEE:
-			return "Une route est bloquée : détour de 3 cases."
+			return tr("Une route est bloquée : détour de 3 cases.")
 		E.PONTS_FERMES:
-			return "Les ponts sont fermés : détour de 2 cases."
+			return tr("Les ponts sont fermés : détour de 2 cases.")
 		_:
-			return "Rien ne se passe ce tour-ci."
+			return tr("Rien ne se passe ce tour-ci.")

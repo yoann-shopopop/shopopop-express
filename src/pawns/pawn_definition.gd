@@ -23,6 +23,9 @@ enum PawnType {
 @export var color: Color = Color.WHITE
 ## Which kind of pawn this is.
 @export var type: PawnType = PawnType.COTRANSPORTER
+## A [enum PlayerColor.Kind] doubling the color with a distinct top-down silhouette (colorblind
+## accessibility — see [PawnView]). -1 (unset, e.g. demo pawns) falls back to the classic figure.
+@export var shape_kind: int = -1
 
 
 ## True only for the cotransporter — the single source of truth for "who can move".

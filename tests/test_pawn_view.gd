@@ -33,3 +33,17 @@ func test_view_follows_move() -> void:
 	# A step is animated (a short hop), so the view settles on the target after the tween, not instantly.
 	await get_tree().create_timer(0.4).timeout
 	assert_eq(view.position, _expected_for(Vector2i(3, -2)))
+
+
+# Colorblind accessibility: each of the 4 player identities gets a distinct top-down silhouette
+# (circle/square/diamond/ring), doubling the color. -1 (unset) must still fall back to a figure.
+func test_every_shape_kind_builds_a_figure_without_error() -> void:
+	var shapes := [-1, PlayerColor.Kind.BLUE, PlayerColor.Kind.RED, PlayerColor.Kind.PURPLE, PlayerColor.Kind.YELLOW]
+	for shape in shapes:
+		var d := PawnDefinition.new()
+		d.type = PawnDefinition.PawnType.COTRANSPORTER
+		d.shape_kind = shape
+		var view := PawnView.new()
+		add_child_autofree(view)
+		view.bind(Pawn.new(d))
+		assert_gt(view.get_child_count(), 0, "a figure (body + head) was built for shape_kind %d" % shape)

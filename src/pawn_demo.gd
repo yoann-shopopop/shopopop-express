@@ -5,8 +5,8 @@ extends Node3D
 ## drive and a recipient shown as image chips. You can GRAB a pawn with the mouse and rotate it;
 ## dragging the empty background orbits the camera, and the wheel zooms. Imagery is placeholder.
 
-const _IMG_DRIVE := preload("res://assets/trades/ikeo.webp")
-const _IMG_RECIPIENT := preload("res://assets/trades/belle_fleur.webp")
+const _IMG_DRIVE := preload("res://assets/tiles/urban/drive_1.png")
+const _IMG_RECIPIENT := preload("res://assets/tiles/spawn.png")
 
 # Player colors for the cotransporter figures.
 const _PLAYER_COLORS: Array[Color] = [
@@ -38,10 +38,10 @@ func _ready() -> void:
 		player.color = _PLAYER_COLORS[i]
 		_spawn(player, Vector2i(i, 0))
 	# ...plus a drive and a recipient as image chips.
-	var drive := _make_def(&"drive_ikeo", "Drive IKEO", PawnDefinition.PawnType.DRIVE)
+	var drive := _make_def(&"drive_topinambour", "Drive Hyper Topinambour", PawnDefinition.PawnType.DRIVE)
 	drive.texture = _IMG_DRIVE
 	_spawn(drive, Vector2i(0, 1))
-	var recipient := _make_def(&"recipient_fleur", "Belle Fleur", PawnDefinition.PawnType.RECIPIENT)
+	var recipient := _make_def(&"recipient_mamie", "Mamie Turbo", PawnDefinition.PawnType.RECIPIENT)
 	recipient.texture = _IMG_RECIPIENT
 	_spawn(recipient, Vector2i(2, 1))
 

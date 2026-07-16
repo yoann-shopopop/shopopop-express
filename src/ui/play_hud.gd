@@ -10,6 +10,7 @@ signal roll_requested
 signal reserve_requested
 signal end_turn_requested
 signal power_requested
+signal boost_requested
 signal zoom_in_requested
 signal zoom_out_requested
 
@@ -20,28 +21,29 @@ const _ACTION_LABEL := {
 	Action.ROLL: "Lancer",
 	Action.RESERVE: "Réserver",
 	Action.END_TURN: "Fin de tour",
-}
+}  # looked up via tr() at every call site below, not translated in place (a plain data dict)
 
 var _round_label: Label
 var _turn_label: Label
 var _score_label: Label
 var _deliveries_label: Label
 var _toast: Label
-var _order_bar: HBoxContainer
 var _action_btn: Button
+var _end_turn_btn: Button  # secondary, visible only while the primary action is RESERVE
 var _power_btn: Button
+var _boost_btn: Button  # Coup de pouce (mitigates dice luck): text shows the remaining token count
 var _end_panel: Control
-var _players: Array[Player] = []
-var _chips: Array[Panel] = []
 var _action: int = Action.ROLL
 var _char_frame: Panel       # framed character card of the current player (right of the board)
 var _char_card: TextureRect
 var _chooser: Control        # transient modal chooser (interactive powers), null when none
+var _reference_panel: Control  # the "?" rules reference overlay, null when closed
 var _deck_pile: DeckPileView      # PIOCHE pile (card backs + count)
 var _discard_pile: DeckPileView   # DÉFAUSSE pile (top discarded face + count)
 
 
 var _banner: Label
+var _tournee_active: bool = false  # while true, the round label shows the clock instead of "Manche N"
 
 
 func _ready() -> void:
@@ -148,7 +150,7 @@ func _build_title_bar() -> void:
 	bar.add_child(title)
 
 	_round_label = Label.new()
-	_round_label.text = "Manche 1"
+	_round_label.text = tr("Manche %d") % 1
 	_round_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	UITheme.make_title(_round_label, 20, UITheme.ORANGE)
 	bar.add_child(_round_label)
@@ -162,10 +164,6 @@ func _build_title_bar() -> void:
 	_turn_label.add_theme_font_size_override("font_size", 20)
 	bar.add_child(_turn_label)
 
-	_order_bar = HBoxContainer.new()
-	_order_bar.add_theme_constant_override("separation", 4)
-	bar.add_child(_order_bar)
-
 	_score_label = Label.new()
 	_score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	UITheme.make_title(_score_label, 20)
@@ -177,12 +175,13 @@ func _build_title_bar() -> void:
 	_deliveries_label.add_theme_color_override("font_color", UITheme.TEXT)
 	bar.add_child(_deliveries_label)
 
-	var mute := _small_button("Son")
-	mute.custom_minimum_size = Vector2(60, 34)
-	mute.pressed.connect(func() -> void:
+	var settings := _small_button("⚙")
+	settings.pressed.connect(func() -> void:
 		AudioManager.sfx(&"ui_click")
-		mute.text = "Muet" if AudioManager.toggle_mute() else "Son")
-	bar.add_child(mute)
+		var menu := SettingsMenu.new()
+		add_child(menu)
+		menu.setup(GameSettings.current()))
+	bar.add_child(settings)
 
 	var zoom_out := _small_button("−")  # U+2212 minus (renders cleanly, unlike fullwidth －)
 	zoom_out.pressed.connect(func() -> void:
@@ -194,6 +193,15 @@ func _build_title_bar() -> void:
 		AudioManager.sfx(&"ui_click")
 		zoom_in_requested.emit())
 	bar.add_child(zoom_in)
+
+	var reference := _small_button("?")
+	reference.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		if _reference_panel != null:
+			hide_reference()
+		else:
+			show_reference())
+	bar.add_child(reference)
 
 
 func _build_actions() -> void:
@@ -214,6 +222,19 @@ func _build_actions() -> void:
 	_action_btn.pressed.connect(_on_action_pressed)
 	box.add_child(_action_btn)
 
+	# Secondary "Fin de tour", shown only while the primary offers RESERVE: reserving is a choice,
+	# never forced — a player may end the turn on a reservable tile to keep an in-flight slot free.
+	_end_turn_btn = Button.new()
+	_end_turn_btn.text = tr(_ACTION_LABEL[Action.END_TURN])
+	_end_turn_btn.custom_minimum_size = Vector2(150, 64)
+	_end_turn_btn.add_theme_font_size_override("font_size", 20)
+	_theme_button(_end_turn_btn, Color("3c4858"))
+	_end_turn_btn.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		end_turn_requested.emit())
+	_end_turn_btn.hide()
+	box.add_child(_end_turn_btn)
+
 	_power_btn = Button.new()
 	_power_btn.text = "⚡"
 	_power_btn.custom_minimum_size = Vector2(64, 64)
@@ -223,6 +244,15 @@ func _build_actions() -> void:
 		AudioManager.sfx(&"ui_click")
 		power_requested.emit())
 	box.add_child(_power_btn)
+
+	_boost_btn = Button.new()
+	_boost_btn.custom_minimum_size = Vector2(64, 64)
+	_boost_btn.add_theme_font_size_override("font_size", 20)
+	_theme_button(_boost_btn, UITheme.GREEN)
+	_boost_btn.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		boost_requested.emit())
+	box.add_child(_boost_btn)
 	set_action(Action.ROLL)
 
 
@@ -249,10 +279,10 @@ func _build_card_backings() -> void:
 	row.add_theme_constant_override("separation", 18)
 	add_child(row)
 	_deck_pile = DeckPileView.new()
-	_deck_pile.setup("PIOCHE", UITheme.BLUE, false)
+	_deck_pile.setup(tr("PIOCHE"), UITheme.BLUE, false)
 	row.add_child(_deck_pile)
 	_discard_pile = DeckPileView.new()
-	_discard_pile.setup("DÉFAUSSE", UITheme.ORANGE, true)
+	_discard_pile.setup(tr("DÉFAUSSE"), UITheme.ORANGE, true)
 	row.add_child(_discard_pile)
 
 
@@ -299,10 +329,26 @@ func _on_action_pressed() -> void:
 		Action.END_TURN: end_turn_requested.emit()
 
 
-## Sets the contextual primary action (changes the button label + which intent it emits).
+## Sets the contextual primary action (changes the button label + which intent it emits). While the
+## primary offers RESERVE, a secondary "Fin de tour" stays available so reserving can be declined.
 func set_action(action: int) -> void:
 	_action = action
-	_action_btn.text = _ACTION_LABEL[action]
+	_action_btn.text = tr(_ACTION_LABEL[action])
+	if _end_turn_btn != null:
+		_end_turn_btn.visible = action == Action.RESERVE
+
+
+## True while the secondary "Fin de tour" button is shown (only alongside a RESERVE primary action).
+func is_end_turn_button_visible() -> bool:
+	return _end_turn_btn != null and _end_turn_btn.visible
+
+
+## Disables the action buttons while an animated multi-cell auto-walk is in progress, so "Fin de
+## tour" (or reserving) can't fire mid-hop and race the walk's own try_step calls.
+func set_actions_enabled(enabled: bool) -> void:
+	_action_btn.disabled = not enabled
+	if _end_turn_btn != null:
+		_end_turn_btn.disabled = not enabled
 
 
 ## Shows/enables the power button (hidden once the one-shot power is spent).
@@ -310,40 +356,26 @@ func set_power_available(available: bool) -> void:
 	_power_btn.visible = available
 
 
-## Builds the player-order strip once (a colored chip per player, seat order).
-func setup_players(players: Array[Player]) -> void:
-	_players = players
-	for child in _order_bar.get_children():
-		child.queue_free()
-	_chips.clear()
-	_order_bar.add_theme_constant_override("separation", 7)
-	for player in players:
-		var chip := Panel.new()
-		chip.custom_minimum_size = Vector2(26, 26)
-		_order_bar.add_child(chip)
-		_chips.append(chip)
+## Shows the Coup de pouce button with the remaining token count, or hides it once/while unusable
+## (no tokens left, or not the right moment — see [method GameRoot._on_boost_requested]'s gating).
+func set_boost_tokens(count: int, usable_now: bool) -> void:
+	_boost_btn.text = "🍀 %d" % count
+	_boost_btn.visible = count > 0 and usable_now
 
 
-## Updates turn label, score, and highlights the current player's chip.
+## True while the Coup de pouce button is shown (tokens remain AND it's usable right now).
+func is_boost_button_visible() -> bool:
+	return _boost_btn.visible
+
+
+## Updates the turn label and the current player's own score (top bar). The full per-player
+## breakdown — score, in-flight gauge, power status for EVERYONE — lives in [PlayerPanel] (GameRoot
+## builds and refreshes it separately; it superseded the old bare order-of-seats color chips here).
 func refresh(player: Player, score: int) -> void:
 	var who := PlayerColor.name_of(player.color)
-	_turn_label.text = "Tour : %s" % who
+	_turn_label.text = tr("Tour : %s") % who
 	_turn_label.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
-	_score_label.text = "Score : %d" % score
-	for i in _chips.size():
-		var color := PlayerColor.to_color(_players[i].color)
-		var is_current := _players[i].index == player.index
-		var style := StyleBoxFlat.new()
-		style.bg_color = color if is_current else color.darkened(0.45)
-		style.set_corner_radius_all(13)  # circular dots
-		style.shadow_color = UITheme.SHADOW
-		style.shadow_size = 2
-		if is_current:
-			style.set_border_width_all(3)
-			style.border_color = Color.WHITE
-		_chips[i].add_theme_stylebox_override("panel", style)
-		# The active player's dot is a touch bigger, so it pops out of the row.
-		_chips[i].custom_minimum_size = Vector2(30, 30) if is_current else Vector2(24, 24)
+	_score_label.text = tr("Score : %d") % score
 	_refresh_char_card(player)
 
 
@@ -422,7 +454,7 @@ func show_chooser(prompt: String, options: Array, on_pick: Callable) -> void:
 			on_pick.call(idx))
 		row.add_child(btn)
 	var cancel := Button.new()
-	cancel.text = "Annuler"
+	cancel.text = tr("Annuler")
 	cancel.custom_minimum_size = Vector2(132, 40)
 	cancel.add_theme_font_size_override("font_size", 18)
 	_theme_button(cancel, UITheme.PANEL_BORDER)
@@ -439,23 +471,126 @@ func dismiss_chooser() -> void:
 	_chooser = null
 
 
-## Updates the round counter shown in the top bar.
+## Shows the always-available rules reference overlay ("?" button, or Échap to close): an icon-first
+## summary of the turn cycle, the delivery lifecycle, the scoring formula and the board cells/powers —
+## the in-game answer for a player who skipped (or wants a reminder of) the tutorial.
+func show_reference() -> void:
+	if _reference_panel != null:
+		return
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0, 0, 0, 0.55)
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP  # eats clicks so the board isn't moved meanwhile
+	add_child(backdrop)
+	_reference_panel = backdrop
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(560, 0)
+	panel.add_theme_stylebox_override("panel", UITheme.panel_card())
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 16)
+	panel.add_child(box)
+
+	var title := Label.new()
+	title.text = tr("Aide-mémoire")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UITheme.make_title(title, 26, UITheme.ORANGE)
+	box.add_child(title)
+
+	box.add_child(_reference_section(tr("🎲  Ton tour"), [
+		tr("Lancer → Se déplacer (sur les routes) → Fin de tour"),
+		tr("🍀 Coup de pouce (2 par joueur·euse) : juste après le lancer, relance tout ou fixe un dé au max"),
+	]))
+	box.add_child(_reference_section(tr("📦  Livraisons"), [
+		tr("Disponible → Réservé → En cours → Livré (transitions automatiques)"),
+		tr("2 livraisons en vol maximum à la fois"),
+	]))
+	box.add_child(_reference_section(tr("⭐  Score"), [
+		tr("5 de base + 10 si le drive est sur ta couleur + 10 si le client l'est aussi"),
+		tr("5 / 15 / 25 points selon les tuiles qui sont à toi"),
+	]))
+	var powers: Array = []
+	for blurb in CharacterSelect.POWER_BLURB.values():
+		powers.append(tr(blurb))
+	box.add_child(_reference_section(tr("🌈  Cases & pouvoirs"), [
+		tr("🌈 Événement : pioche 2 cartes, garde 1 (consommée, réarmée à la manche suivante)"),
+		tr("🏠 Drive  ·  🎯 Destinataire  ·  🚩 Départ  ·  🌉 Pont"),
+	] + powers))
+
+	var close := Button.new()
+	close.text = tr("Fermer")
+	close.custom_minimum_size = Vector2(160, 50)
+	close.add_theme_font_size_override("font_size", 20)
+	_theme_button(close, UITheme.BLUE)
+	close.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		hide_reference())
+	box.add_child(close)
+
+
+## Dismisses the reference overlay if open.
+func hide_reference() -> void:
+	if _reference_panel != null and is_instance_valid(_reference_panel):
+		_reference_panel.queue_free()
+	_reference_panel = null
+
+
+# One labeled group of the reference overlay: a bold heading followed by bullet lines.
+func _reference_section(heading: String, lines: Array) -> Control:
+	var section := VBoxContainer.new()
+	section.add_theme_constant_override("separation", 4)
+	var head := Label.new()
+	head.text = heading
+	UITheme.make_title(head, 18, UITheme.TEXT)
+	section.add_child(head)
+	for line in lines:
+		var lbl := Label.new()
+		lbl.text = "•  %s" % line
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lbl.add_theme_font_size_override("font_size", 15)
+		lbl.add_theme_color_override("font_color", UITheme.TEXT.darkened(0.1))
+		section.add_child(lbl)
+	return section
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _reference_panel != null and event.is_action_pressed("ui_cancel"):
+		hide_reference()
+		get_viewport().set_input_as_handled()
+
+
+## Updates the round counter shown in the top bar. A no-op once [method set_tournee_clock] has taken
+## over that label (La Tournée shows the day's clock there instead of "Manche N").
 func set_round(round_number: int) -> void:
+	if _tournee_active or _round_label == null:
+		return
+	_round_label.text = tr("Manche %d") % round_number
+
+
+## La Tournée: replaces the "Manche N" label with the session's cosmetic clock (e.g. "8h00").
+func set_tournee_clock(text: String) -> void:
+	_tournee_active = true
 	if _round_label != null:
-		_round_label.text = "Manche %d" % round_number
+		_round_label.text = text
 
 
 ## Updates the "deliveries left" indicator (the visible finish line).
 func set_deliveries_remaining(count: int) -> void:
 	if _deliveries_label != null:
-		_deliveries_label.text = "Livraisons : %d" % count
+		_deliveries_label.text = tr("Livraisons : %d") % count
 
 
-## Shows the final scoreboard: a dimmed backdrop, the ranking (best first, top one highlighted), the
-## cooperative total, and a "Rejouer" button. [param scores] maps seat index -> total.
+## Shows the final scoreboard: a dimmed backdrop, the ranking (best first, top one highlighted —
+## competitive framing, no "cooperative" wording), a flavor stat of the day's total, and a "Rejouer"
+## button. [param scores] maps seat index -> total.
 func show_end(scores: Dictionary, players: Array[Player]) -> void:
 	dismiss_chooser()
 	_action_btn.hide()
+	if _end_turn_btn != null:
+		_end_turn_btn.hide()
 	_power_btn.hide()
 	if _char_frame != null:
 		_char_frame.hide()
@@ -472,7 +607,7 @@ func show_end(scores: Dictionary, players: Array[Player]) -> void:
 	center.add_child(box)
 
 	var title := Label.new()
-	title.text = "Partie terminée !"
+	title.text = tr("Partie terminée !")
 	UITheme.make_title(title, 38, UITheme.ORANGE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
@@ -489,16 +624,16 @@ func show_end(scores: Dictionary, players: Array[Player]) -> void:
 		var line := Label.new()
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if i == 0:
-			line.text = "Meilleur·e : %s — %d pts" % [PlayerColor.name_of(player.color), pts]
+			line.text = tr("Vainqueur : %s — %d pts") % [PlayerColor.name_of(player.color), pts]
 			UITheme.make_title(line, 28, PlayerColor.to_color(player.color))
 		else:
-			line.text = "%d.  %s — %d pts" % [i + 1, PlayerColor.name_of(player.color), pts]
+			line.text = tr("%d.  %s — %d pts") % [i + 1, PlayerColor.name_of(player.color), pts]
 			line.add_theme_font_size_override("font_size", 20)
 			line.add_theme_color_override("font_color", PlayerColor.to_color(player.color))
 		box.add_child(line)
 
 	var sum := Label.new()
-	sum.text = "Total collectif : %d pts" % total
+	sum.text = tr("Tournée du jour : %d pts livrés au total") % total
 	UITheme.make_title(sum, 22, UITheme.GREEN)
 	sum.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sum)
@@ -508,7 +643,84 @@ func show_end(scores: Dictionary, players: Array[Player]) -> void:
 	box.add_child(spacer)
 
 	var replay := Button.new()
-	replay.text = "Rejouer"
+	replay.text = tr("Rejouer")
+	replay.custom_minimum_size = Vector2(220, 60)
+	replay.add_theme_font_size_override("font_size", 24)
+	replay.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_theme_button(replay, UITheme.BLUE)
+	replay.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		get_tree().reload_current_scene())
+	box.add_child(replay)
+
+
+## Shows La Tournée's own end screen (16 rounds elapsed, or no delivery left): the day's score with its
+## chaining bonus called out, the Bronze/Argent/Or tier, and the "score du collègue" ghost comparison —
+## [param result] is exactly [TourneeSession]'s [signal TourneeSession.session_finished] payload
+## ({score, base_score, chain_bonus, ghost_score, tier, beat_ghost}). Replaces [method show_end] for
+## this solo mode (no ranking, no "no loser" wording needed with a single player).
+func show_tournee_end(result: Dictionary) -> void:
+	dismiss_chooser()
+	_action_btn.hide()
+	if _end_turn_btn != null:
+		_end_turn_btn.hide()
+	_power_btn.hide()
+	if _boost_btn != null:
+		_boost_btn.hide()
+	if _char_frame != null:
+		_char_frame.hide()
+	_end_panel = ColorRect.new()
+	_end_panel.color = Color(0.05, 0.07, 0.1, 0.82)
+	_end_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_end_panel)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_end_panel.add_child(center)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 10)
+	center.add_child(box)
+
+	var title := Label.new()
+	title.text = tr("Journée terminée !")
+	UITheme.make_title(title, 38, UITheme.ORANGE)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+
+	var score: int = result.get("score", 0)
+	var tier: String = result.get("tier", "")
+	var score_line := Label.new()
+	score_line.text = "%s%d pts" % ["%s — " % tier if tier != "" else "", score]
+	UITheme.make_title(score_line, 30, UITheme.GREEN if tier != "" else UITheme.TEXT)
+	score_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(score_line)
+
+	var chain_bonus: int = result.get("chain_bonus", 0)
+	if chain_bonus > 0:
+		var chain_line := Label.new()
+		chain_line.text = tr("dont +%d de chaînage (livraisons groupées)") % chain_bonus
+		chain_line.add_theme_font_size_override("font_size", 16)
+		chain_line.add_theme_color_override("font_color", UITheme.TEXT.darkened(0.1))
+		chain_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(chain_line)
+
+	var ghost_score: int = result.get("ghost_score", 0)
+	var beat_ghost: bool = result.get("beat_ghost", false)
+	var ghost_line := Label.new()
+	ghost_line.text = tr("Score du collègue : %d pts — %s") % [
+		ghost_score, tr("tu l'as battu !") if beat_ghost else tr("presque, on l'aura la prochaine fois.")
+	]
+	ghost_line.add_theme_font_size_override("font_size", 20)
+	ghost_line.add_theme_color_override("font_color", UITheme.GREEN if beat_ghost else UITheme.TEXT)
+	ghost_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(ghost_line)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 12)
+	box.add_child(spacer)
+
+	var replay := Button.new()
+	replay.text = tr("Rejouer")
 	replay.custom_minimum_size = Vector2(220, 60)
 	replay.add_theme_font_size_override("font_size", 24)
 	replay.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

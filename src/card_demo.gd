@@ -14,16 +14,16 @@ const _DISCARD_POS := Vector3(2.6, 0.0, 0.0)
 const _ACTIVE_POS := Vector3(0.0, 0.0, 1.7)  # where the chosen card waits to be activated
 const _REVEAL_POS: Array[Vector3] = [Vector3(-0.7, 0.0, 0.4), Vector3(0.7, 0.0, 0.4)]
 
-# Placeholder fronts so the revealed cards look distinct.
+# Placeholder fronts so the revealed cards look distinct (tile art — no brand imagery).
 const _FRONTS: Array[String] = [
-	"res://assets/trades/charefour.webp",
-	"res://assets/trades/ikeo.webp",
-	"res://assets/trades/belle_fleur.webp",
-	"res://assets/trades/declaton.webp",
-	"res://assets/trades/lidi.webp",
-	"res://assets/trades/wine_mine.webp",
-	"res://assets/trades/brico_coco.webp",
-	"res://assets/trades/chuper_u.webp",
+	"res://assets/tiles/green/1.png",
+	"res://assets/tiles/urban/1.png",
+	"res://assets/tiles/water/1.png",
+	"res://assets/tiles/road/1.png",
+	"res://assets/tiles/special.png",
+	"res://assets/tiles/spawn.png",
+	"res://assets/tiles/green/2.png",
+	"res://assets/tiles/urban/2.png",
 ]
 
 var _deck: Deck

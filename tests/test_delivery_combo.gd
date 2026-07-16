@@ -4,13 +4,13 @@ extends GutTest
 
 func _enseigne() -> EnseigneDefinition:
 	var e := EnseigneDefinition.new()
-	e.id = &"ikeo"
+	e.id = &"visse_et_vrille"
 	return e
 
 
 func _destinataire() -> DestinataireDefinition:
 	var d := DestinataireDefinition.new()
-	d.id = &"keiona"
+	d.id = &"mamie_turbo"
 	return d
 
 
@@ -40,6 +40,14 @@ func test_advance_past_delivered_is_a_noop() -> void:
 
 func test_status_label_is_french() -> void:
 	assert_eq(DeliveryStatus.label(DeliveryStatus.Kind.EN_COURS), "En cours")
+
+
+# Colorblind accessibility: each status has an icon doubling its color, and the four distinct icons.
+func test_status_icons_are_distinct() -> void:
+	var icons := {}
+	for kind in [DeliveryStatus.Kind.DISPONIBLE, DeliveryStatus.Kind.RESERVE, DeliveryStatus.Kind.EN_COURS, DeliveryStatus.Kind.LIVREE]:
+		icons[DeliveryStatus.icon(kind)] = true
+	assert_eq(icons.size(), 4, "four distinct status icons")
 
 
 func test_reset_clips_a_new_recipient_and_becomes_available() -> void:

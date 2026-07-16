@@ -19,6 +19,16 @@ const _NAMES := {
 	Kind.YELLOW: "Jaune",
 }
 
+# Single-letter initials for compact UI chips (colorblind accessibility: identity must not rest on
+# color alone). Distinct even though two names could share a first letter by coincidence — they don't
+# here, but pick from later letters if a future color collides ("Rouge"/"Rose" would both be "R").
+const _INITIALS := {
+	Kind.BLUE: "B",
+	Kind.RED: "R",
+	Kind.PURPLE: "V",  # Violet
+	Kind.YELLOW: "J",
+}
+
 
 ## The four colors in turn order.
 static func all() -> Array[int]:
@@ -30,4 +40,10 @@ static func to_color(kind: int) -> Color:
 
 
 static func name_of(kind: int) -> String:
-	return _NAMES.get(kind, "?")
+	# TranslationServer.translate, not tr(): this is a static method, no Object instance to call tr() on.
+	return TranslationServer.translate(_NAMES.get(kind, "?"))
+
+
+## Single-letter initial for compact chips (order-bar dots, panels) — see [member _INITIALS].
+static func initial_of(kind: int) -> String:
+	return _INITIALS.get(kind, "?")

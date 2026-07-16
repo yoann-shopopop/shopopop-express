@@ -90,3 +90,25 @@ func test_reroll_out_of_range_is_a_noop() -> void:
 	roller.roll(2)
 	assert_eq(roller.reroll(5), 0, "out-of-range reroll returns 0")
 	assert_eq(roller.values().size(), 2, "result is unchanged")
+
+
+func test_force_sets_a_die_to_the_given_value() -> void:
+	var roller := DiceRoller.new(_seeded(3))
+	roller.roll(2)
+	assert_eq(roller.force(0, 6), 6)
+	assert_eq(roller.values()[0], 6, "the recorded result reflects the forced value")
+
+
+func test_force_out_of_range_is_a_noop() -> void:
+	var roller := DiceRoller.new(_seeded(3))
+	roller.roll(2)
+	assert_eq(roller.force(5, 6), 0, "out-of-range force returns 0")
+	assert_eq(roller.values().size(), 2, "result is unchanged")
+
+
+func test_force_emits_rolled() -> void:
+	var roller := DiceRoller.new(_seeded(3))
+	roller.roll(2)
+	watch_signals(roller)
+	roller.force(0, 6)
+	assert_signal_emitted(roller, "rolled")

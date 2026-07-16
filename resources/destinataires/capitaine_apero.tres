@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+
+[resource]
+script = ExtResource("1_dest")
+id = &"capitaine_apero"
+display_name = "Capitaine Apéro"
+manie = "Commande « pour quelques amis ». Ils sont quarante."
+color = Color(0.9568627, 0.7686275, 0.1882353, 1)

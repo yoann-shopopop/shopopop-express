@@ -4,9 +4,9 @@ extends GutTest
 
 func test_fields_are_assignable() -> void:
 	var e := EnseigneDefinition.new()
-	e.id = &"ikeo"
-	e.display_name = "IKEO"
+	e.id = &"visse_et_vrille"
+	e.display_name = "Visse & Vrille"
 	e.color = Color.RED
-	assert_eq(e.id, &"ikeo")
-	assert_eq(e.display_name, "IKEO")
+	assert_eq(e.id, &"visse_et_vrille")
+	assert_eq(e.display_name, "Visse & Vrille")
 	assert_eq(e.color, Color.RED)

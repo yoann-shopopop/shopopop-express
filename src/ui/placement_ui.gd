@@ -25,7 +25,7 @@ const TEAM_NAMES := {
 	PlayerColor.Kind.RED: "Équipe Rouge",
 	PlayerColor.Kind.PURPLE: "Équipe Violette",
 	PlayerColor.Kind.YELLOW: "Équipe Jaune",
-}
+}  # looked up via tr() at every call site below, not translated in place (a plain data dict)
 
 ## 1-based placement-turn number for the header's "Tour X/Y". [param total] is the player's initial
 ## tile count, [param remaining] the tiles still in their tray, [param block_placed] whether this
@@ -71,17 +71,27 @@ func _build_start_panel() -> void:
 	_start_panel.add_child(box)
 
 	var title := Label.new()
-	title.text = "Nombre de joueurs"
+	title.text = tr("Nombre de joueurs")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 26)
 	title.add_theme_color_override("font_color", UITheme.TEXT)
 	box.add_child(title)
 
+	# The physical rule's first-player ritual, kept as a wink: seats still go in draft order.
+	var ritual := Label.new()
+	ritual.text = tr("Règle officielle : commence la personne qui porte le plus de vêtements noirs.")
+	ritual.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ritual.add_theme_font_size_override("font_size", 15)
+	ritual.add_theme_color_override("font_color", UITheme.TEXT.darkened(0.25))
+	box.add_child(ritual)
+
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
 	box.add_child(row)
-	for n in [2, 3, 4, 5, 6]:
+	# V1 caps the table at 4 seats: with only 4 district colors, a 5th/6th player would share a color
+	# (unreadable identity + the same tiles paying +10 to two players). Re-open with 6 real colors.
+	for n in [2, 3, 4]:
 		var button := Button.new()
 		button.text = str(n)
 		button.custom_minimum_size = BUTTON_MIN
@@ -186,7 +196,7 @@ func _build_game_panel() -> void:
 	row.add_child(right)
 
 	_validate_button = Button.new()
-	_validate_button.text = "VALIDER\nLE PLACEMENT"
+	_validate_button.text = tr("VALIDER\nLE PLACEMENT")
 	_validate_button.custom_minimum_size = Vector2(150, 64)
 	_validate_button.add_theme_font_size_override("font_size", 15)
 	_validate_button.add_theme_color_override("font_color", UITheme.TEXT)
@@ -231,13 +241,13 @@ func _make_control_button(glyph: String, accent: Color, on_press: Callable) -> B
 ## locked (one block per turn) and "Valider" is enabled; otherwise the reverse. [param turn_index] /
 ## [param turn_total] feed the header's "Tour X/Y" (display only; default 0 hides it).
 func set_current_player(player: Player, block_placed: bool, turn_index: int = 0, turn_total: int = 0) -> void:
-	var team: String = TEAM_NAMES.get(player.color, PlayerColor.name_of(player.color))
+	var team: String = tr(TEAM_NAMES[player.color]) if TEAM_NAMES.has(player.color) else PlayerColor.name_of(player.color)
 	var team_color := PlayerColor.to_color(player.color)
 	var turn_suffix := ""
 	if turn_total > 0:
-		turn_suffix = " · Tour %d/%d" % [turn_index, turn_total]
-	_header_label.text = "PHASE DE PLACEMENT  |  %s%s" % [team, turn_suffix]
-	_subline_label.text = "J%d : %s" % [player.index + 1, team]
+		turn_suffix = tr(" · Tour %d/%d") % [turn_index, turn_total]
+	_header_label.text = tr("PHASE DE PLACEMENT  |  %s%s") % [team, turn_suffix]
+	_subline_label.text = tr("J%d : %s") % [player.index + 1, team]
 	_subline_label.add_theme_color_override("font_color", team_color)
 
 	for child in _pieces_bar.get_children():
@@ -248,14 +258,14 @@ func set_current_player(player: Player, block_placed: bool, turn_index: int = 0,
 	for i in player.pieces.size():
 		_pieces_bar.add_child(_make_tray_card(
 			TilePreview.build(player.pieces[i], _vp_host),
-			"Block %d" % (i + 1), team_color, false, block_placed,
+			tr("Block %d") % (i + 1), team_color, false, block_placed,
 			_on_piece_pressed.bind(i)))
 
 	# The free bridge, if still held — draggable any time during the turn.
 	if player.bridge != null:
 		_pieces_bar.add_child(_make_tray_card(
 			TilePreview.build(player.bridge, _vp_host),
-			"Pont", BRIDGE_TINT, false, false,
+			tr("Pont"), BRIDGE_TINT, false, false,
 			func() -> void: bridge_drag_started.emit()))
 
 	_validate_button.disabled = not block_placed
@@ -304,8 +314,8 @@ func set_dragging(dragging: bool) -> void:
 
 
 func set_finished() -> void:
-	_header_label.text = "MISE EN PLACE TERMINÉE"
-	_subline_label.text = "Tous les blocs sont posés."
+	_header_label.text = tr("MISE EN PLACE TERMINÉE")
+	_subline_label.text = tr("Tous les blocs sont posés.")
 	_subline_label.add_theme_color_override("font_color", UITheme.TEXT)
 	_controls.hide()
 	_tray_rotate.hide()

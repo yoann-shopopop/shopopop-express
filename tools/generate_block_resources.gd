@@ -20,10 +20,19 @@ const U := CellType.Kind.URBAN
 # a bifurcation from the centre out to that corner. p1/p2 = a straight road {0-3} + one fork toward
 # an adjacent corner (1 vs 5 = mirrored Y, fork left/right); p3 = two straight roads crossing
 # {0-3}+{1-4} (X). Every corner touched is a connector (where tiles join road-to-road).
+## p1-p3 trace the physical board's 3 quarter tiles; p4-p8 are 5 extra digital-only patterns (La
+## Tournée's rejouabilité: the physical set has no more topologies to trace from, but the same 3
+## road axes ({0-3}, {1-4}, {2-5} — the only corner pairs a straight line runs through the centre
+## for) and region permutations combine freely).
 var _patterns := [
 	{"id": "p1", "name": "Quartier A", "roads": [[0, 3], [1]], "regions": [W, W, U, U, G, G]},
 	{"id": "p2", "name": "Quartier B", "roads": [[0, 3], [5]], "regions": [U, W, W, G, G, U]},
 	{"id": "p3", "name": "Quartier C", "roads": [[0, 3], [1, 4]], "regions": [G, U, U, W, W, G]},
+	{"id": "p4", "name": "Quartier D", "roads": [[1, 4], [0]], "regions": [G, W, U, G, W, U]},
+	{"id": "p5", "name": "Quartier E", "roads": [[1, 4], [3]], "regions": [U, G, W, U, G, W]},
+	{"id": "p6", "name": "Quartier F", "roads": [[2, 5], [0]], "regions": [W, U, G, W, U, G]},
+	{"id": "p7", "name": "Quartier G", "roads": [[2, 5], [3]], "regions": [G, W, U, G, W, U]},
+	{"id": "p8", "name": "Quartier H", "roads": [[1, 4], [2, 5]], "regions": [U, W, G, U, W, G]},
 ]
 
 

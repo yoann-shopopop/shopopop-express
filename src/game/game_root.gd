@@ -23,10 +23,24 @@ var _status_rings: Dictionary = {}     # Delivery -> Node3D (status disc on the 
 var _can_roll: bool = true
 var _dice_views: Node3D                 # holder for the rolled 3D dice
 var _highlights: Node3D                 # holder for the reachable-cell markers
+var _hover_markers: Node3D              # holder for the delivery-panel hover markers/link
+var _hovered_delivery: Delivery = null  # currently hovered card, so a stray unhover can't clear a newer hover
+var _path_preview: Node3D               # holder for the hovered-cell trajectory preview + cost label
+var _walking: bool = false              # an animated multi-cell auto-walk is in progress (ignore new clicks)
+var _reservation_prompted: Dictionary = {}  # Delivery -> true, reset each turn: ask at most once per visit
+var _ai_playing: bool = false           # an AI-controlled seat's turn is auto-playing (see AutoPilot)
+
+## Fired once the auto-reservation prompt (chooser) is dismissed, however it was resolved — lets an
+## in-progress auto-walk pause on arrival and resume afterwards instead of racing past the offer.
+signal reservation_prompt_resolved
 var _active_marker: Node3D              # ring under the active pawn + floating steps badge above it
 var _event_choice: EventCardChoice      # active animated card draw (CardView), if any
 var _event_discards_rejected: bool = false  # Carnet d'Adresses: discard the rejected card instead of top-decking
 var _delivery_panel: DeliveryPanel
+var _player_panel: PlayerPanel
+var _last_run_announced: bool = false  # the « Dernière tournée ! » banner fires once per game
+var _skipped_notice: String = ""       # pending turn_skipped notice(s), folded into the next turn status
+var _tournee_session: TourneeSession = null  # non-null only for the solo "La Tournée" mode
 
 
 ## The pure turn logic, exposed for scripting/demo/screenshot harnesses (the game itself drives it
@@ -54,6 +68,38 @@ func drive_cells() -> Array[Vector2i]:
 	return cells
 
 
+## Wires the solo "La Tournée" mode on top of an already-[method setup] session: [param session] must
+## already be [method TourneeSession.start]ed on this GameRoot's [method phase]. Suppresses the normal
+## multiplayer end screen (see [method _on_game_finished]) in favour of [method PlayHud.show_tournee_end],
+## shows the clock in place of "Manche N", and flashes the chaining bonus banner.
+func set_tournee_session(session: TourneeSession) -> void:
+	_tournee_session = session
+	session.session_finished.connect(_on_tournee_finished)
+	session.chain_bonus_awarded.connect(_on_chain_bonus_awarded)
+	session.round_advanced.connect(_on_tournee_round_advanced)
+	_ui.set_tournee_clock(session.clock_text())
+
+
+func _on_tournee_finished(result: Dictionary) -> void:
+	AudioManager.sfx(&"victory")
+	_ui.show_tournee_end(result)
+
+
+func _on_chain_bonus_awarded(_total: int) -> void:
+	_ui.show_banner(tr("Chaînage ! +%d") % TourneeSession.CHAIN_BONUS, UITheme.GREEN)
+
+
+func _on_tournee_round_advanced(_round_number: int, _rounds_left: int) -> void:
+	if _tournee_session != null:
+		_ui.set_tournee_clock(_tournee_session.clock_text())
+
+
+func _randomized_rng() -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	return rng
+
+
 # Absolute board cells of the players' starts (same formula as GamePhase), excluded from the recipient
 # pool so a recipient never spawns under a pawn.
 func _start_cells() -> Dictionary:
@@ -68,35 +114,74 @@ func _start_cells() -> Dictionary:
 	return cells
 
 
-func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
+## Wires the play phase for [param board] with [param players], viewed through [param camera].
+## Everything after [param camera] is an OPTIONAL override for scripting a deterministic session
+## (the tutorial, and tests) — with none given, delivery placement/pairing/dice/events are exactly
+## as random as before:
+## - [param rng]: replaces the internally-randomize()'d RNG used to build/pair deliveries.
+## - [param forced_deliveries]: if non-empty, used AS-IS (enseigne/destinataire already assigned)
+##   instead of DeliverySetup.build(...) + a DeliveryGenerator — the most robust way to guarantee a
+##   specific arrangement (e.g. "one mono-tile delivery worth 25"). No recycling generator is built
+##   for this session (nothing to recycle in a short, scripted one); is_finished() still works fine.
+## - [param forced_dice]: replaces the internally-constructed DiceRoller — inject one built on a
+##   seeded RNG, or call [method DiceRoller.force] on it externally to pin exact values.
+## - [param forced_event_order]: if non-empty, replaces the shuffled events Deck's contents with
+##   that exact draw order (a normal reshuffle still applies once it's exhausted).
+## - [param uncapped_deliveries]: skips the « total tuiles = livraisons » cap on the identity pool —
+##   only for La Tournée, whose 16-round session lives on continuous recycling rather than the
+##   normal "one delivery per tile" multiplayer rule (see [method Main._start_tournee]).
+func setup(
+	board: Board,
+	players: Array[Player],
+	camera: Camera3D,
+	rng: RandomNumberGenerator = null,
+	forced_deliveries: Array[Delivery] = [],
+	forced_dice: DiceRoller = null,
+	forced_event_order: Array[CardDefinition] = [],
+	uncapped_deliveries: bool = false,
+) -> void:
 	_board = board
 	_players = players
 	_camera = camera
-	# Random placement: drives (urban) and recipients (green) are drawn board-wide and paired at random
-	# (mono- or bi-tile), all reachable. Up to one per available destinataire; player starts are excluded
-	# from the recipient pool so a recipient never lands under a pawn's spawn.
-	var destinataires := _load_destinataires()
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	_deliveries = DeliverySetup.build(board, rng, destinataires.size(), _start_cells())
-	var generator := DeliveryGenerator.new(_load_enseignes(), destinataires, _deliveries.size(), rng)
-	var combos := generator.combos()
-	for i in _deliveries.size():
-		if i < combos.size():
-			_deliveries[i].enseigne = combos[i].enseigne
-			_deliveries[i].destinataire = combos[i].destinataire
-	_phase = GamePhase.new(players, board, _deliveries, generator)
-	_dice = DiceRoller.new()
-	_events = Deck.new(_load_events())
-	_events.shuffle()
+	if not forced_deliveries.is_empty():
+		_deliveries = forced_deliveries
+		_phase = GamePhase.new(players, board, _deliveries)
+	else:
+		# Random placement: drives (urban) and recipients (green) are drawn board-wide and paired at
+		# random (mono- or bi-tile), all reachable. Up to one per available destinataire; player
+		# starts are excluded from the recipient pool so a recipient never lands under a pawn's spawn.
+		var destinataires := _load_destinataires()
+		var build_rng := rng if rng != null else _randomized_rng()
+		_deliveries = DeliverySetup.build(board, build_rng, destinataires.size(), _start_cells())
+		# Rules (« Mise en place ») : the total deliveries of a game equals the number of placed
+		# tiles — the identity pool is capped accordingly, so a 2-player game is 6 deliveries, not
+		# the full pool. La Tournée opts out (-1, uncapped): it recycles for 16 rounds, not one pass.
+		var cap := -1 if uncapped_deliveries else _deliveries.size()
+		var generator := DeliveryGenerator.new(_load_enseignes(), destinataires, _deliveries.size(), build_rng, cap)
+		var combos := generator.combos()
+		for i in _deliveries.size():
+			if i < combos.size():
+				_deliveries[i].enseigne = combos[i].enseigne
+				_deliveries[i].destinataire = combos[i].destinataire
+		_phase = GamePhase.new(players, board, _deliveries, generator)
+	_dice = forced_dice if forced_dice != null else DiceRoller.new()
+	_events = Deck.new(forced_event_order if not forced_event_order.is_empty() else _load_events())
+	if forced_event_order.is_empty():
+		_events.shuffle()
 
 	_ui = PlayHud.new()
 	add_child(_ui)
-	_ui.setup_players(players)
+	_player_panel = PlayerPanel.new()
+	_ui.add_child(_player_panel)
+	_player_panel.build(players)
 	_dice_views = Node3D.new()
 	add_child(_dice_views)
 	_highlights = Node3D.new()
 	add_child(_highlights)
+	_hover_markers = Node3D.new()
+	add_child(_hover_markers)
+	_path_preview = Node3D.new()
+	add_child(_path_preview)
 	_active_marker = Node3D.new()
 	add_child(_active_marker)
 
@@ -107,13 +192,19 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_delivery_panel = DeliveryPanel.new()
 	_ui.add_child(_delivery_panel)
 	_delivery_panel.build(_deliveries, _players)
+	_delivery_panel.delivery_hovered.connect(_on_delivery_hovered)
+	_delivery_panel.delivery_unhovered.connect(_on_delivery_unhovered)
 
 	var move_controller := MovementController.new()
 	add_child(move_controller)
-	move_controller.setup(camera, _phase)
+	move_controller.setup(camera)
+	move_controller.cell_hovered.connect(_on_cell_hovered)
+	move_controller.hover_cleared.connect(_on_hover_cleared)
+	move_controller.cell_clicked.connect(_on_cell_clicked)
 
 	_phase.pawn_moved.connect(_on_pawn_moved)
 	_phase.turn_changed.connect(_on_turn_changed)
+	_phase.turn_skipped.connect(_on_turn_skipped)
 	_phase.delivery_completed.connect(_on_delivery_completed)
 	_phase.delivery_reserved.connect(_on_delivery_changed)
 	_phase.delivery_in_progress.connect(_on_delivery_changed)
@@ -123,6 +214,7 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_ui.end_turn_requested.connect(_phase.end_turn)
 	_ui.reserve_requested.connect(_on_reserve)
 	_ui.power_requested.connect(_on_power)
+	_ui.boost_requested.connect(_on_boost_requested)
 	var camera_rig := camera as CameraRig
 	if camera_rig != null:
 		_ui.zoom_in_requested.connect(camera_rig.zoom_in)
@@ -131,7 +223,9 @@ func setup(board: Board, players: Array[Player], camera: Camera3D) -> void:
 	_refresh_ui()
 	_update_active_marker()
 	var first := _phase.current_player()
-	_ui.show_banner("Au tour de %s" % PlayerColor.name_of(first.color), PlayerColor.to_color(first.color))
+	_ui.show_banner(tr("Au tour de %s") % PlayerColor.name_of(first.color), PlayerColor.to_color(first.color))
+	if first.is_ai:
+		_play_ai_turn(first)  # turn_changed only fires from end_turn: the very first seat needs its own kick
 
 
 # Centers the camera on the placed board and zooms so it fills the framed region at game start (the
@@ -200,6 +294,7 @@ func _spawn_pawn(player: Player) -> void:
 	var def := PawnDefinition.new()
 	def.type = PawnDefinition.PawnType.COTRANSPORTER
 	def.color = PlayerColor.to_color(player.color)
+	def.shape_kind = player.color  # doubles the color with a distinct top-down silhouette
 	var pawn := Pawn.new(def)
 	var view := PawnView.new()
 	add_child(view)
@@ -239,11 +334,15 @@ func _token_at(def: PawnDefinition, cell: Vector2i) -> PawnView:
 	return view
 
 
-# (Re)builds the recipient token for [param delivery], reflecting its current destinataire.
+# (Re)builds the recipient token for [param delivery], reflecting its current destinataire. With the
+# identity pool capped at the tile count, a completed delivery recycles to null: no ghost token then.
 func _rebuild_recipient_marker(delivery: Delivery) -> void:
 	var existing = _recipient_markers.get(delivery, null)
 	if existing != null and is_instance_valid(existing):
 		existing.queue_free()
+		_recipient_markers.erase(delivery)
+	if delivery.destinataire == null:
+		return  # nothing left to deliver here: leave the green cell bare
 	var token := _destinataire_token(delivery)
 	add_child(token)
 	_recipient_markers[delivery] = token
@@ -262,7 +361,7 @@ func _on_roll() -> void:
 	_show_dice(_dice.values())
 	_refresh_highlights()
 	_update_active_marker()
-	_ui.set_status("Dés : %s — déplacement : %d (clique une case verte)" % [str(_dice.values()), _dice.total()])
+	_ui.set_status(tr("Dés : %s — déplacement : %d (clique une case verte)") % [str(_dice.values()), _dice.total()])
 	_refresh_ui()
 
 
@@ -293,7 +392,11 @@ func _refresh_highlights() -> void:
 		_highlights.add_child(_highlight_marker(cell))
 
 
-func _highlight_marker(cell: Vector2i) -> MeshInstance3D:
+const _LEGAL_MOVE_COLOR := Color(0.45, 1.0, 0.55, 0.78)  # bright green, clearly readable
+const _HOVER_LINK_COLOR := Color(1.0, 1.0, 1.0, 0.85)    # neutral white: distinct from any player color
+
+
+func _highlight_marker(cell: Vector2i, color: Color = _LEGAL_MOVE_COLOR) -> MeshInstance3D:
 	var inst := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = GameConfig.HEX_SIZE * 0.66
@@ -303,7 +406,7 @@ func _highlight_marker(cell: Vector2i) -> MeshInstance3D:
 	inst.mesh = mesh
 	inst.rotation_degrees = Vector3(0, 30, 0)  # flat-top alignment
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.45, 1.0, 0.55, 0.78)  # bright green, clearly readable
+	mat.albedo_color = color
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	inst.material_override = mat
@@ -311,6 +414,263 @@ func _highlight_marker(cell: Vector2i) -> MeshInstance3D:
 	pos.y = GameConfig.TILE_HEIGHT + 0.06
 	inst.position = pos
 	return inst
+
+
+# Highlights a hovered DeliveryPanel card's drive + recipient cells on the board (white rings distinct
+# from the green legal-move highlight and from any player color), plus a straight link bar between them
+# when the delivery spans two tiles — cross-tile pairing means the panel alone can't show WHERE they are.
+# The reverse direction (hovering a 3D token highlights its card) is deferred: it would need a whole new
+# 3D mouse-picking subsystem (none exists here) at real risk of intercepting MovementController's board
+# clicks — not worth it for a secondary, lower-value direction.
+func _on_delivery_hovered(delivery: Delivery) -> void:
+	_hovered_delivery = delivery
+	_clear_hover_markers()
+	_hover_markers.add_child(_highlight_marker(delivery.drive_cell, _HOVER_LINK_COLOR))
+	if delivery.recipient_cell != delivery.drive_cell:
+		_hover_markers.add_child(_highlight_marker(delivery.recipient_cell, _HOVER_LINK_COLOR))
+		_hover_markers.add_child(_hover_link_mesh(delivery.drive_cell, delivery.recipient_cell))
+
+
+func _on_delivery_unhovered(delivery: Delivery) -> void:
+	if delivery != _hovered_delivery:
+		return  # a newer hover already replaced these markers — don't clear them out from under it
+	_hovered_delivery = null
+	_clear_hover_markers()
+
+
+# Frees the hover markers immediately (not queue_free): mouse hover can retrigger rapidly as the
+# player's cursor crosses several cards, and a deferred free would either flicker (old + new markers
+# coexisting for a frame) or, in tests, still report stale children the instant after clearing.
+func _clear_hover_markers() -> void:
+	for child in _hover_markers.get_children():
+		child.free()
+
+
+# A thin bright bar on the ground connecting [param from] and [param to] — the "tracé du lien" between
+# a hovered delivery's drive and recipient cells.
+func _hover_link_mesh(from: Vector2i, to: Vector2i) -> MeshInstance3D:
+	var a := HexUtils.axial_to_world(from, GameConfig.HEX_SIZE)
+	var b := HexUtils.axial_to_world(to, GameConfig.HEX_SIZE)
+	var mid := (a + b) * 0.5
+	var length := a.distance_to(b)
+	var inst := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(length, 0.06, 0.12)
+	inst.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = _HOVER_LINK_COLOR
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	inst.material_override = mat
+	inst.rotation.y = -atan2(b.z - a.z, b.x - a.x)
+	inst.position = Vector3(mid.x, GameConfig.TILE_HEIGHT + 0.05, mid.z)
+	return inst
+
+
+# --- Trajectory preview + click-to-walk --------------------------------------
+
+const _PATH_AFFORDABLE_COLOR := Color(0.35, 0.75, 1.0, 0.8)  # blue: distinct from the green legal-move dots
+const _PATH_TOO_FAR_COLOR := Color(0.9, 0.35, 0.3, 0.55)     # dim red: reachable, but not this turn
+const _WALK_STEP_DELAY := 0.2  # a touch longer than PawnView's 0.16s hop so each step reads clearly
+
+## Previews the route to a hovered cell (BFS via [method TurnMovement.path_to]): the path cells light
+## up blue if affordable this turn, dim red if the cell is farther than the remaining budget, and a
+## floating label shows the cost in steps. No-op outside DEPLACEMENT (e.g. during PLANIFICATION).
+func _on_cell_hovered(cell: Vector2i) -> void:
+	_clear_path_preview()
+	if _walking or _ai_playing:
+		return  # keep the screen calm while an auto-walk (human or AI) is animating
+	var movement := _phase.movement()
+	if movement == null or _phase.current_subphase() != GamePhase.SubPhase.DEPLACEMENT:
+		return
+	var path := movement.path_to(cell)
+	if path.is_empty():
+		return
+	var affordable := path.size() <= movement.remaining()
+	var color := _PATH_AFFORDABLE_COLOR if affordable else _PATH_TOO_FAR_COLOR
+	for step_cell in path:
+		_path_preview.add_child(_highlight_marker(step_cell, color))
+	_path_preview.add_child(_path_cost_label(cell, path.size(), affordable))
+
+
+func _on_hover_cleared() -> void:
+	_clear_path_preview()
+
+
+func _clear_path_preview() -> void:
+	for child in _path_preview.get_children():
+		child.free()
+
+
+# A small floating "N cases" label above the hovered [param cell], tinted like the path markers.
+func _path_cost_label(cell: Vector2i, cost: int, affordable: bool) -> Label3D:
+	var label := Label3D.new()
+	label.text = tr("%d case%s") % [cost, "s" if cost > 1 else ""]
+	label.font_size = 34
+	label.pixel_size = 0.0075
+	label.modulate = _PATH_AFFORDABLE_COLOR if affordable else _PATH_TOO_FAR_COLOR
+	label.outline_size = 8
+	label.outline_modulate = Color(0, 0, 0, 0.65)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.shaded = false
+	var pos := HexUtils.axial_to_world(cell, GameConfig.HEX_SIZE)
+	pos.y = GameConfig.TILE_HEIGHT + 0.6
+	label.position = pos
+	return label
+
+
+## Click/tap on [param cell]: walks the BFS route to it one [method GamePhase.try_step] at a time,
+## animated (PawnView's own 0.16s hop already does the readability work — this just paces the calls
+## so each hop's tween completes before the next starts). Generalizes the old single-adjacent-cell
+## click: [method TurnMovement.path_to] returns a 1-cell path for an adjacent legal move. Stops early
+## if a step is rejected (budget ran out mid-walk) or the phase leaves DEPLACEMENT (an event cell was
+## triggered — try_step already pauses movement for it; the walk must not race past the event modal).
+func _on_cell_clicked(cell: Vector2i) -> void:
+	if _walking or _ai_playing:
+		return
+	var movement := _phase.movement()
+	if movement == null or _phase.current_subphase() != GamePhase.SubPhase.DEPLACEMENT:
+		return
+	var path := movement.path_to(cell)
+	if path.is_empty():
+		return
+	_clear_path_preview()
+	_walk_path(path)
+
+
+func _walk_path(path: Array[Vector2i]) -> void:
+	_walking = true
+	_ui.set_actions_enabled(false)  # "Fin de tour" must not race the walk's own try_step calls
+	for step_cell in path:
+		if not _phase.try_step(step_cell):
+			break
+		if _phase.current_subphase() != GamePhase.SubPhase.DEPLACEMENT:
+			break  # an event cell paused movement: let it resolve before any further step
+		if _maybe_prompt_reservation():
+			await reservation_prompt_resolved
+			if _phase.current_subphase() != GamePhase.SubPhase.DEPLACEMENT:
+				break  # reserving can auto-transition a delivery; re-check before continuing
+		if step_cell != path[path.size() - 1]:
+			await get_tree().create_timer(_WALK_STEP_DELAY).timeout
+	_walking = false
+	_ui.set_actions_enabled(true)
+
+
+## Offers to reserve the delivery on the pawn's current tile the moment it becomes reservable —
+## "réserver n'importe quand en te déplaçant" from the physical rules, rather than relying on the
+## player to notice the small manual button. Asked at most once per (turn, delivery): declining just
+## means "not now" — the manual "Réserver" button (still shown whenever [method
+## GamePhase.reservable_delivery] is non-null) covers changing one's mind. Returns true if a prompt
+## was shown (the caller must await [signal reservation_prompt_resolved] before continuing to move).
+func _maybe_prompt_reservation() -> bool:
+	var delivery := _phase.reservable_delivery()
+	if delivery == null or _reservation_prompted.has(delivery):
+		return false
+	_reservation_prompted[delivery] = true
+	var label := delivery.enseigne.display_name if delivery.enseigne != null else tr("cette livraison")
+	_ui.show_chooser(tr("Réserver %s ?") % label, [
+		{"text": tr("Réserver"), "color": UITheme.GREEN},
+	], func(choice: int) -> void:
+		if choice == 0:
+			_on_reserve()
+		reservation_prompt_resolved.emit())
+	return true
+
+
+# --- Solo vs IA (AutoPilot promoted to an in-game opponent) ------------------
+
+const _AI_STEP_DELAY := 0.12   # faster than the human auto-walk's 0.2s — "joue vite" per the plan
+const _AI_TURN_SAFETY_CAP := 400  # mirrors AutoPilot.play_turn's guard against a pathing dead-end
+
+## Auto-plays [param player]'s entire turn (roll → walk greedily toward the most useful delivery,
+## reserving/resolving events along the way → end turn) using [AutoPilot]'s pure decision functions
+## (choose_target/step_toward), paced with short delays so it's animated and readable rather than
+## instant. V1 rules (assumed and documented, not hidden): the AI never uses its super-power, and
+## events are resolved with a short-circuited pick instead of the human's interactive card modal
+## (see [method _ai_resolve_event]). Called from [signal GamePhase.turn_changed] and once for the
+## very first seat (that signal only fires from end_turn, so the opening turn needs its own kick).
+## No-ops once [method GamePhase.is_finished] — the round-robin keeps cycling turn_changed after the
+## last delivery (a human simply stops clicking under the end-game overlay; an AI seat would
+## otherwise keep auto-playing pointless turns forever behind it).
+func _play_ai_turn(player: Player) -> void:
+	if _ai_playing or _phase.is_finished():
+		return
+	_ai_playing = true
+	_ui.set_actions_enabled(false)
+	await get_tree().create_timer(0.3).timeout  # let the "Au tour de X" banner be read before it acts
+	if _can_roll and _phase.current_subphase() == GamePhase.SubPhase.PLANIFICATION:
+		_on_roll()
+		await get_tree().create_timer(0.3).timeout
+	var safety := 0
+	while _phase.movement() != null and _phase.current_subphase() == GamePhase.SubPhase.DEPLACEMENT \
+			and _phase.movement().remaining() > 0:
+		safety += 1
+		if safety > _AI_TURN_SAFETY_CAP:
+			break
+		if _phase.reservable_delivery() != null:
+			_phase.reserve_delivery()  # silent: no confirmation prompt for the AI
+			_refresh_ui()
+		var target = AutoPilot.choose_target(_phase, _deliveries)
+		var next = AutoPilot.step_toward(_phase, _board, _deliveries, target)
+		if next == null or not _phase.try_step(next):
+			break
+		if _phase.current_subphase() == GamePhase.SubPhase.EVENEMENT:
+			await _ai_resolve_event()
+			if _phase.current_subphase() != GamePhase.SubPhase.DEPLACEMENT:
+				break  # e.g. a FIN_TOUR effect
+		else:
+			await get_tree().create_timer(_AI_STEP_DELAY).timeout
+	# Reset BEFORE end_turn(), not after: end_turn() synchronously emits turn_changed, which (for a
+	# REJOUER replay of this same AI, or a next seat that's also AI) re-enters _on_turn_changed →
+	# _play_ai_turn *while still inside this call*. If _ai_playing were still true at that point, the
+	# guard at the top would swallow that turn entirely — the replay/next-AI would never actually play.
+	_ai_playing = false
+	_ui.set_actions_enabled(true)
+	_phase.end_turn()
+
+
+## AI equivalent of the human draw-2-keep-1 flow (_on_event_triggered/_on_event_resolved): same Deck/
+## discard/Carnet d'Adresses semantics (game state stays consistent either way), but auto-picks and
+## shows a short banner instead of the interactive 3D card presentation — "modal court-circuité avec
+## révélation courte" per the plan, so the AI's turn stays readable without waiting on a click.
+func _ai_resolve_event() -> void:
+	var player := _phase.current_player()
+	var drawn := _events.draw(2)
+	if drawn.is_empty():
+		return
+	var discards_rejected := player.pending_draw_two
+	player.pending_draw_two = false
+	_ui.set_deck_counts(_events.draw_count(), _events.discard_count())
+	AudioManager.sfx(&"event")
+	var chosen := _ai_choose_event(drawn)
+	drawn.erase(chosen)
+	var ctx := _phase.context()
+	_phase.apply_event(chosen)
+	_events.discard(chosen)
+	for card in drawn:
+		if discards_rejected:
+			_events.discard(card)
+		else:
+			_events.return_to_top(card)
+	_ui.set_discard_top(chosen)
+	if ctx != null and ctx.shield_consumed:
+		ctx.shield_consumed = false
+	var tag := tr("Malus") if chosen.is_malus else tr("Avantage")
+	_ui.show_banner("%s : %s" % [tag, tr(chosen.display_name)], UITheme.RED if chosen.is_malus else UITheme.GREEN)
+	_consume_event_aftermath()
+	_refresh_highlights()
+	_update_active_marker()
+	_refresh_ui()
+	await get_tree().create_timer(0.5).timeout  # a short, legible reveal before the walk resumes
+
+
+# Greedy draw-2-keep-1 pick for the AI: prefer an Avantage over a Malus (no deeper lookahead — the
+# plan's own "joue vite" simplification, same spirit as it never using its super-power).
+func _ai_choose_event(drawn: Array[CardDefinition]) -> EventCardDefinition:
+	for card in drawn:
+		if card is EventCardDefinition and not (card as EventCardDefinition).is_malus:
+			return card
+	return drawn[0] as EventCardDefinition
 
 
 # Marks the active pawn: a ring in the player's color under it, plus a floating "steps remaining"
@@ -376,14 +736,27 @@ func _steps_badge(remaining: int, color: Color) -> Node3D:
 
 func _on_budget_changed(_remaining: int) -> void:
 	_update_active_marker()
+	# Keeps the legal-move highlights tracking the pawn as it walks (each step_budget_changed fires
+	# on every step/add/subtract) — without this they'd stay frozen at the roll's original position
+	# through an animated multi-cell auto-walk, visibly out of sync with where the pawn actually is.
+	_refresh_highlights()
 
 
 func _on_reserve() -> void:
-	if _phase.reserve_delivery():
-		AudioManager.sfx(&"reserve")
-		_ui.set_status("Livraison réservée.")
+	var target := _phase.reservable_delivery()
+	if target == null or not _phase.reserve_delivery():
+		_ui.set_status(tr("Aucune livraison à réserver sur cette tuile."))
+		_refresh_highlights()
+		_refresh_ui()
+		return
+	AudioManager.sfx(&"reserve")
+	# Reserving on someone else's district denies them the color bonus — the competitive framing
+	# names that as "taking the run" instead of a plain, identical-sounding reservation.
+	var player := _phase.current_player()
+	if target.drive_tile_owner() != player.color:
+		_ui.set_status(tr("Course prise !"))
 	else:
-		_ui.set_status("Aucune livraison à réserver sur cette tuile.")
+		_ui.set_status(tr("Livraison réservée."))
 	_refresh_highlights()
 	_refresh_ui()
 
@@ -432,6 +805,8 @@ func _update_status_ring(delivery: Delivery) -> void:
 
 
 func _on_event_triggered(_cell: Vector2i) -> void:
+	if _phase.current_player().is_ai:
+		return  # the AI's own turn loop resolves events directly (see _play_ai_turn/_ai_resolve_event)
 	# Base rule: draw TWO event cards, keep one, the other goes back ON TOP of the deck. Carnet
 	# d'Adresses (Charlie) changes only the fate of the rejected card — it is DISCARDED instead of put
 	# back on top. Movement is paused (EVENEMENT) until the choice resolves.
@@ -444,7 +819,7 @@ func _on_event_triggered(_cell: Vector2i) -> void:
 	player.pending_draw_two = false
 	_ui.set_deck_counts(_events.draw_count(), _events.discard_count())  # pile drops as the cards are drawn
 	AudioManager.sfx(&"event")
-	_ui.show_banner("Événement !", UITheme.ORANGE)
+	_ui.show_banner(tr("Événement !"), UITheme.ORANGE)
 	_refresh_highlights()  # clears the markers while the cards are up
 	_event_choice = EventCardChoice.new()
 	add_child(_event_choice)  # 3D cards dealt over the board, pinned to screen by _process
@@ -452,9 +827,9 @@ func _on_event_triggered(_cell: Vector2i) -> void:
 	_event_choice.resolved.connect(_on_event_resolved)
 	_event_choice.present(drawn, _camera, Vector3.ZERO)
 	if _event_discards_rejected:
-		_ui.set_status("Carnet d'Adresses : garde 1 carte, l'autre est défaussée.")
+		_ui.set_status(tr("Carnet d'Adresses : garde 1 carte, l'autre est défaussée."))
 	else:
-		_ui.set_status("Garde 1 carte — l'autre repart au-dessus du deck.")
+		_ui.set_status(tr("Garde 1 carte — l'autre repart au-dessus du deck."))
 
 
 func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
@@ -472,10 +847,10 @@ func _on_event_resolved(chosen: EventCardDefinition, discarded: Array) -> void:
 	_ui.set_discard_top(chosen)  # the played card now sits face-up on the DÉFAUSSE pile
 	if ctx != null and ctx.shield_consumed:
 		ctx.shield_consumed = false
-		_ui.set_status("Bouclier Vert : malus « %s » annulé !" % chosen.display_name)
+		_ui.set_status(tr("Bouclier Vert : malus « %s » annulé !") % tr(chosen.display_name))
 	else:
-		var tag := "Malus" if chosen.is_malus else "Avantage"
-		_ui.set_status("%s : %s" % [tag, chosen.display_name])
+		var tag := tr("Malus") if chosen.is_malus else tr("Avantage")
+		_ui.set_status("%s : %s" % [tag, tr(chosen.display_name)])
 	_consume_event_aftermath()
 	_refresh_highlights()
 	_update_active_marker()
@@ -497,15 +872,15 @@ func _consume_event_aftermath() -> void:
 		_phase.movement().add_steps(bonus)
 		ctx.extra_dice = 0
 		_show_dice(extra)
-		_ui.set_status("Prime gouvernementale : +%d dé(s) → +%d cases !" % [extra.size(), bonus])
+		_ui.set_status(tr("Prime gouvernementale : +%d dé(s) → +%d cases !") % [extra.size(), bonus])
 	if ctx.replay:
-		_ui.set_status("Tous les feux au vert — tu rejoues un tour !")
+		_ui.set_status(tr("Tous les feux au vert — tu rejoues un tour !"))
 
 
 func _on_power() -> void:
 	var player := _phase.current_player()
 	if player.character == null or player.power_used or _phase.context() == null:
-		_ui.set_status("Aucun pouvoir disponible pour l'instant.")
+		_ui.set_status(tr("Aucun pouvoir disponible pour l'instant."))
 		return
 	var pid := player.character.power_id
 	if PowerResolver.is_interactive(pid):
@@ -517,8 +892,51 @@ func _on_power() -> void:
 		_refresh_highlights()
 		_update_active_marker()
 	else:
-		_ui.set_status("Ce pouvoir n'est pas disponible maintenant.")
+		_ui.set_status(tr("Ce pouvoir n'est pas disponible maintenant."))
 	_refresh_ui()
+
+
+# True only right after rolling, before the first step — the boost button hides itself otherwise
+# instead of failing silently on press (GamePhase.spend_boost_token enforces the same rule).
+func _boost_usable_now() -> bool:
+	var movement := _phase.movement()
+	return _phase.current_subphase() == GamePhase.SubPhase.DEPLACEMENT \
+		and movement != null and movement.path().size() <= 1
+
+
+## Coup de pouce: offers to reroll every die or fix one to its max face, in a single chooser (one
+## option per die + "relancer tout"), then spends a token via [method GamePhase.spend_boost_token].
+func _on_boost_requested() -> void:
+	if not _boost_usable_now():
+		return
+	var values := _dice.values()
+	if values.is_empty():
+		return
+	var options: Array = [{"text": tr("Relancer tout"), "color": UITheme.GREEN}]
+	for i in values.size():
+		options.append({"text": tr("Dé %d → max (%d)") % [i + 1, DiceRoller.SIDES], "color": UITheme.ORANGE})
+	_ui.show_chooser(tr("Coup de pouce — que faire ?"), options, func(choice: int) -> void:
+		if choice < 0:
+			return
+		var old_total := _dice.total()
+		var desc: String
+		if choice == 0:
+			var before := values.duplicate()
+			_dice.roll(values.size())
+			desc = tr("Relance : %s → %s") % [str(before), str(_dice.values())]
+		else:
+			var idx := choice - 1
+			var old_value: int = values[idx]
+			_dice.force(idx, DiceRoller.SIDES)
+			desc = tr("Dé %d : %d → %d") % [idx + 1, old_value, DiceRoller.SIDES]
+		var delta := _dice.total() - old_total
+		if _phase.spend_boost_token(delta):
+			AudioManager.sfx(&"power")
+			_show_dice(_dice.values())
+			_ui.set_status(tr("Coup de pouce : %s (%+d cases).") % [desc, delta])
+			_refresh_highlights()
+			_update_active_marker()
+		_refresh_ui())
 
 
 # Interactive powers ask the player to pick a target first, then call the matching GamePhase method.
@@ -532,26 +950,26 @@ func _begin_interactive_power(pid: StringName) -> void:
 			options.append({"text": PlayerColor.name_of(p.color), "color": PlayerColor.to_color(p.color)})
 			indices.append(p.index)
 		if options.is_empty():
-			_ui.set_status("Dépassement : aucun autre joueur à dépasser.")
+			_ui.set_status(tr("Dépassement : aucun autre joueur à dépasser."))
 			return
-		_ui.show_chooser("Dépassement — échange ta place avec :", options, func(choice: int) -> void:
+		_ui.show_chooser(tr("Dépassement — échange ta place avec :"), options, func(choice: int) -> void:
 			if choice < 0:
 				return
 			if _phase.swap_positions(indices[choice]):
 				AudioManager.sfx(&"power")
-				_ui.set_status("Dépassement ! Place échangée.")
+				_ui.set_status(tr("Dépassement ! Place échangée."))
 				_refresh_highlights()
 				_update_active_marker()
 				_refresh_ui())
 	elif pid == &"coup_accelerateur":
 		var values := _dice.values()
 		if values.is_empty():
-			_ui.set_status("Coup d'Accélérateur : lance d'abord les dés.")
+			_ui.set_status(tr("Coup d'Accélérateur : lance d'abord les dés."))
 			return
 		var options: Array = []
 		for v in values:
-			options.append({"text": "Dé : %d" % v, "color": UITheme.ORANGE})
-		_ui.show_chooser("Coup d'Accélérateur — relance quel dé ?", options, func(choice: int) -> void:
+			options.append({"text": tr("Dé : %d") % v, "color": UITheme.ORANGE})
+		_ui.show_chooser(tr("Coup d'Accélérateur — relance quel dé ?"), options, func(choice: int) -> void:
 			if choice < 0:
 				return
 			var old_value: int = values[choice]
@@ -559,7 +977,7 @@ func _begin_interactive_power(pid: StringName) -> void:
 			if _phase.apply_reroll(new_value - old_value):
 				AudioManager.sfx(&"power")
 				_show_dice(_dice.values())
-				_ui.set_status("Coup d'Accélérateur : %d → %d (%+d cases)." % [old_value, new_value, new_value - old_value])
+				_ui.set_status(tr("Coup d'Accélérateur : %d → %d (%+d cases).") % [old_value, new_value, new_value - old_value])
 				_refresh_highlights()
 				_update_active_marker()
 				_refresh_ui())
@@ -569,19 +987,19 @@ func _begin_interactive_power(pid: StringName) -> void:
 func _power_message(pid: StringName) -> String:
 	match pid:
 		&"bonne_marcheuse":
-			return "Bonne Marcheuse : +2 cases !"
+			return tr("Bonne Marcheuse : +2 cases !")
 		&"carnet_adresses":
-			return "Carnet d'Adresses : ton prochain événement, pioche 2 et garde 1."
+			return tr("Carnet d'Adresses : ton prochain événement, pioche 2 et garde 1.")
 		&"bouclier_vert":
-			return "Bouclier Vert : le prochain malus sera annulé."
+			return tr("Bouclier Vert : le prochain malus sera annulé.")
 		&"habitue_quartier":
-			return "Habitué·e : ta prochaine livraison comptera au maximum."
+			return tr("Habitué·e : ta prochaine livraison comptera au maximum.")
 		&"passage_secret":
-			return "Passage Secret : tu peux franchir l'eau ce tour-ci !"
+			return tr("Passage Secret : tu peux franchir l'eau ce tour-ci !")
 		&"chargement_pro":
-			return "Chargement Pro : +1 livraison transportable."
+			return tr("Chargement Pro : +1 livraison transportable.")
 		_:
-			return "Super-pouvoir activé !"
+			return tr("Super-pouvoir activé !")
 
 
 func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
@@ -594,24 +1012,52 @@ func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
 
 func _on_turn_changed(player: Player) -> void:
 	_can_roll = true
+	_reservation_prompted.clear()  # a new turn may re-offer a delivery declined earlier
 	_clear_dice()
 	_refresh_highlights()
 	_update_active_marker()
 	_refresh_ui()
-	_ui.show_banner("Au tour de %s" % PlayerColor.name_of(player.color), PlayerColor.to_color(player.color))
-	_ui.set_status("À toi de jouer — lance les dés.")
+	_ui.show_banner(tr("Au tour de %s") % PlayerColor.name_of(player.color), PlayerColor.to_color(player.color))
+	# turn_skipped fires synchronously right before turn_changed: fold the notice into this status
+	# line, or a separate toast would be overwritten before anyone could read it.
+	var status := tr("À toi de jouer — lance les dés.")
+	if _skipped_notice != "":
+		status = "%s %s" % [_skipped_notice, status]
+		_skipped_notice = ""
+	_ui.set_status(status)
+	if player.is_ai:
+		_play_ai_turn(player)
 
 
 func _on_delivery_completed(delivery: Delivery, points: int) -> void:
 	# The destinataire was recycled (or cleared) — refresh that delivery's recipient card + status.
 	AudioManager.sfx(&"deliver")
 	_celebrate_delivery(delivery.recipient_cell)
+	_show_score_breakdown(delivery, _phase.current_player(), points)
 	_rebuild_recipient_marker(delivery)
 	_update_status_ring(delivery)  # back to DISPONIBLE -> ring removed
 	if _delivery_panel != null:
 		_delivery_panel.refresh()
-	_ui.set_status("Livré ! +%d points." % points)
+	_ui.set_status(tr("Livré ! +%d points.") % points)
+	_announce_last_run()
 	_refresh_ui()
+
+
+# Announces the endgame sprint once: fewer deliveries left than players — every one of them counts.
+func _announce_last_run() -> void:
+	if _last_run_announced or _phase.is_finished():
+		return
+	var remaining := _phase.deliveries_remaining()
+	if remaining > 0 and remaining <= _players.size():
+		_last_run_announced = true
+		_ui.show_banner(tr("Dernière tournée !"), UITheme.ORANGE)
+
+
+# A skipped player has nothing left to do (nothing in flight, nothing reservable): remember the
+# notice — _on_turn_changed (fired right after) folds it into its status line.
+func _on_turn_skipped(player: Player) -> void:
+	var notice := tr("%s a fini sa journée — tour passé.") % PlayerColor.name_of(player.color)
+	_skipped_notice = notice if _skipped_notice == "" else "%s %s" % [_skipped_notice, notice]
 
 
 # A short confetti-like burst at [param cell] to celebrate a completed delivery (GL-safe CPU particles).
@@ -644,6 +1090,42 @@ func _celebrate_delivery(cell: Vector2i) -> void:
 	get_tree().create_timer(1.4).timeout.connect(particles.queue_free)
 
 
+# Floats "5 +10 (ton quartier) +10 (ton client) = 25" above the delivered recipient cell — the
+# device that teaches the territorial scoring rule at the exact moment it pays off. Any gap between
+# the plain breakdown and the delivery's actual [param points] (Habitué·e, Livraison Écologique) is
+# called out rather than silently dropped.
+func _show_score_breakdown(delivery: Delivery, player: Player, points: int) -> void:
+	var breakdown := ScoreCalculator.breakdown_delivery(delivery, player.color)
+	var parts: Array[String] = ["%d" % int(breakdown["base"])]
+	if breakdown["drive_bonus"] > 0:
+		parts.append(tr("+%d (ton quartier)") % int(breakdown["drive_bonus"]))
+	if breakdown["recipient_bonus"] > 0:
+		parts.append(tr("+%d (ton client)") % int(breakdown["recipient_bonus"]))
+	var text := "%s = %d" % [" ".join(parts), int(breakdown["subtotal"])]
+	if points != int(breakdown["subtotal"]):
+		if points == int(breakdown["subtotal"]) * 2:
+			text += tr(" → ×2 (Livraison Écologique)")
+		else:
+			text += " → %d" % points
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 42
+	label.pixel_size = 0.0085
+	label.modulate = PlayerColor.to_color(player.color)
+	label.outline_size = 10
+	label.outline_modulate = Color(0, 0, 0, 0.65)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.shaded = false
+	var pos := HexUtils.axial_to_world(delivery.recipient_cell, GameConfig.HEX_SIZE)
+	pos.y = GameConfig.TILE_HEIGHT + 0.9
+	label.position = pos
+	add_child(label)
+	var tween := create_tween()
+	tween.tween_property(label, "position:y", pos.y + 0.7, 1.6)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.6).set_delay(0.5)
+	tween.tween_callback(label.queue_free)
+
+
 func _confetti_ramp() -> Gradient:
 	var g := Gradient.new()
 	g.set_color(0, Color("ffd23f"))
@@ -653,6 +1135,8 @@ func _confetti_ramp() -> Gradient:
 
 
 func _on_game_finished(scores: Dictionary) -> void:
+	if _tournee_session != null:
+		return  # La Tournée has its own end screen, driven by TourneeSession.session_finished
 	AudioManager.sfx(&"victory")
 	_ui.show_end(scores, _players)
 
@@ -665,11 +1149,19 @@ func _refresh_ui() -> void:
 	if _delivery_panel != null:
 		_delivery_panel.set_remaining(_phase.deliveries_remaining())
 		_delivery_panel.set_current_player(player.index)
+		var generator := _phase.generator()
+		var upcoming: Array[DestinataireDefinition] = []
+		if generator != null:
+			upcoming = generator.peek_upcoming(3)
+		_delivery_panel.set_upcoming(upcoming)
+	if _player_panel != null:
+		_player_panel.refresh(_phase, player)
 	_ui.set_deck_counts(_events.draw_count(), _events.discard_count())
 	# The power needs the turn context (it acts during movement), so only offer it then — never a dead
 	# press during planning, and never silently wasted on an unimplemented effect.
 	var power_ready := player.character != null and not player.power_used and _phase.context() != null
 	_ui.set_power_available(power_ready)
+	_ui.set_boost_tokens(player.boost_tokens, _boost_usable_now())
 	_ui.set_action(_current_action())
 
 

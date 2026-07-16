@@ -51,6 +51,11 @@ static func road_bridge() -> Texture2D:
 	return load(_BASE + "road/3.png")
 
 
+## The consumed event-cell texture, swapped onto a rainbow cell once its event triggered this round.
+static func event_spent() -> Texture2D:
+	return load(_BASE + "event_spent.png")
+
+
 ## The start-point entity texture, placed on a green cell.
 static func spawn() -> Texture2D:
 	return load(_BASE + "spawn.png")

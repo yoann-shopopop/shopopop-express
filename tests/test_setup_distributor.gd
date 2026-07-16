@@ -1,5 +1,6 @@
 extends GutTest
-## Tests for SetupDistributor — draws 3 shared patterns and builds each player's pieces + start.
+## Tests for SetupDistributor — draws shared patterns (3 each up to 3 players, 2 each from 4,
+## per the rules' setup table) and builds each player's pieces + start.
 
 var _library: Array[BlockDefinition]
 var _bridge: BlockDefinition
@@ -50,7 +51,22 @@ func test_each_player_gets_three_blocks_and_a_separate_bridge() -> void:
 		assert_not_null(player.bridge, "a bridge held aside (not a turn piece)")
 
 
-func test_all_players_share_the_same_three_patterns() -> void:
+func test_tiles_per_player_follows_the_rules_table() -> void:
+	assert_eq(SetupDistributor.tiles_per_player(2), 3)
+	assert_eq(SetupDistributor.tiles_per_player(3), 3)
+	assert_eq(SetupDistributor.tiles_per_player(4), 2)
+	assert_eq(SetupDistributor.tiles_per_player(5), 2)
+	assert_eq(SetupDistributor.tiles_per_player(6), 2)
+
+
+func test_four_players_get_two_blocks_each() -> void:
+	var players := SetupDistributor.build_players(4, _library, _bridge, _seeded_rng())
+	for player in players:
+		assert_eq(player.pieces.size(), 2, "2 pattern blocks from 4 players (rules table)")
+		assert_not_null(player.bridge, "the bridge is still held aside")
+
+
+func test_all_players_share_the_same_patterns() -> void:
 	var players := SetupDistributor.build_players(4, _library, _bridge, _seeded_rng())
 	var first_ids := _pattern_ids(players[0])
 	for player in players:
@@ -78,8 +94,7 @@ func test_start_is_a_green_cell_of_one_of_the_players_blocks() -> void:
 	var players := SetupDistributor.build_players(3, _library, _bridge, _seeded_rng())
 	for player in players:
 		assert_not_null(player.start_block, "a start block is assigned")
-		var pattern_blocks := player.pieces.slice(0, 3)
-		assert_true(player.start_block in pattern_blocks, "start is on a pattern block, not the bridge")
+		assert_true(player.start_block in player.pieces, "start is on a pattern block, not the bridge")
 		var idx := player.start_block.cells.find(player.start_cell)
 		assert_gte(idx, 0, "start cell belongs to the block")
 		assert_eq(player.start_block.cell_types[idx], CellType.Kind.GREEN, "start sits on a green cell")
@@ -111,9 +126,9 @@ func test_players_are_indexed_by_seat() -> void:
 	assert_eq(players[2].index, 2)
 
 
-# The pattern ids (first 3 pieces) of a player.
+# The pattern ids of all of a player's turn pieces.
 func _pattern_ids(player: Player) -> Array:
 	var ids := []
-	for i in 3:
-		ids.append(player.pieces[i].id)
+	for piece in player.pieces:
+		ids.append(piece.id)
 	return ids

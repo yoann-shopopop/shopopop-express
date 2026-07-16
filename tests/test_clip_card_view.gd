@@ -5,9 +5,9 @@ extends GutTest
 
 func _combo(status: int) -> DeliveryCombo:
 	var e := EnseigneDefinition.new()
-	e.display_name = "IKEO"
+	e.display_name = "Visse & Vrille"
 	var d := DestinataireDefinition.new()
-	d.display_name = "Keiona"
+	d.display_name = "Mamie Turbo"
 	var c := DeliveryCombo.new(e, d)
 	c.status = status
 	return c

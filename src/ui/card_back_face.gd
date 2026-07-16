@@ -46,5 +46,5 @@ func populate() -> void:
 	var caption := Label.new()
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UITheme.make_title(caption, 34, UITheme.ORANGE)
-	caption.text = "ÉVÉNEMENT"
+	caption.text = tr("ÉVÉNEMENT")
 	col.add_child(caption)

@@ -1,10 +1,15 @@
 class_name TitleScreen
 extends CanvasLayer
-## Opening title screen: the game logo on the dark backdrop with a single "Jouer" button. Drawn above
-## everything; on press it emits [signal start_requested] and frees itself, revealing the player-count
-## chooser underneath. Pure UI — Main wires it.
+## Opening title screen: the game logo on the dark backdrop with "Jouer", "La Tournée", "Tutoriel" and
+## "⚙ Réglages" buttons. Drawn above everything; pressing "Jouer" emits [signal start_requested] and
+## frees itself, revealing the player-count chooser underneath. "La Tournée" emits
+## [signal tournee_requested] for the solo score-attack mode (its own auto-built board, no placement
+## phase). "Tutoriel" emits [signal tutorial_requested] for the guided first-time session. "⚙ Réglages"
+## opens [SettingsMenu] directly (no signal — self-contained). Pure UI — Main wires the first three.
 
 signal start_requested
+signal tutorial_requested
+signal tournee_requested
 
 const _LOGO := "res://assets/logo/logo_shopopop_express.png"
 
@@ -36,7 +41,7 @@ func _ready() -> void:
 	box.add_child(logo)
 
 	var play := Button.new()
-	play.text = "Jouer"
+	play.text = tr("Jouer")
 	play.custom_minimum_size = Vector2(280, 76)
 	play.add_theme_font_size_override("font_size", 32)
 	play.focus_mode = Control.FOCUS_NONE
@@ -49,16 +54,46 @@ func _ready() -> void:
 		start_requested.emit())
 	box.add_child(play)
 
-	var sound := Button.new()
-	sound.text = "Son : activé"
-	sound.custom_minimum_size = Vector2(280, 52)
-	sound.focus_mode = Control.FOCUS_NONE
-	sound.add_theme_font_size_override("font_size", 22)
-	sound.add_theme_stylebox_override("normal", UITheme.button_style(UITheme.PANEL_BORDER))
-	sound.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.PANEL_BORDER, 1.6))
-	sound.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.PANEL_BORDER))
-	sound.add_theme_color_override("font_color", UITheme.TEXT)
-	sound.pressed.connect(func() -> void:
+	var tournee := Button.new()
+	tournee.text = tr("La Tournée (solo)")
+	tournee.custom_minimum_size = Vector2(280, 52)
+	tournee.focus_mode = Control.FOCUS_NONE
+	tournee.add_theme_font_size_override("font_size", 22)
+	tournee.add_theme_stylebox_override("normal", UITheme.button_style(UITheme.GREEN))
+	tournee.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.GREEN, 1.6))
+	tournee.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.GREEN))
+	tournee.add_theme_color_override("font_color", UITheme.TEXT)
+	tournee.pressed.connect(func() -> void:
 		AudioManager.sfx(&"ui_click")
-		sound.text = "Son : coupé" if AudioManager.toggle_mute() else "Son : activé")
-	box.add_child(sound)
+		tournee_requested.emit())
+	box.add_child(tournee)
+
+	var tutorial := Button.new()
+	tutorial.text = tr("Tutoriel")
+	tutorial.custom_minimum_size = Vector2(280, 52)
+	tutorial.focus_mode = Control.FOCUS_NONE
+	tutorial.add_theme_font_size_override("font_size", 22)
+	tutorial.add_theme_stylebox_override("normal", UITheme.button_style(UITheme.ORANGE))
+	tutorial.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.ORANGE, 1.6))
+	tutorial.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.ORANGE))
+	tutorial.add_theme_color_override("font_color", UITheme.TEXT)
+	tutorial.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		tutorial_requested.emit())
+	box.add_child(tutorial)
+
+	var settings := Button.new()
+	settings.text = tr("⚙ Réglages")
+	settings.custom_minimum_size = Vector2(280, 52)
+	settings.focus_mode = Control.FOCUS_NONE
+	settings.add_theme_font_size_override("font_size", 22)
+	settings.add_theme_stylebox_override("normal", UITheme.button_style(UITheme.PANEL_BORDER))
+	settings.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.PANEL_BORDER, 1.6))
+	settings.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.PANEL_BORDER))
+	settings.add_theme_color_override("font_color", UITheme.TEXT)
+	settings.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		var menu := SettingsMenu.new()
+		add_child(menu)
+		menu.setup(GameSettings.current()))
+	box.add_child(settings)

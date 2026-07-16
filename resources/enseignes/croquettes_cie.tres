@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="EnseigneDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/enseignes/enseigne_definition.gd" id="1_ens"]
+
+[resource]
+script = ExtResource("1_ens")
+id = &"croquettes_cie"
+display_name = "Croquettes & Cie"
+color = Color(0.3411765, 0.4588235, 0.5647059, 1)

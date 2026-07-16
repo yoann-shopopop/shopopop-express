@@ -3,7 +3,9 @@ extends Node
 ## Tiny sound layer: a pool of SFX voices (so sounds overlap) plus a looping ambient music track. The
 ## clips are the procedurally-generated WAVs in assets/audio/ (see tools/generate_audio.gd). Exposed as
 ## static helpers backed by a single live instance, so any node can call [code]AudioManager.sfx(&"dice")[/code]
-## without an autoload entry. [Main] creates one at startup. Mute toggles the Master bus.
+## without an autoload entry. [Main] creates one at startup. SFX route to the "Effets" bus, music to
+## "Musique" — separate faders so [GameSettings]/[SettingsMenu] can control each independently
+## (task #26; superseded the old single Master-bus mute toggle).
 
 const DIR := "res://assets/audio/"
 const SFX_NAMES := [
@@ -20,7 +22,6 @@ var _streams: Dictionary = {}            # StringName -> AudioStream
 var _voices: Array[AudioStreamPlayer] = []
 var _next_voice := 0
 var _music: AudioStreamPlayer
-var _muted := false
 
 
 func _ready() -> void:
@@ -31,11 +32,11 @@ func _ready() -> void:
 			_streams[n] = load(path)
 	for _i in SFX_VOICES:
 		var voice := AudioStreamPlayer.new()
-		voice.bus = &"Master"
+		voice.bus = GameSettings.SFX_BUS
 		add_child(voice)
 		_voices.append(voice)
 	_music = AudioStreamPlayer.new()
-	_music.bus = &"Master"
+	_music.bus = GameSettings.MUSIC_BUS
 	_music.volume_db = MUSIC_DB
 	add_child(_music)
 	_start_music()
@@ -69,17 +70,3 @@ func _play_sfx(name: StringName, volume_db: float) -> void:
 	voice.stream = stream
 	voice.volume_db = volume_db
 	voice.play()
-
-
-## Toggles mute on the Master bus and returns the new muted state.
-static func toggle_mute() -> bool:
-	if _instance == null:
-		return false
-	_instance._muted = not _instance._muted
-	AudioServer.set_bus_mute(0, _instance._muted)
-	return _instance._muted
-
-
-## Whether sound is currently muted.
-static func is_muted() -> bool:
-	return _instance != null and _instance._muted

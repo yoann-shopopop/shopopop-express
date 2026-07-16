@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+
+[resource]
+script = ExtResource("1_dest")
+id = &"tata_ginette"
+display_name = "Tata Ginette"
+manie = "Vous raconte sa semaine avant de signer. Prévoir dix minutes."
+color = Color(0.9529412, 0.4470588, 0.172549, 1)

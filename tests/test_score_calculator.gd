@@ -46,3 +46,26 @@ func test_two_tiles_only_recipient_is_mine_scores_fifteen() -> void:
 func test_two_tiles_both_mine_score_twentyfive() -> void:
 	var d := _delivery([RED, RED])
 	assert_eq(ScoreCalculator.score_delivery(d, RED), 25)
+
+
+func test_breakdown_of_a_delivery_with_no_owned_tile() -> void:
+	var d := _delivery([BLUE, BLUE])
+	var b := ScoreCalculator.breakdown_delivery(d, RED)
+	assert_eq(b["base"], 5)
+	assert_eq(b["drive_bonus"], 0)
+	assert_eq(b["recipient_bonus"], 0)
+	assert_eq(b["subtotal"], 5)
+
+
+func test_breakdown_of_a_mono_tile_delivery_thats_mine() -> void:
+	var d := _delivery([RED])
+	var b := ScoreCalculator.breakdown_delivery(d, RED)
+	assert_eq(b["base"], 5)
+	assert_eq(b["drive_bonus"], 10)
+	assert_eq(b["recipient_bonus"], 10)
+	assert_eq(b["subtotal"], 25)
+
+
+func test_breakdown_subtotal_always_matches_score_delivery() -> void:
+	var d := _delivery([RED, BLUE])
+	assert_eq(ScoreCalculator.breakdown_delivery(d, RED)["subtotal"], ScoreCalculator.score_delivery(d, RED))

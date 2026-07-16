@@ -15,6 +15,7 @@ var _grounding: Node3D       # light pool + soft contact shadow under the whole 
 var _shadow_tex: Texture2D
 var _glow_tex: Texture2D
 var _drive_cells: Dictionary = {}  # cells (set) that host a delivery's DRIVE storefront art
+var _spent_event_cells: Dictionary = {}  # event cells (set) consumed this round (inert texture)
 
 
 func setup(board: Board, players: Array[Player]) -> void:
@@ -41,6 +42,16 @@ func set_drive_cells(cells: Array) -> void:
 		_refresh()
 
 
+## Sets which event (rainbow) cells are consumed this round (drawn inert), then redraws. Called by
+## [Main] on [GamePhase]'s event_cell_spent / event_cells_rearmed signals.
+func set_spent_event_cells(cells: Array) -> void:
+	_spent_event_cells.clear()
+	for cell in cells:
+		_spent_event_cells[cell] = true
+	if _tiles_root != null:
+		_refresh()
+
+
 func _refresh() -> void:
 	_refresh_grounding()
 	for child in _tiles_root.get_children():
@@ -52,7 +63,10 @@ func _refresh() -> void:
 			var tc: Dictionary = piece.typed_cells[i]
 			var local: Vector2i = piece.block_def.cells[i]
 			var is_drive: bool = _drive_cells.has(tc["cell"])  # storefront art on the real delivery drives
-			_tiles_root.add_child(TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, local, piece_cells, is_drive))
+			var sprite := TileSprite.make(tc["cell"], tc["type"], road_cells, GameConfig.HEX_SIZE, local, piece_cells, is_drive)
+			if tc["type"] == CellType.Kind.EVENT and _spent_event_cells.has(tc["cell"]):
+				sprite.texture = TileTextures.event_spent()  # consumed this round: drawn inert
+			_tiles_root.add_child(sprite)
 	_refresh_outlines()
 	_refresh_markers()
 

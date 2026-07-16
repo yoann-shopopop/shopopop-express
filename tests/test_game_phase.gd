@@ -234,6 +234,45 @@ func test_stepping_onto_an_event_cell_emits_event_triggered() -> void:
 	assert_signal_emitted_with_parameters(phase, "event_triggered", [Vector2i(2, 0)])
 
 
+func test_triggering_consumes_the_event_cell() -> void:
+	var phase := _phase_with_event()
+	phase.begin_movement(3)
+	watch_signals(phase)
+	phase.try_step(Vector2i(1, 0))
+	phase.try_step(Vector2i(2, 0))  # the EVENT cell
+	assert_signal_emitted_with_parameters(phase, "event_cell_spent", [Vector2i(2, 0)])
+	assert_false(phase.is_event_cell_armed(Vector2i(2, 0)), "the cell is spent for the round")
+	assert_eq(phase.spent_event_cells(), [Vector2i(2, 0)])
+
+
+func test_a_spent_event_cell_does_not_retrigger() -> void:
+	# Oscillating on/off the rainbow cell must not farm the deck: one trigger per cell per round.
+	var phase := _phase_with_event()
+	phase.begin_movement(6)
+	phase.try_step(Vector2i(1, 0))
+	phase.try_step(Vector2i(2, 0))  # first trigger
+	var card := EventCardDefinition.new()
+	card.effect = EventCardDefinition.Effect.BONUS_CASES
+	card.amount = 1
+	phase.apply_event(card)  # resolve and resume movement
+	watch_signals(phase)
+	phase.try_step(Vector2i(1, 0))
+	phase.try_step(Vector2i(2, 0))  # back onto the spent cell
+	assert_signal_not_emitted(phase, "event_triggered", "spent cell stays inert")
+	assert_eq(phase.current_subphase(), GamePhase.SubPhase.DEPLACEMENT, "the walk is not interrupted")
+
+
+func test_event_cells_rearm_when_a_new_round_begins() -> void:
+	var phase := _phase_with_event()  # single player: end_turn wraps straight into a new round
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))
+	phase.try_step(Vector2i(2, 0))
+	watch_signals(phase)
+	phase.end_turn()
+	assert_signal_emitted(phase, "event_cells_rearmed")
+	assert_true(phase.is_event_cell_armed(Vector2i(2, 0)), "a new round re-arms the cell")
+
+
 func test_apply_event_bonus_cases_extends_movement() -> void:
 	var phase := _phase_with_event()
 	phase.begin_movement(2)
@@ -388,6 +427,42 @@ func test_deliveries_remaining_reaches_zero_exactly_when_finished() -> void:
 	assert_true(phase.is_finished())
 
 
+# --- End-game tail: idle turns are skipped -----------------------------------
+
+# Two players, ONE delivery (no generator): once player 0 reserves it, player 1 holds nothing and
+# nothing is reservable — their turns must be skipped instead of forcing empty roll-walk-end turns.
+func _two_players_one_delivery() -> Dictionary:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var piece: PlacedPiece = board.pieces()[0]
+	var p0 := _player(0, PlayerColor.Kind.RED, tile)
+	var p1 := _player(1, PlayerColor.Kind.BLUE, tile)
+	var delivery := Delivery.new(Vector2i(1, 0), Vector2i(2, 0), [piece] as Array[PlacedPiece])
+	delivery.destinataire = DestinataireDefinition.new()
+	var phase := GamePhase.new([p0, p1] as Array[Player], board, [delivery] as Array[Delivery])
+	return {"phase": phase, "p1": p1}
+
+
+func test_idle_player_turn_is_skipped_at_the_endgame_tail() -> void:
+	var s := _two_players_one_delivery()
+	var phase: GamePhase = s["phase"]
+	phase.begin_movement(1)
+	assert_true(phase.reserve_delivery(), "player 0 reserves the only delivery")
+	watch_signals(phase)
+	phase.end_turn()
+	assert_signal_emitted_with_parameters(phase, "turn_skipped", [s["p1"]])
+	assert_eq(phase.current_player().index, 0, "player 1 had nothing to do: back to player 0")
+
+
+func test_no_skip_while_a_delivery_stays_reservable() -> void:
+	var s := _two_players_one_delivery()
+	var phase: GamePhase = s["phase"]
+	phase.begin_movement(1)
+	phase.end_turn()  # player 0 reserved nothing: the delivery is still open for player 1
+	assert_eq(phase.current_player().index, 1, "player 1 can still reserve: no skip")
+
+
 # --- Super-powers (the four that were stubbed + the two dead-flag ones) ------
 
 func _char_with_power(power_id: StringName) -> CharacterDefinition:
@@ -432,6 +507,62 @@ func test_coup_accelerateur_adjusts_budget_and_spends_the_power() -> void:
 	assert_true(phase.apply_reroll(2), "rerolled a 2-higher die")
 	assert_eq(phase.movement().remaining(), 5)
 	assert_false(phase.apply_reroll(1), "one-shot")
+
+
+# --- Coup de pouce (boost tokens — resource pool, not a one-shot power) -----
+
+func test_new_player_starts_with_two_boost_tokens() -> void:
+	assert_eq(Player.new(PlayerColor.Kind.RED).boost_tokens, 2)
+
+
+func test_spend_boost_token_adjusts_budget_and_consumes_one_token() -> void:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	var phase := GamePhase.new([player] as Array[Player], board)
+	phase.begin_movement(3)
+	assert_true(phase.spend_boost_token(2), "a reroll landed 2 higher")
+	assert_eq(phase.movement().remaining(), 5)
+	assert_eq(player.boost_tokens, 1, "one token spent")
+
+
+func test_spend_boost_token_can_lower_the_budget_too() -> void:
+	# "Fixer un dé au max" can still be a net loss vs. a lucky prior roll — the mitigation is a
+	# guaranteed floor, not always an upgrade; the delta can be negative.
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	var phase := GamePhase.new([player] as Array[Player], board)
+	phase.begin_movement(5)
+	assert_true(phase.spend_boost_token(-2))
+	assert_eq(phase.movement().remaining(), 3)
+
+
+func test_spend_boost_token_is_a_resource_not_a_one_shot() -> void:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	var phase := GamePhase.new([player] as Array[Player], board)
+	phase.begin_movement(3)
+	assert_true(phase.spend_boost_token(1), "first token")
+	assert_true(phase.spend_boost_token(1), "second token — unlike a super-power, usable again")
+	assert_eq(player.boost_tokens, 0)
+	assert_false(phase.spend_boost_token(1), "no tokens left")
+
+
+func test_spend_boost_token_requires_no_step_taken_yet() -> void:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	var phase := GamePhase.new([player] as Array[Player], board)
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))
+	assert_false(phase.spend_boost_token(1), "too late — already walking")
+	assert_eq(player.boost_tokens, 2, "the token is not spent when the attempt is rejected")
 
 
 func test_passage_secret_makes_water_walkable_this_turn() -> void:

@@ -1,5 +1,8 @@
 # Cartes enseigne/destinataire & génération de livraisons — Implementation Plan
 
+> ⚠️ **Caviardé le 2026-07-16** : les noms d'exemple d'origine (personnalités réelles et parodies de marques) ont été remplacés par le contenu fictif actuel, pour les mêmes raisons juridiques que la purge des `resources/`. Voir CLAUDE.md.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Construire un module autonome (logique pure testée + démo 3D interactive) qui apparie aléatoirement une enseigne et un destinataire en « combos » de livraison, gère leur statut (disponible/réservé/en cours/livré) et recycle les destinataires à la livraison.
@@ -56,11 +59,11 @@ extends GutTest
 
 func test_fields_are_assignable() -> void:
 	var e := EnseigneDefinition.new()
-	e.id = &"ikeo"
-	e.display_name = "IKEO"
+	e.id = &"visse_et_vrille"
+	e.display_name = "VISSE & VRILLE"
 	e.color = Color.RED
-	assert_eq(e.id, &"ikeo")
-	assert_eq(e.display_name, "IKEO")
+	assert_eq(e.id, &"visse_et_vrille")
+	assert_eq(e.display_name, "VISSE & VRILLE")
 	assert_eq(e.color, Color.RED)
 ```
 
@@ -113,11 +116,11 @@ extends GutTest
 
 func test_fields_are_assignable() -> void:
 	var d := DestinataireDefinition.new()
-	d.id = &"keiona"
-	d.display_name = "Keiona"
+	d.id = &"vero_locale"
+	d.display_name = "Véro Locale"
 	d.color = Color.BLUE
-	assert_eq(d.id, &"keiona")
-	assert_eq(d.display_name, "Keiona")
+	assert_eq(d.id, &"vero_locale")
+	assert_eq(d.display_name, "Véro Locale")
 	assert_eq(d.color, Color.BLUE)
 ```
 
@@ -169,13 +172,13 @@ extends GutTest
 
 func _enseigne() -> EnseigneDefinition:
 	var e := EnseigneDefinition.new()
-	e.id = &"ikeo"
+	e.id = &"visse_et_vrille"
 	return e
 
 
 func _destinataire() -> DestinataireDefinition:
 	var d := DestinataireDefinition.new()
-	d.id = &"keiona"
+	d.id = &"vero_locale"
 	return d
 
 
@@ -500,7 +503,7 @@ func _init() -> void:
 	for file in dir.get_files():
 		if not file.ends_with(".webp"):
 			continue
-		var base := file.get_basename()  # e.g. CHUPER_U
+		var base := file.get_basename()  # e.g. VISSE_ET_VRILLE
 		var e := EnseigneDefinition.new()
 		e.id = StringName(base.to_lower())
 		e.display_name = base.replace("_", " ").capitalize()
@@ -524,18 +527,18 @@ extends SceneTree
 const DIR := "res://resources/destinataires/"
 # id, display_name, banner color
 const NAMES := [
-	["sasha_velours", "Sasha Velours", "9b5de5"],
-	["gott_mik", "Gott Mik", "d62246"],
-	["keiona", "Keiona", "f3722c"],
-	["soa_de_muse", "Soa de Muse", "2d7dd2"],
-	["nicky_doll", "Nicky Doll", "e84855"],
-	["lova_ladiva", "Lova Ladiva", "f4c430"],
-	["paloma", "Paloma", "43aa8b"],
-	["la_grande_dame", "La Grande Dame", "577590"],
-	["le_filip", "Le Filip", "90be6d"],
-	["punani", "Punani", "c77dff"],
-	["kam_hugh", "Kam Hugh", "ff7043"],
-	["moon", "Moon", "4cc9f0"],
+	["mamie_turbo", "Mamie Turbo", "9b5de5"],
+	["jean_mi_carton", "Jean-Mi Carton", "d62246"],
+	["vero_locale", "Véro Locale", "f3722c"],
+	["capitaine_apero", "Capitaine Apéro", "2d7dd2"],
+	["tata_ginette", "Tata Ginette", "e84855"],
+	["dj_frigo", "DJ Frigo", "f4c430"],
+	["m_pantoufle", "M. Pantoufle", "43aa8b"],
+	["lea_du_5e", "Léa du 5ᵉ", "577590"],
+	["papi_brouette", "Papi Brouette", "90be6d"],
+	["mme_coupon", "Mme Coupon", "c77dff"],
+	["famille_chut", "Famille Chut", "ff7043"],
+	["coach_gilbert", "Coach Gilbert", "4cc9f0"],
 ]
 
 
@@ -594,9 +597,9 @@ extends GutTest
 
 func _combo(status: int) -> DeliveryCombo:
 	var e := EnseigneDefinition.new()
-	e.display_name = "IKEO"
+	e.display_name = "VISSE & VRILLE"
 	var d := DestinataireDefinition.new()
-	d.display_name = "Keiona"
+	d.display_name = "Véro Locale"
 	var c := DeliveryCombo.new(e, d)
 	c.status = status
 	return c

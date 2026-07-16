@@ -24,8 +24,14 @@ signal delivery_in_progress(delivery: Delivery)
 signal delivery_completed(delivery: Delivery, points: int)
 ## The game ended (all deliveries done); [param scores] maps player index -> total.
 signal game_finished(scores: Dictionary)
+## [param player]'s turn was skipped: they hold nothing and nothing is reservable (their day is over).
+signal turn_skipped(player: Player)
 ## The pawn stepped onto an event (rainbow) cell — draw and resolve an event card.
 signal event_triggered(cell: Vector2i)
+## An event cell was consumed by triggering: it stays inert until the next round re-arms it.
+signal event_cell_spent(cell: Vector2i)
+## A new round began: every consumed event cell is armed again.
+signal event_cells_rearmed
 
 var _players: Array[Player]
 var _board: Board
@@ -38,6 +44,7 @@ var _scores: Dictionary = {}           # player index -> total points
 var _movement: TurnMovement = null
 var _context: TurnContext = null       # mutable state for the current turn's events/powers
 var _generator: DeliveryGenerator = null  # when set, delivering recycles a new recipient (index-aligned with _deliveries)
+var _spent_event_cells: Dictionary = {}  # event cells consumed this round (set); re-armed each round
 
 ## Maximum in-flight deliveries (RESERVE + EN_COURS) a player may hold simultaneously.
 const MAX_IN_FLIGHT := 2
@@ -61,6 +68,12 @@ func current_player() -> Player:
 ## The current round number (1-based): increments each time play wraps back to the first seat.
 func round_number() -> int:
 	return _round
+
+
+## The recycling generator, or null if deliveries never recycle (e.g. a forced/scripted session).
+## Exposed so the HUD can peek the upcoming recipients (see [method DeliveryGenerator.peek_upcoming]).
+func generator() -> DeliveryGenerator:
+	return _generator
 
 
 ## How many deliveries are still to be made before the game ends — the recipients still clipped on a
@@ -118,7 +131,11 @@ func try_step(cell: Vector2i) -> bool:
 	_positions[current_player().index] = cell
 	pawn_moved.emit(current_player(), from, cell)
 	_check_delivery_transitions()
-	if _board.cell_type_at(cell) == CellType.Kind.EVENT:
+	# An event cell triggers once, then is consumed for the round: crossing it back and forth cannot
+	# farm the deck, and passing through a spent cell no longer interrupts the walk.
+	if _board.cell_type_at(cell) == CellType.Kind.EVENT and is_event_cell_armed(cell):
+		_spent_event_cells[cell] = true
+		event_cell_spent.emit(cell)
 		_set_subphase(SubPhase.EVENEMENT)
 		event_triggered.emit(cell)
 	return true
@@ -135,11 +152,58 @@ func end_turn() -> void:
 		_set_subphase(SubPhase.PLANIFICATION)
 		turn_changed.emit(current_player())
 		return
+	_advance_seat()
+	_skip_idle_players()
+	_set_subphase(SubPhase.PLANIFICATION)
+	turn_changed.emit(current_player())
+
+
+func _advance_seat() -> void:
 	_current = (_current + 1) % _players.size()
 	if _current == 0:
 		_round += 1  # play wrapped back to the first seat: a new round begins
-	_set_subphase(SubPhase.PLANIFICATION)
-	turn_changed.emit(current_player())
+		_rearm_event_cells()
+
+
+# End-game tail: a player holding no in-flight delivery while nothing is reservable can no longer
+# deliver anything (the identity pool is capped — no new recipient will ever appear), so their turns
+# are skipped (announced via [signal turn_skipped]) instead of forcing empty roll-walk-end turns
+# while the others finish. Assumed trade-off: a skipped player also forgoes walking to a still-armed
+# event cell for a random score card — acceptable because the tail stops re-arming cells (see
+# _rearm_event_cells), so that chance is bounded and the anticlimax fix wins. Bounded by the seat
+# count: while the game is unfinished at least one player can act.
+func _skip_idle_players() -> void:
+	if _deliveries.is_empty() or is_finished():
+		return  # no delivery game at all (bare-board demos), or nothing left: nothing to skip
+	for _attempt in _players.size():
+		var player := current_player()
+		if not deliveries_in_flight(player.index).is_empty() or not available_deliveries().is_empty():
+			return
+		turn_skipped.emit(player)
+		_advance_seat()
+
+
+## True while the event (rainbow) cell at [param cell] can still trigger this round.
+func is_event_cell_armed(cell: Vector2i) -> bool:
+	return not _spent_event_cells.has(cell)
+
+
+## The event cells consumed this round (armed again when a new round begins).
+func spent_event_cells() -> Array:
+	return _spent_event_cells.keys()
+
+
+func _rearm_event_cells() -> void:
+	if _spent_event_cells.is_empty():
+		return
+	# The endgame tail re-arms nothing: once fewer deliveries remain than players, permanently
+	# skipped seats make every turn of the last active player(s) wrap into a "new round" — re-arming
+	# there would let them farm event cards (+20s…) turn after turn instead of ending the game.
+	# Boards without deliveries (demos, tests) keep the plain per-round re-arm.
+	if not _deliveries.is_empty() and deliveries_remaining() <= _players.size():
+		return
+	_spent_event_cells.clear()
+	event_cells_rearmed.emit()
 
 
 # --- Events & powers --------------------------------------------------------
@@ -308,6 +372,27 @@ func apply_reroll(delta: int) -> bool:
 	else:
 		_movement.subtract_steps(-delta)
 	player.power_used = true
+	return true
+
+
+## Coup de pouce (boost token — a resource pool, not a one-shot power): spends one of the current
+## player's [member Player.boost_tokens] to adjust the current movement's budget by [param delta]
+## (new dice total − old), from a reroll or a "fix one die to max". Only usable before the turn's
+## first step ("après ton lancer, avant de partir") — [method TurnMovement.path] starts at size 1
+## (the start cell only); anything more means a step was already taken.
+func spend_boost_token(delta: int) -> bool:
+	if _context == null or _subphase != SubPhase.DEPLACEMENT or _movement == null:
+		return false
+	if _movement.path().size() > 1:
+		return false
+	var player := current_player()
+	if player.boost_tokens <= 0:
+		return false
+	if delta >= 0:
+		_movement.add_steps(delta)
+	else:
+		_movement.subtract_steps(-delta)
+	player.boost_tokens -= 1
 	return true
 
 

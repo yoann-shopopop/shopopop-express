@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+
+[resource]
+script = ExtResource("1_dest")
+id = &"m_pantoufle"
+display_name = "M. Pantoufle"
+manie = "N'ouvre la porte qu'à moitié. Le chat, lui, sort en entier."
+color = Color(0.3411765, 0.4588235, 0.5647059, 1)

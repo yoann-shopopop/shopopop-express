@@ -43,9 +43,12 @@ statut : **Disponible → Réservé → En cours → Terminé**.
 
 ### Mise en place
 
-**Nombre de joueur·euse·s : 2 à 6.** Nombre de tuiles par joueur·euse : jusqu'à 3 joueurs → **3 tuiles**
+**Nombre de joueur·euse·s : 2 à 6.** *(Adaptation numérique V1 : **2 à 4** — au-delà, deux
+joueur·euse·s partageraient une couleur de quartier, ce qui casse l'identité et le scoring ; tranché
+2026-07-16.)* Nombre de tuiles par joueur·euse : jusqu'à 3 joueurs → **3 tuiles**
 chacun ; à partir de 4 joueurs → **2 tuiles** chacun. Le total de tuiles posées = le nombre de
-livraisons de la partie.
+livraisons de la partie. *(Implémenté 2026-07-16 : `SetupDistributor.tiles_per_player` + pool
+d'identités plafonné dans `DeliveryGenerator`.)*
 
 | Joueurs | Tuiles / joueur | Total tuiles = livraisons |
 |---|---|---|
@@ -84,10 +87,17 @@ Le jeu se déroule en tours jusqu'à ce qu'il n'y ait plus de livraison à effec
      (automatique) ;
    - arriver sur la **case du destinataire** → elle passe **Terminé** (automatique).
    Réserver, prendre et livrer sont **gratuits** (aucun point de déplacement).
-3. **Événements** — si le déplacement passe sur une case arc-en-ciel, le mettre en pause, piocher une
-   carte événement, la résoudre, puis reprendre. Penser à utiliser son super-pouvoir au besoin.
+3. **Événements** — si le déplacement passe sur une case arc-en-ciel **armée**, le mettre en pause,
+   piocher une carte événement, la résoudre, puis reprendre. La case est alors **consommée** pour la
+   manche (elle ne redéclenche pas si on la retraverse) et se **réarme au début de la manche
+   suivante**. *(Numérique 2026-07-16 : supprime l'exploit d'aller-retour sur la case.)* Penser à
+   utiliser son super-pouvoir au besoin.
 4. **Recyclage** — à la livraison, la tuile reçoit un **nouveau destinataire** disponible (roulement) ;
    si le pool de destinataires est épuisé, le drive reste **libre** (plus de livraison à cet endroit).
+   *(Numérique : comme le total de livraisons = le total de tuiles, le pool est épuisé dès la mise en
+   place — chaque drive sert une fois. La mécanique de roulement reste dans le moteur pour les futurs
+   modes score. Les tours d'un·e joueur·euse sans action possible — rien en vol, rien à réserver —
+   sont passés automatiquement en fin de partie.)*
 
 ### Fin de la partie
 
@@ -206,9 +216,10 @@ pioche-en 2 et garde celle qui t'arrange (défausse l'autre). *Défausse la cart
 À arbitrer lors des playtests. **Mise à jour finition 2026-06-14** : plusieurs points ont reçu un
 **défaut raisonnable codé** (modifiable au playtest) — voir « Arbitrages de finition » dans `CLAUDE.md`.
 
-- **Objectif coopératif vs compétitif** : l'intro évoque un but collectif (« accomplir toutes les
-  livraisons »), mais le score est individuel. → **Défaut V1** : coopératif ; l'écran de fin montre le
-  **classement individuel + le total collectif** (meilleur·e mis en avant, pas de « perdant »).
+- ~~Objectif coopératif vs compétitif~~ **(tranché 2026-07-16, plan Steam Étape 3)** : **compétitif
+  assumé** — une « course de livraisons » au ton convivial (« prendre la course », premier arrivé
+  premier servi, comme le métier). L'écran de fin garde classement + total collectif ; le re-framing
+  des textes arrive au Lot 1 ; l'esprit « pas de perdant » vivra dans le mode solo « La Tournée ».
 - **Capacité de volume** : mentionnée par le pouvoir de Margot mais jamais définie ailleurs. → **Défaut
   V1** : 2 livraisons « en vol » max ; *Chargement Pro* (Margot) donne **+1** (donc 3), conservé.
 - **Cohérence super-pouvoir** : la section « Cartes personnage » dit « annuler un événement » alors que
@@ -225,10 +236,23 @@ pioche-en 2 et garde celle qui t'arrange (défausse l'autre). *Défausse la cart
   bi-tuile), atteignabilité garantie. Le score 5/15/25 récompense séparément la tuile du drive et celle
   du destinataire (une livraison mono-tuile à ta couleur vaut le max, 25).
 - **Variance** : événements « téléportation » (*Faille Spatio-Temporelle*, *Escorte Policière*,
-  *Raccourci Secret*) et **5/5 (+20 pts)** très swingy.
-- **Mini-effets de destinataire** : le catalogue des destinataires (sous-page Notion « 📦 Les
-  Destinataires ») prête à chaque nom une « manie » décorative qui pourrait, plus tard, devenir un
-  petit bonus/contrainte à la livraison. Décoratif pour l'instant. La V1 retient **9 destinataires**.
+  *Raccourci Secret*) et **5/5 (+20 pts)** très swingy. *(Mitigation prévue au Lot 1 du plan Steam :
+  jetons « Coup de pouce ». L'exploit de farm des cases arc-en-ciel est, lui, corrigé — cases
+  consommées par manche, 2026-07-16.)*
+- **Écarts assumés V1 vs règles physiques** *(documentés 2026-07-16 — les textes des cartes affichent
+  l'effet réellement codé)* : *Feu Rouge* n'a pas d'exception vélo ; *Manifestation* = −½ budget
+  ponctuel (pas persistant) ; *Fuite de Canalisation* = détour −3 (pas de blocage global) ;
+  *Pluies Torrentielles* = détour −2 (le pont reste setup-only) ; *Faille* = téléport au drive le
+  plus éloigné ; *Raccourci Secret* = téléport au prochain drive disponible.
+- **Premier joueur « vêtements noirs »** : intraduisible en numérique — conservé en clin d'œil sur
+  l'écran de choix des joueurs ; l'ordre réel des sièges est l'ordre du draft.
+- **Mini-effets de destinataire** : chaque destinataire porte une « manie » (champ `manie`,
+  décorative pour l'instant) qui pourrait devenir un petit bonus/contrainte à la livraison. La V1
+  retient **12 destinataires**.
 
-> Contenu d'univers (noms parodiques des destinataires, par familles) : sous-page Notion
-> **« 📦 Les Destinataires »**, enfant de la page de règles. Non recopié ici (catalogue d'idées).
+> ⚠️ **Purge juridique (2026-07-16)** : les destinataires issus de la sous-page Notion « 📦 Les
+> Destinataires » étaient des **personnalités réelles** (portraits inclus) et les enseignes des
+> **parodies de marques réelles** — interdits à toute diffusion publique. Les deux catalogues sont
+> remplacés par du **contenu 100 % fictif** (`resources/destinataires|enseignes/`) ; ne jamais
+> réintroduire de personne réelle ni de parodie de marque. Anciens fichiers isolés dans
+> `quarantine/`, suppression définitive à valider par l'équipe.

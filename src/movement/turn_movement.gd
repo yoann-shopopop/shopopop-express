@@ -109,3 +109,36 @@ func is_stuck() -> bool:
 ## The movement is over, whether complete or stuck.
 func is_finished() -> bool:
 	return is_complete() or is_stuck()
+
+
+## Shortest route from the current cell to [param target] over the live walkable set (BFS, hex
+## neighbours) — the sequence of cells to [method step] through in order, [param target] included,
+## the current cell excluded. Empty if [param target] is unreachable or is the current cell. Length
+## is the cost in steps (compare to [method remaining] to know if the walk is affordable). Used by
+## the UI to preview a multi-cell walk on hover and animate it one [method step] at a time on click.
+func path_to(target: Vector2i) -> Array[Vector2i]:
+	if target == _current:
+		return []
+	var came_from := {_current: _current}
+	var frontier: Array[Vector2i] = [_current]
+	var head := 0
+	while head < frontier.size():
+		var cell: Vector2i = frontier[head]
+		head += 1
+		if cell == target:
+			break
+		for neighbor in HexUtils.neighbors(cell):
+			if came_from.has(neighbor):
+				continue
+			if _walkable.has(neighbor):
+				came_from[neighbor] = cell
+				frontier.append(neighbor)
+	if not came_from.has(target):
+		return []
+	var reversed: Array[Vector2i] = []
+	var cursor := target
+	while cursor != _current:
+		reversed.append(cursor)
+		cursor = came_from[cursor]
+	reversed.reverse()
+	return reversed

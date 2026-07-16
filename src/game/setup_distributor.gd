@@ -1,11 +1,17 @@
 class_name SetupDistributor
 extends RefCounted
-## Builds the players' starting pieces for a game: draws 3 distinct patterns from the library
-## (shared by everyone, for balance), clones them in each player's color, adds a bridge, and assigns
-## each player a start point (random green cell of a random one of their blocks). Pure & seedable.
+## Builds the players' starting pieces for a game: draws distinct patterns from the library
+## (shared by everyone, for balance — 3 each up to 3 players, 2 each from 4 players, per the rules'
+## setup table), clones them in each player's color, adds a bridge, and assigns each player a start
+## point (random green cell of a random one of their blocks). Pure & seedable.
 
 
-## Returns [param count] players (2..6), each with the same 3 drawn patterns (recolored) + a bridge.
+## Tiles dealt to each player: 3 up to 3 players, 2 from 4 players (rules, « Mise en place »).
+static func tiles_per_player(count: int) -> int:
+	return 3 if count <= 3 else 2
+
+
+## Returns [param count] players, each with the same drawn patterns (recolored) + a bridge.
 ## Characters: if [param chosen] holds one per seat it is used as-is (the character-select screen);
 ## otherwise, when [param characters] is non-empty, each player is dealt a distinct random one.
 static func build_players(
@@ -16,7 +22,7 @@ static func build_players(
 	characters: Array[CharacterDefinition] = [],
 	chosen: Array[CharacterDefinition] = [],
 ) -> Array[Player]:
-	var drawn := _draw_distinct(library, 3, rng)
+	var drawn := _draw_distinct(library, tiles_per_player(count), rng)
 	var colors := PlayerColor.all()
 	var dealt := _draw_distinct_characters(characters, count, rng)
 	var players: Array[Player] = []
@@ -67,9 +73,10 @@ static func _clone(block: BlockDefinition, tint: Color) -> BlockDefinition:
 	return copy
 
 
-# Assigns the start to a random green cell of a random pattern block (indices 0..2, not the bridge).
+# Assigns the start to a random green cell of a random pattern block (never the bridge, which is
+# held aside in player.bridge).
 static func _assign_start(player: Player, rng: RandomNumberGenerator) -> void:
-	var block_index := rng.randi_range(0, 2)
+	var block_index := rng.randi_range(0, player.pieces.size() - 1)
 	var block: BlockDefinition = player.pieces[block_index]
 	player.start_block = block
 

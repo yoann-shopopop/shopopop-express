@@ -6,6 +6,12 @@ extends Control
 ## Label3D slabs scaled by the camera zoom, capped at 4 rows). Pure rendering: built once, re-read on
 ## status change. Cards are sorted so the actionable ones (en cours / réservé) sit on top.
 
+## Hovering a card: GameRoot highlights that delivery's drive/recipient cells on the board. Since
+## the cross-tile pairing can put them far apart with nothing on-card to show WHERE they are, this
+## is the cheapest way to answer "where is this delivery" without a click.
+signal delivery_hovered(delivery: Delivery)
+signal delivery_unhovered(delivery: Delivery)
+
 const WIDTH := 318
 const IMG := 50                       # logo / medallion square (px)
 const _DISPONIBLE := Color("3a9d5b")  # calm green
@@ -18,6 +24,7 @@ var _current_index: int = -1
 var _remaining: int = 0
 var _header: Label
 var _list: VBoxContainer
+var _upcoming_row: HBoxContainer  # "À venir" preview of the next recycled recipients (peek_upcoming)
 
 
 func _ready() -> void:
@@ -43,6 +50,11 @@ func _ready() -> void:
 	_header = Label.new()
 	UITheme.make_title(_header, 20)
 	box.add_child(_header)
+
+	_upcoming_row = HBoxContainer.new()
+	_upcoming_row.add_theme_constant_override("separation", 6)
+	_upcoming_row.hide()  # only shown once set_upcoming has something to preview (recycling generator)
+	box.add_child(_upcoming_row)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -78,6 +90,27 @@ func set_remaining(count: int) -> void:
 	_update_header()
 
 
+## Previews the next [param destinataires] due to recycle onto a drive (in draw order) — "file des
+## prochaines livraisons" for La Tournée's recycling pool. Hidden when empty (a session with no
+## recycling generator, or the pool exhausted).
+func set_upcoming(destinataires: Array[DestinataireDefinition]) -> void:
+	if _upcoming_row == null:
+		return
+	for child in _upcoming_row.get_children():
+		child.queue_free()
+	if destinataires.is_empty():
+		_upcoming_row.hide()
+		return
+	_upcoming_row.show()
+	var label := Label.new()
+	label.text = tr("À venir :")
+	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", UITheme.TEXT.darkened(0.15))
+	_upcoming_row.add_child(label)
+	for d in destinataires:
+		_upcoming_row.add_child(_image_chip(d.texture, 8))
+
+
 ## Rebuilds the cards, re-reading every delivery's status and re-sorting (actionable first).
 func refresh() -> void:
 	if _list == null:
@@ -91,7 +124,7 @@ func refresh() -> void:
 
 func _update_header() -> void:
 	if _header != null:
-		_header.text = "Livraisons · %d restantes" % _remaining
+		_header.text = tr("Livraisons · %d restantes") % _remaining
 
 
 # Visible deliveries (those still carrying a recipient or in flight), ordered: en cours, réservé,
@@ -122,6 +155,8 @@ func _make_card(delivery: Delivery) -> Control:
 	var mine := delivery.reserved_by == _current_index and _current_index >= 0 \
 		and delivery.status != DeliveryStatus.Kind.DISPONIBLE
 	card.add_theme_stylebox_override("panel", UITheme.panel_card(Color("28303f") if mine else Color("212734")))
+	card.mouse_entered.connect(func() -> void: delivery_hovered.emit(delivery))
+	card.mouse_exited.connect(func() -> void: delivery_unhovered.emit(delivery))
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
@@ -195,7 +230,8 @@ func _status_pill(delivery: Delivery) -> Control:
 
 
 func _status_text(delivery: Delivery) -> String:
-	var base := DeliveryStatus.label(delivery.status)
+	# The icon doubles the status color (colorblind accessibility): ● dispo / ◐ réservé / ▶ en cours.
+	var base := "%s %s" % [DeliveryStatus.icon(delivery.status), DeliveryStatus.label(delivery.status)]
 	if delivery.status == DeliveryStatus.Kind.RESERVE or delivery.status == DeliveryStatus.Kind.EN_COURS:
 		if delivery.reserved_by >= 0 and delivery.reserved_by < _players.size():
 			return "%s · %s" % [base, PlayerColor.name_of(_players[delivery.reserved_by].color)]

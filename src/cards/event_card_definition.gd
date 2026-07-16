@@ -4,24 +4,25 @@ extends CardDefinition
 ## [EventResolver], an optional [enum Condition] (e.g. "only on a bike"), and whether it is a malus.
 ## Modeling effects as data — not a giant if — keeps the ~22 cards declarative ([code].tres[/code]).
 
-## The catalog of effects, covering the Notion event cards. Interactive/positional ones
-## (TELEPORT_QUARTIER, TELEPORT_PARALLELE, BUDGET_UN_DE, ROUTE_BLOQUEE, PONTS_FERMES) are stubbed in V1.
+## The catalog of effects, covering the Notion event cards. Board-dependent ones (TELEPORT_QUARTIER,
+## TELEPORT_PARALLELE, BUDGET_UN_DE, ROUTE_BLOQUEE, PONTS_FERMES) resolve in
+## [method GamePhase._apply_spatial_event] with simplified V1 semantics (noted below).
 enum Effect {
 	NONE,
 	BONUS_CASES,            ## +amount steps this turn
 	MALUS_CASES,            ## -amount steps this turn
 	EXTRA_DIE,              ## roll one more die (cyclists)
-	DOUBLE_DICE,            ## double the dice result
+	DOUBLE_DICE,            ## double the remaining movement
 	REJOUER,                ## play again immediately
-	TELEPORT_QUARTIER,      ## move to any district (stub V1)
+	TELEPORT_QUARTIER,      ## V1: teleport to the farthest drive
 	TELEPORT_DESTINATION,   ## go straight to the drive/recipient
-	TELEPORT_PARALLELE,     ## move to a parallel road (stub V1)
+	TELEPORT_PARALLELE,     ## V1: teleport to the nearest available drive
 	RETOUR_DRIVE,           ## return to the pickup point
 	RETOUR_DEPART,          ## return to the start point
 	FIN_TOUR,               ## the turn ends now
-	BUDGET_UN_DE,           ## roll a single die until someone passes (stub V1)
-	ROUTE_BLOQUEE,          ## a route is blocked for a turn (stub V1)
-	PONTS_FERMES,           ## bridges closed for a turn (stub V1)
+	BUDGET_UN_DE,           ## V1: lose half the remaining budget
+	ROUTE_BLOQUEE,          ## V1: a 3-step detour
+	PONTS_FERMES,           ## V1: a 2-step detour (bridges are setup-only)
 	BONUS_SCORE,            ## +amount to the final score
 	DOUBLE_SCORE_LIVRAISON, ## double delivery points (cyclists)
 }

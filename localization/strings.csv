@@ -1,0 +1,207 @@
+keys,en
+ · Tour %d/%d, · Turn %d/%d
+ → ×2 (Livraison Écologique), → ×2 (Eco Delivery)
+%d case%s,%d tile%s
+%d dés,%d dice
+%d pts,%d pts
+%d.  %s — %d pts,%d.  %s — %d pts
+%d/%d en vol,%d/%d in flight
+%s a fini sa journée — tour passé.,%s has finished their day — turn skipped.
++%d (ton client),+%d (your customer)
++%d (ton quartier),+%d (your district)
++%d cases,+%d tiles
++%d pts,+%d pts
+1 dé,1 die
+2 livraisons en vol maximum à la fois,"2 deliveries in flight at a time, max"
+5 / 15 / 25 points selon les tuiles qui sont à toi,5 / 15 / 25 points depending on which tiles are yours
+5 de base + 10 si le drive est sur ta couleur + 10 si le client l'est aussi,5 base + 10 if the pickup is your color + 10 if the customer is too
+5/5,5/5
+AVANTAGE,ADVANTAGE
+Aide-mémoire,Quick reference
+Animal sur la Route,Animal on the Road
+Annuler,Cancel
+Argent,Silver
+Au tour de %s,%s's turn
+Aucun pouvoir disponible pour l'instant.,No power available right now.
+Aucune livraison à réserver sur cette tuile.,No delivery to reserve on this tile.
+Avance de %d cases supplémentaires ce tour.,Move %d extra tiles this turn.
+Avantage,Advantage
+Bienvenue chez Shopopop Express ! Lance les dés pour commencer ta tournée.,Welcome to Shopopop Express! Roll the dice to start your route.
+Bleu,Blue
+Block %d,Block %d
+Bonne Marcheuse : +2 cases !,Bonne Marcheuse: +2 tiles!
+Bonne Marcheuse · +2 cases,Bonne Marcheuse · +2 tiles
+Bouclier Vert : le prochain malus sera annulé.,Bouclier Vert: the next malus will be cancelled.
+Bouclier Vert : malus « %s » annulé !,Bouclier Vert: “%s” malus cancelled!
+Bouclier Vert · annule un malus,Bouclier Vert · cancels a malus
+Bronze,Bronze
+Budget ÷2,Budget ÷2
+Camion,Truck
+"Carnet d'Adresses : garde 1 carte, l'autre est défaussée.","Carnet d'Adresses: keep 1 card, the other is discarded."
+"Carnet d'Adresses : ton prochain événement, pioche 2 et garde 1.","Carnet d'Adresses: your next event, draw 2 and keep 1."
+Carnet d'Adresses · pioche 2,Carnet d'Adresses · draw 2
+"Case événement : pioche 2 cartes, garde la meilleure — l'autre repart dans le deck.","Event tile: draw 2 cards, keep the best one — the other goes back into the deck."
+Ce pouvoir n'est pas disponible maintenant.,This power isn't available right now.
+Chargement Pro : +1 livraison transportable.,Chargement Pro: +1 delivery you can carry.
+Chargement Pro · +1 livraison,Chargement Pro · +1 delivery
+"Chargé automatiquement, sans un clic de plus ! Direction le client (case verte).","Picked up automatically, no extra click needed! Now head to the customer (green tile)."
+Chaînage ! +%d,Chaining! +%d
+Coup d'Accélérateur : %d → %d (%+d cases).,Coup d'Accélérateur: %d → %d (%+d tiles).
+Coup d'Accélérateur : lance d'abord les dés.,Coup d'Accélérateur: roll the dice first.
+Coup d'Accélérateur · relance un dé,Coup d'Accélérateur · reroll a die
+Coup d'Accélérateur — relance quel dé ?,Coup d'Accélérateur — reroll which die?
+Coup de pouce : %s (%+d cases).,Lucky Break: %s (%+d tiles).
+Coup de pouce — que faire ?,Lucky Break — what now?
+Course prise !,Run claimed!
+Dernière tournée !,Last round!
+Disponible,Available
+Disponible → Réservé → En cours → Livré (transitions automatiques),Available → Reserved → In progress → Delivered (automatic transitions)
+Double ton déplacement restant.,Doubles your remaining movement.
+DÉFAUSSE,DISCARD
+Dé %d : %d → %d,Die %d: %d → %d
+Dé %d → max (%d),Die %d → max (%d)
+Dé : %d,Die: %d
+Dé bonus,Bonus die
+Dépassement ! Place échangée.,Dépassement! Places swapped.
+Dépassement : aucun autre joueur à dépasser.,Dépassement: no other player to swap with.
+Dépassement · échange ta place,Dépassement · swap places
+Dépassement — échange ta place avec :,Dépassement — swap places with:
+Déplacement ×2,Movement ×2
+Dés : %s — déplacement : %d (clique une case verte),Dice: %s — movement: %d (click a green tile)
+Effets sonores,Sound effects
+Embouteillage : tu perds la moitié de ton déplacement.,Traffic jam: you lose half your movement.
+En cours,In progress
+Escorte Policière,Police Escort
+Faille,Rift
+Faille Spatio-Temporelle,Space-Time Rift
+Fermer,Close
+Feu Rouge,Red Light
+Fin de tour,End turn
+Fin du tour,Turn ends
+Fuite de Canalisation,Burst Pipe
+Gagne %d points immédiatement.,Gain %d points immediately.
+Garde 1 carte — l'autre repart au-dessus du deck.,Keep 1 card — the other goes back on top of the deck.
+Grand Soleil,Sunny Day
+Habitué·e : ta prochaine livraison comptera au maximum.,Habitué·e: your next delivery will score at max.
+Habitué·e · livraison au max,Habitué·e · delivery scored at max
+J%d : %s,P%d: %s
+Jaune,Yellow
+Jouer,Play
+Joueur %d — %s : choisis ton personnage,Player %d — %s: choose your character
+Journée terminée !,Day over!
+La Tournée (solo),The Round (solo)
+"Lance un dé de plus, ajouté à ton déplacement.","Roll one more die, added to your movement."
+Lancer,Roll
+Lancer → Se déplacer (sur les routes) → Fin de tour,Roll → Move (on the roads) → End turn
+Les ponts sont fermés : détour de 2 cases.,The bridges are closed: a 2-tile detour.
+Livraison réservée ! File vers le point de retrait (case grise).,Delivery reserved! Head to the pickup point (grey tile).
+Livraison réservée.,Delivery reserved.
+Livraison terminée : %d points (5 de base + tes deux tuiles) ! Le bouton « ? » en haut te rappelle tout ça.,Delivery complete: %d points (5 base + your two tiles)! The « ? » button up top reminds you of all this.
+Livraison Écologique,Eco Delivery
+Livraison ×2,Delivery ×2
+Livraisons : %d,Deliveries: %d
+Livraisons · %d restantes,Deliveries · %d left
+Livré,Delivered
+Livré ! +%d points.,Delivered! +%d points.
+MALUS,MALUS
+MISE EN PLACE TERMINÉE,SETUP COMPLETE
+Malus,Malus
+Manche %d,Round %d
+Manifestation en Cours,Protest Underway
+Musique,Music
+Nombre de joueurs,Number of players
+Or,Gold
+PHASE DE PLACEMENT  |  %s%s,PLACEMENT PHASE  |  %s%s
+PIOCHE,DRAW
+Panne de Véhicule,Vehicle Breakdown
+Parrainage,Referral Bonus
+Partie terminée !,Game over!
+Passage Secret : tu peux franchir l'eau ce tour-ci !,Passage Secret: you can cross water this turn!
+Passage Secret · franchis l'eau,Passage Secret · cross the water
+Pic de Pollution,Pollution Spike
+Plein écran : activé,Fullscreen: on
+Plein écran : désactivé,Fullscreen: off
+Pluies Torrentielles,Torrential Rain
+Pont,Bridge
+Prime Gouvernementale,Government Bonus
+Prime gouvernementale : +%d dé(s) → +%d cases !,Government bonus: +%d dice → +%d tiles!
+Prévention de l'Hyperactivité,Hyperactivity Prevention
+Raccourci,Shortcut
+Raccourci Secret,Secret Shortcut
+Recharge de Batterie,Battery Recharge
+Rejoue !,Play again!
+Rejouer,Play again
+Relance : %s → %s,Reroll: %s → %s
+Relancer tout,Reroll everything
+Retour drive,Back to pickup
+Retour départ,Back to start
+Retourne au point de retrait de ta livraison.,Return to your delivery's pickup point.
+Retourne à ton point de départ.,Return to your starting point.
+Rien ne se passe ce tour-ci.,Nothing happens this turn.
+Rouge,Red
+Rythme rapide : activé,Fast pacing: on
+Rythme rapide : désactivé,Fast pacing: off
+Règle officielle : commence la personne qui porte le plus de vêtements noirs.,Official rule: whoever's wearing the most black goes first.
+Réglages,Settings
+Réserver,Reserve
+Réserver %s ?,Reserve %s?
+Réservé,Reserved
+Sac Isotherme Oublié,Forgotten Cooler Bag
+Sac Oublié,Forgotten Bag
+Saute directement à ta livraison en cours.,Jump straight to your delivery in progress.
+Score : %d,Score: %d
+Score du collègue : %d pts — %s,Coworker's score: %d pts — %s
+Super-pouvoir activé !,Super-power activated!
+Survole une case pour voir le chemin ; clique pour t'y rendre.,Hover a tile to preview the path; click to walk there.
+Terminer,Finish
+Tes livraisons terminées ce tour-ci rapportent le double.,Deliveries completed this turn score double.
+Ton déplacement s'arrête immédiatement.,Your movement stops immediately.
+Tour : %s,Turn: %s
+Tournée du jour : %d pts livrés au total,Today's round: %d pts delivered in total
+Tous les Feux sont au Vert,All Green Lights
+Tous les blocs sont posés.,All blocks are placed.
+Tous les feux au vert — tu rejoues un tour !,All green lights — you play another turn!
+Tout aléatoire,Randomize all
+Tu perds %d cases de déplacement.,You lose %d tiles of movement.
+Tu rejoues un tour complet juste après.,You play a full extra turn right after.
+Tutoriel,Tutorial
+Téléportation,Teleport
+Un raccourci te mène au prochain drive disponible.,A shortcut takes you to the next available pickup point.
+Une faille te projette au drive le plus éloigné.,A rift throws you to the farthest pickup point.
+Une route est bloquée : détour de 3 cases.,A road is blocked: a 3-tile detour.
+"VALIDER
+LE PLACEMENT","CONFIRM
+PLACEMENT"
+Vainqueur : %s — %d pts,Winner: %s — %d pts
+Violet,Purple
+Voie Verte Prioritaire,Priority Green Lane
+Voiture,Car
+Vélo,Bike
+cette livraison,this delivery
+dont +%d de chaînage (livraisons groupées),including +%d from chaining (grouped deliveries)
+"presque, on l'aura la prochaine fois.",so close — next time.
+tu l'as battu !,you beat it!
+À pied,On foot
+À toi de jouer — lance les dés.,Your turn — roll the dice.
+À venir :,Coming up:
+À vélo uniquement,Bike only
+ÉVÉNEMENT,EVENT
+Équipe Bleue,Blue Team
+Équipe Jaune,Yellow Team
+Équipe Rouge,Red Team
+Équipe Violette,Purple Team
+Évaluation Positive,Positive Review
+Événement !,Event!
+−%d cases,−%d tiles
+−2 cases,−2 tiles
+−3 cases,−3 tiles
+⚙ Réglages,⚙ Settings
+⭐  Score,⭐  Score
+🌈  Cases & pouvoirs,🌈  Tiles & powers
+"🌈 Événement : pioche 2 cartes, garde 1 (consommée, réarmée à la manche suivante)","🌈 Event: draw 2 cards, keep 1 (spent, re-armed next round)"
+"🍀 Coup de pouce (2 par joueur·euse) : juste après le lancer, relance tout ou fixe un dé au max","🍀 Lucky Break (2 per player): right after rolling, reroll everything or lock a die at max"
+🎲  Ton tour,🎲  Your turn
+🏠 Drive  ·  🎯 Destinataire  ·  🚩 Départ  ·  🌉 Pont,🏠 Pickup  ·  🎯 Recipient  ·  🚩 Start  ·  🌉 Bridge
+📦  Livraisons,📦  Deliveries
+🤖 Ce siège : Humain,🤖 This seat: Human
+🤖 Ce siège : IA,🤖 This seat: AI

@@ -3,8 +3,9 @@ extends RefCounted
 ## Resolves an [EventCardDefinition] by mutating a [TurnContext] — one [code]match[/code] mapping each
 ## effect to a context mutation, so the catalog stays data-driven (no scattered ifs). Pure & static.
 ##
-## Interactive / positional effects (TELEPORT_QUARTIER, TELEPORT_PARALLELE, BUDGET_UN_DE,
-## ROUTE_BLOQUEE, PONTS_FERMES) are stubbed in V1 (see CLAUDE.md "Points ouverts").
+## Board-dependent effects (TELEPORT_QUARTIER, TELEPORT_PARALLELE, BUDGET_UN_DE, ROUTE_BLOQUEE,
+## PONTS_FERMES) are no-ops HERE by design: [method GamePhase._apply_spatial_event] resolves them
+## right after this pass, with board access (simplified V1 semantics — see CLAUDE.md).
 
 const E := EventCardDefinition.Effect
 
@@ -43,7 +44,7 @@ static func resolve(card: EventCardDefinition, ctx: TurnContext) -> void:
 		E.DOUBLE_SCORE_LIVRAISON:
 			ctx.double_score = true
 		_:
-			pass  # NONE and stubbed interactive effects: no-op in V1
+			pass  # NONE + board-dependent effects: resolved right after by GamePhase._apply_spatial_event
 
 
 static func _condition_met(condition: int, ctx: TurnContext) -> bool:

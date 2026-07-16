@@ -5,9 +5,8 @@
 ## Contexte
 
 Les livraisons de Shopopop Express se forment, dans le jeu physique, en **clipsant une carte
-*enseigne*** (point de retrait — une marque parodique : SHUPER U, BRICO COCO, IKEO, DECATON…) avec une
-**carte *destinataire*** (le ou la client·e — noms parodiques façon drag queens : Sasha Velours, Gott
-Mik, Keiona, Soa de Muse…). Le principe est inspiré des **combos race/pouvoir de Small World** :
+*enseigne*** (point de retrait — une enseigne fictive : HYPER TOPINAMBOUR, VISSE & VRILLE, AU P'TIT MARCHÉ…) avec une
+**carte *destinataire*** (le ou la client·e — personnages fictifs : Mamie Turbo, Capitaine Apéro, Tata Ginette…). Le principe est inspiré des **combos race/pouvoir de Small World** :
 l'appariement enseigne × destinataire est **aléatoire** et génère une livraison.
 
 Un **encart « statut »** se clipse *entre* les deux cartes pour matérialiser l'état de la livraison :

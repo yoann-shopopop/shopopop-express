@@ -2,10 +2,13 @@ class_name CharacterSelect
 extends CanvasLayer
 ## Seat-by-seat character draft (hotseat): each player, in turn order/colour, picks one of the eight
 ## characters from a grid that shows the portrait, transport (→ dice) and super-power. Picked
-## characters grey out. A "Tout aléatoire" button fills the rest. Emits the ordered choices and frees
-## itself. Pure UI — [Main] wires it between the player-count chooser and the placement phase.
+## characters grey out. Each seat can be toggled "🤖 IA" (auto-played by [AutoPilot] — see GameRoot)
+## before picking its character; defaults to Humain. A "Tout aléatoire" button fills the REST of the
+## seats at once, all as Humain (no per-seat interaction there to toggle IA on). Emits the ordered
+## choices + AI flags and frees itself. Pure UI — [Main] wires it between the player-count chooser
+## and the placement phase.
 
-signal characters_chosen(chosen: Array)
+signal characters_chosen(chosen: Array, is_ai: Array)
 
 # power_id -> a short "Name · effect" line shown on the card.
 const POWER_BLURB := {
@@ -24,9 +27,12 @@ var _characters: Array = []
 var _count := 0
 var _seat := 0
 var _chosen: Array = []
+var _is_ai: Array = []            # parallel to _chosen: true for a seat auto-played by AutoPilot
+var _seat_ai_toggle := false       # the CURRENT seat's pending IA toggle, reset when the seat advances
 var _used: Dictionary = {}        # character index -> true
 var _rng := RandomNumberGenerator.new()
 var _header: Label
+var _ai_toggle_btn: Button
 var _grid: GridContainer
 
 
@@ -61,6 +67,18 @@ func setup(count: int, characters: Array) -> void:
 	_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_header)
 
+	_ai_toggle_btn = Button.new()
+	_ai_toggle_btn.custom_minimum_size = Vector2(260, 46)
+	_ai_toggle_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_ai_toggle_btn.add_theme_font_size_override("font_size", 18)
+	_ai_toggle_btn.add_theme_color_override("font_color", UITheme.TEXT)
+	_ai_toggle_btn.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		_seat_ai_toggle = not _seat_ai_toggle
+		_refresh_ai_toggle())
+	box.add_child(_ai_toggle_btn)
+	_refresh_ai_toggle()
+
 	_grid = GridContainer.new()
 	_grid.columns = 4
 	_grid.add_theme_constant_override("h_separation", 16)
@@ -69,7 +87,7 @@ func setup(count: int, characters: Array) -> void:
 	box.add_child(_grid)
 
 	var random_btn := Button.new()
-	random_btn.text = "Tout aléatoire"
+	random_btn.text = tr("Tout aléatoire")
 	random_btn.custom_minimum_size = Vector2(220, 52)
 	random_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	random_btn.add_theme_font_size_override("font_size", 20)
@@ -124,7 +142,11 @@ func _card(index: int) -> Control:
 	transport.add_theme_font_size_override("font_size", 13)
 	transport.add_theme_color_override("font_color", UITheme.ORANGE)
 	var t: int = character.transport
-	transport.text = "%s · %d dé%s" % [TRANSPORT_NAME[t], character.dice_count(), "s" if character.dice_count() > 1 else ""]
+	var dice_count := character.dice_count()
+	# "die"/"dice" is an irregular EN plural (not a simple 's' suffix like "dé"/"dés") — dice_count is
+	# always 1 or 2 (bike/foot vs car/truck), so two literal translated strings cover it exactly.
+	var dice_label := tr("1 dé") if dice_count <= 1 else tr("%d dés") % dice_count
+	transport.text = "%s · %s" % [tr(TRANSPORT_NAME[t]), dice_label]
 	col.add_child(transport)
 
 	var power := Label.new()
@@ -133,7 +155,7 @@ func _card(index: int) -> Control:
 	power.custom_minimum_size = Vector2(150, 0)
 	power.add_theme_font_size_override("font_size", 12)
 	power.add_theme_color_override("font_color", UITheme.TEXT)
-	power.text = POWER_BLURB.get(character.power_id, "")
+	power.text = tr(POWER_BLURB.get(character.power_id, ""))
 	col.add_child(power)
 
 	return panel
@@ -150,12 +172,15 @@ func _pick(index: int) -> void:
 	AudioManager.sfx(&"ui_click")
 	_used[index] = true
 	_chosen.append(_characters[index])
+	_is_ai.append(_seat_ai_toggle)
 	_seat += 1
+	_seat_ai_toggle = false  # each new seat defaults back to Humain
 	if _seat >= _count:
 		_finish()
 		return
 	_build_cards()
 	_refresh_header()
+	_refresh_ai_toggle()
 
 
 func _fill_random() -> void:
@@ -173,13 +198,14 @@ func _fill_random() -> void:
 	var k := 0
 	while _seat < _count and k < available.size():
 		_chosen.append(_characters[available[k]])
+		_is_ai.append(false)  # bulk-filled seats stay Humain: no per-seat interaction to toggle IA here
 		k += 1
 		_seat += 1
 	_finish()
 
 
 func _finish() -> void:
-	characters_chosen.emit(_chosen)
+	characters_chosen.emit(_chosen, _is_ai)
 	queue_free()
 
 
@@ -187,4 +213,12 @@ func _refresh_header() -> void:
 	var colors := PlayerColor.all()
 	var color: int = colors[_seat % colors.size()]
 	UITheme.make_title(_header, 30, PlayerColor.to_color(color))
-	_header.text = "Joueur %d — %s : choisis ton personnage" % [_seat + 1, PlayerColor.name_of(color)]
+	_header.text = tr("Joueur %d — %s : choisis ton personnage") % [_seat + 1, PlayerColor.name_of(color)]
+
+
+func _refresh_ai_toggle() -> void:
+	var color := UITheme.GREEN if _seat_ai_toggle else UITheme.PANEL_BORDER
+	_ai_toggle_btn.text = tr("🤖 Ce siège : IA") if _seat_ai_toggle else tr("🤖 Ce siège : Humain")
+	_ai_toggle_btn.add_theme_stylebox_override("normal", UITheme.button_style(color))
+	_ai_toggle_btn.add_theme_stylebox_override("hover", UITheme.button_style(color, 1.6))
+	_ai_toggle_btn.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(color))

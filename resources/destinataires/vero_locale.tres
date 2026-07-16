@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+
+[resource]
+script = ExtResource("1_dest")
+id = &"vero_locale"
+display_name = "Véro Locale"
+manie = "Vérifie l'origine de chaque légume avant de dire merci."
+color = Color(0.2627451, 0.6666667, 0.545098, 1)

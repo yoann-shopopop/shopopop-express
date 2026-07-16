@@ -1,7 +1,7 @@
 extends SceneTree
-## Headless reliability soak: plays full auto-piloted games for every player count (2..6) over many
-## seeds, asserting each one reaches GamePhase.is_finished() within a turn cap (i.e. no softlock and
-## every parcel deliverable). Run with:
+## Headless reliability soak: plays full auto-piloted games for every player count (2..4, the V1
+## table) over many seeds, asserting each one reaches GamePhase.is_finished() within a turn cap
+## (i.e. no softlock and every parcel deliverable). Run with:
 ##   godot --headless --path . -s res://tools/soak_test.gd
 ## Exits 0 on success, 1 if any game stalled or a board could not be assembled.
 
@@ -25,7 +25,7 @@ func _init() -> void:
 
 	var failures := 0
 	var games := 0
-	for count in range(2, 7):
+	for count in range(2, 5):  # 2-4 players: the V1 configurations offered by the UI
 		for s in range(SEEDS_PER_COUNT):
 			games += 1
 			var rng := RandomNumberGenerator.new()
@@ -38,7 +38,9 @@ func _init() -> void:
 			var board: Board = built["board"]
 			var players: Array = built["players"]
 			var deliveries := DeliverySetup.build(board, rng, destinataires.size())
-			var generator := DeliveryGenerator.new(enseignes, destinataires, deliveries.size(), rng)
+			# Same rule as GameRoot: total deliveries = number of placed tiles (capped identity pool).
+			var generator := DeliveryGenerator.new(
+				enseignes, destinataires, deliveries.size(), rng, deliveries.size())
 			var combos := generator.combos()
 			for i in deliveries.size():
 				if i < combos.size():

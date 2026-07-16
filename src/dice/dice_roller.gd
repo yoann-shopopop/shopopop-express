@@ -63,6 +63,17 @@ func reroll(index: int) -> int:
 	return _last[index]
 
 
+## Forces die [param index] of the last roll to [param value] (no randomness) — for a Coup de pouce
+## token's "fixer un dé sur sa face max". Updates the recorded result. Returns the new value, or 0 if
+## the index is out of range.
+func force(index: int, value: int) -> int:
+	if index < 0 or index >= _last.size():
+		return 0
+	_last[index] = value
+	rolled.emit(_last)
+	return _last[index]
+
+
 ## Whether a result is currently recorded.
 func has_result() -> bool:
 	return not _last.is_empty()

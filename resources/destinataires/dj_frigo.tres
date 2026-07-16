@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+
+[resource]
+script = ExtResource("1_dest")
+id = &"dj_frigo"
+display_name = "DJ Frigo"
+manie = "Range ses courses par ordre alphabétique, devant vous."
+color = Color(0.2980392, 0.7882353, 0.9411765, 1)

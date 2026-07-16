@@ -10,3 +10,6 @@
 
 # Screenshot harness output (tools/capture_play.gd)
 captures/
+
+# Contenus retirés (purge juridique 2026-07-16) — ne JAMAIS committer
+quarantine/

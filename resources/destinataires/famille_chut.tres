@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+
+[resource]
+script = ExtResource("1_dest")
+id = &"famille_chut"
+display_name = "Famille Chut"
+manie = "Sonnette interdite : le bébé dort. Toquer doux, très doux."
+color = Color(0.7803922, 0.4901961, 1, 1)

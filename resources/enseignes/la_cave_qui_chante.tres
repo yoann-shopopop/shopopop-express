@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="EnseigneDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/enseignes/enseigne_definition.gd" id="1_ens"]
+
+[resource]
+script = ExtResource("1_ens")
+id = &"la_cave_qui_chante"
+display_name = "La Cave qui Chante"
+color = Color(0.6078431, 0.3647059, 0.8980392, 1)

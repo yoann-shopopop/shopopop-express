@@ -12,6 +12,20 @@ const _LABELS := {
 	Kind.LIVREE: "Livré",
 }
 
+# Colorblind accessibility: an icon doubles the status color on the delivery panel's pills.
+const _ICONS := {
+	Kind.DISPONIBLE: "●",
+	Kind.RESERVE: "◐",
+	Kind.EN_COURS: "▶",
+	Kind.LIVREE: "✓",
+}
+
 
 static func label(kind: int) -> String:
-	return _LABELS.get(kind, "?")
+	# TranslationServer.translate, not tr(): this is a static method, no Object instance to call tr() on.
+	return TranslationServer.translate(_LABELS.get(kind, "?"))
+
+
+## Icon glyph doubling the status color (see [member _ICONS]).
+static func icon(kind: int) -> String:
+	return _ICONS.get(kind, "?")

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+
+[resource]
+script = ExtResource("1_dest")
+id = &"papi_brouette"
+display_name = "Papi Brouette"
+manie = "Insiste pour porter les packs d'eau lui-même. Refusez poliment."
+color = Color(0.5647059, 0.745098, 0.427451, 1)

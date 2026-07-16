@@ -45,7 +45,7 @@ void fragment() {
 ## Binds this view to [param pawn]: builds its figure and follows its position via signals.
 func bind(pawn: Pawn) -> void:
 	if pawn.definition.is_mobile():
-		_build_figure(pawn.definition.color)
+		_build_figure(pawn.definition.color, pawn.definition.shape_kind)
 	else:
 		_build_token(pawn.definition.texture)
 	pawn.placed.connect(_on_pawn_placed)
@@ -54,12 +54,29 @@ func bind(pawn: Pawn) -> void:
 		_move_to_cell(pawn.position)
 
 
-# Builds the classic pawn: a tapered cone body and a ball head, tinted [param color].
-func _build_figure(color: Color) -> void:
+# Builds the cotransporter figure, tinted [param color]. Under the fixed nadir top-down camera
+# (main.gd, rotation -90° on X), only the shape's FOOTPRINT reads — not its height — so [param
+# shape_kind] (a PlayerColor.Kind, -1 falls back to the classic cone) picks silhouettes that stay
+# distinct from directly above: circle (cone), square, diamond (a square rotated 45°) and ring —
+# never two shapes that would both project to a plain circle. Colorblind accessibility: identity
+# must not depend on color alone.
+func _build_figure(color: Color, shape_kind: int = -1) -> void:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.7
+	match shape_kind:
+		PlayerColor.Kind.RED:
+			_build_square_body(material)
+		PlayerColor.Kind.PURPLE:
+			_build_diamond_body(material)
+		PlayerColor.Kind.YELLOW:
+			_build_ring_body(material)
+		_:
+			_build_cone_body(material)  # BLUE, and any unset/demo shape (-1)
+	_add_head(material)
 
+
+func _build_cone_body(material: StandardMaterial3D) -> void:
 	var body := MeshInstance3D.new()
 	var cone := CylinderMesh.new()
 	cone.bottom_radius = _CONE_BOTTOM_RADIUS
@@ -71,6 +88,45 @@ func _build_figure(color: Color) -> void:
 	body.material_override = material
 	add_child(body)
 
+
+func _build_square_body(material: StandardMaterial3D) -> void:
+	var body := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	var side := _CONE_BOTTOM_RADIUS * 1.5
+	box.size = Vector3(side, _CONE_HEIGHT * 0.82, side)
+	body.mesh = box
+	body.position = Vector3(0.0, box.size.y * 0.5, 0.0)
+	body.material_override = material
+	add_child(body)
+
+
+func _build_diamond_body(material: StandardMaterial3D) -> void:
+	var body := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	var side := _CONE_BOTTOM_RADIUS * 1.5
+	box.size = Vector3(side, _CONE_HEIGHT * 0.82, side)
+	body.mesh = box
+	body.rotation_degrees = Vector3(0, 45, 0)  # a square rotated 45°, distinct from the plain square
+	body.position = Vector3(0.0, box.size.y * 0.5, 0.0)
+	body.material_override = material
+	add_child(body)
+
+
+func _build_ring_body(material: StandardMaterial3D) -> void:
+	var body := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = _CONE_TOP_RADIUS
+	torus.outer_radius = _CONE_BOTTOM_RADIUS * 1.15
+	torus.ring_segments = 24
+	torus.rings = 24
+	body.mesh = torus  # lies flat by default: an annulus from directly above (hollow center)
+	body.position = Vector3(0.0, _CONE_HEIGHT * 0.32, 0.0)
+	body.material_override = material
+	add_child(body)
+
+
+# The small ball "head" every figure carries on top, for a consistent silhouette family.
+func _add_head(material: StandardMaterial3D) -> void:
 	var head := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = _HEAD_RADIUS

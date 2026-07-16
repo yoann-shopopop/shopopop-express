@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DestinataireDefinition" format=3]
+
+[ext_resource type="Script" path="res://src/destinataires/destinataire_definition.gd" id="1_dest"]
+
+[resource]
+script = ExtResource("1_dest")
+id = &"mme_coupon"
+display_name = "Mme Coupon"
+manie = "Connaît chaque promo du catalogue par cœur. Vous aussi, maintenant."
+color = Color(0.1764706, 0.4901961, 0.8235294, 1)

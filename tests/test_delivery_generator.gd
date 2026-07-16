@@ -86,3 +86,40 @@ func test_more_slots_than_enseignes_reuses_brands() -> void:
 	var gen := DeliveryGenerator.new(_enseignes(2), _destinataires(6), 3, _seeded_rng())
 	assert_eq(gen.combos().size(), 3)
 	assert_eq(gen.combos()[2].enseigne.id, gen.combos()[0].enseigne.id)
+
+
+func test_max_deliveries_caps_the_total_at_the_tile_count() -> void:
+	# Rules: total deliveries = number of placed tiles. 10 identities, 4 slots, cap 4:
+	# everything is clipped at init, nothing is left to recycle.
+	var gen := DeliveryGenerator.new(_enseignes(4), _destinataires(10), 4, _seeded_rng(), 4)
+	assert_eq(gen.combos().size(), 4)
+	assert_eq(gen.remaining_recipients(), 0, "the pool holds no extra identity beyond the cap")
+	gen.advance(0); gen.advance(0)
+	assert_true(gen.complete(0))
+	assert_null(gen.combos()[0].destinataire, "no recycling: the drive is left free after delivery")
+
+
+func test_negative_max_deliveries_leaves_the_pool_uncapped() -> void:
+	var gen := DeliveryGenerator.new(_enseignes(4), _destinataires(10), 4, _seeded_rng(), -1)
+	assert_eq(gen.remaining_recipients(), 6, "10 identities minus the 4 clipped at init")
+
+
+func test_peek_upcoming_does_not_consume_the_pool() -> void:
+	var gen := DeliveryGenerator.new(_enseignes(1), _destinataires(6), 1, _seeded_rng())
+	var before := gen.remaining_recipients()
+	var peeked := gen.peek_upcoming(2)
+	assert_eq(peeked.size(), 2)
+	assert_eq(gen.remaining_recipients(), before, "peeking must not draw")
+
+
+func test_peek_upcoming_matches_the_actual_draw_order() -> void:
+	var gen := DeliveryGenerator.new(_enseignes(1), _destinataires(4), 1, _seeded_rng())
+	var peeked := gen.peek_upcoming(3)
+	for expected in peeked:
+		var drawn := gen.recycle(0)
+		assert_eq(drawn, expected, "recycle() draws exactly what was peeked, in the same order")
+
+
+func test_peek_upcoming_returns_fewer_when_the_pool_is_almost_empty() -> void:
+	var gen := DeliveryGenerator.new(_enseignes(1), _destinataires(2), 1, _seeded_rng())  # 1 clipped, 1 left
+	assert_eq(gen.peek_upcoming(5).size(), 1)
