@@ -692,6 +692,13 @@ cassé/manquant plutôt que comme un simple manque d'illustration.
 soak et harnais headless rejoués sans régression. Confirmé visuellement par capture d'écran réelle
 avant/après (méthode déjà établie dans la passe graphismes précédente).
 
+Finition ajoutée dans la foulée : la puce de fallback (2D, `DeliveryPanel`) porte désormais le même
+léger biseau lumineux en haut + ombre portée que `UITheme.button_style` (`border_width_top` clair +
+`shadow_*`), pour lire comme un vrai badge dessiné plutôt qu'un aplat de couleur posé à côté d'un
+logo réel. Balayage fait sur tout `src/` pour d'autres angles morts du même genre (portrait
+personnage, carte-cadre) : aucun trouvé, `PlayHud` cache déjà proprement le cadre quand
+`character.texture == null` plutôt que d'afficher un vide.
+
 ### Restant / à raffiner
 
 - **Pose manuelle** des jetons drive/destinataire (V1 : placement **auto aléatoire** post-setup, drives

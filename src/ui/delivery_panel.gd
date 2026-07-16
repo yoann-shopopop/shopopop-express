@@ -213,6 +213,14 @@ func _image_chip(texture: Texture2D, radius: int, entity_name: String = "") -> C
 	sb.bg_color = bg_color
 	sb.set_corner_radius_all(radius)
 	sb.set_content_margin_all(0)
+	if texture == null and not entity_name.is_empty():
+		# A faint top-light bevel — same "badge" treatment as UITheme.button_style — so the fallback
+		# chip reads as a designed badge rather than a flat paint swatch next to real logo art.
+		sb.border_width_top = 2
+		sb.border_color = Color(1, 1, 1, 0.35)
+		sb.shadow_color = Color(0, 0, 0, 0.25)
+		sb.shadow_size = 3
+		sb.shadow_offset = Vector2(0, 1)
 	holder.add_theme_stylebox_override("panel", sb)
 	holder.clip_contents = true
 	if texture != null:
