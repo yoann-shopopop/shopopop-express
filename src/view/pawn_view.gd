@@ -186,35 +186,16 @@ func _build_token(texture: Texture2D, display_name: String = "") -> void:
 	add_child(label)
 
 
-## A stable color derived from [param name]'s hash — distinct-enough placeholder identities for
-## drives/recipients before real art exists, without needing per-entity authored colors.
+## A stable color derived from [param name]'s hash — thin wrapper over the shared
+## [IdentityFallback] (also used by [DeliveryPanel]'s 2D cards) kept here so existing callers/tests
+## don't need to change.
 static func _identity_color(name: String) -> Color:
-	if name.is_empty():
-		return CHIP_COLOR
-	var hue := float(hash(name) % 360) / 360.0
-	return Color.from_hsv(hue, 0.55, 0.88)
+	return IdentityFallback.color(name, CHIP_COLOR)
 
 
-const _INITIALS_SKIP_WORDS := ["le", "la", "les", "l'", "au", "aux", "du", "de", "des", "d'"]
-
-## Up to two initials from [param name]'s meaningful words (short French articles skipped), e.g.
-## "Le Fournil d'Hector" -> "FD". Falls back to the raw first letters if every word is skipped.
+## Up to two initials from [param name] — see [method IdentityFallback.initials].
 static func _initials(name: String) -> String:
-	var all_words := name.split(" ", false)
-	var words: Array = []
-	for w in all_words:
-		if not (w.to_lower() in _INITIALS_SKIP_WORDS):
-			words.append(w)
-	if words.is_empty():
-		words = all_words
-	var result := ""
-	for w in words:
-		if w.is_empty():
-			continue
-		result += w.substr(0, 1).to_upper()
-		if result.length() >= 2:
-			break
-	return result
+	return IdentityFallback.initials(name)
 
 
 func _on_pawn_placed(cell: Vector2i) -> void:

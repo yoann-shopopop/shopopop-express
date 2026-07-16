@@ -108,7 +108,7 @@ func set_upcoming(destinataires: Array[DestinataireDefinition]) -> void:
 	label.add_theme_color_override("font_color", UITheme.TEXT.darkened(0.15))
 	_upcoming_row.add_child(label)
 	for d in destinataires:
-		_upcoming_row.add_child(_image_chip(d.texture, 8))
+		_upcoming_row.add_child(_image_chip(d.texture, 8, d.display_name))
 
 
 ## Rebuilds the cards, re-reading every delivery's status and re-sorting (actionable first).
@@ -167,7 +167,8 @@ func _make_card(delivery: Delivery) -> Control:
 	accent.color = _accent_color(delivery)
 	row.add_child(accent)
 
-	row.add_child(_image_chip(delivery.enseigne.texture if delivery.enseigne else null, 8))
+	var enseigne_name := delivery.enseigne.display_name if delivery.enseigne else ""
+	row.add_child(_image_chip(delivery.enseigne.texture if delivery.enseigne else null, 8, enseigne_name))
 
 	var arrow := Label.new()
 	arrow.text = "→"
@@ -177,7 +178,8 @@ func _make_card(delivery: Delivery) -> Control:
 	row.add_child(arrow)
 
 	var dest_tex: Texture2D = delivery.destinataire.texture if delivery.destinataire else null
-	row.add_child(_image_chip(dest_tex, IMG / 2))
+	var dest_name := delivery.destinataire.display_name if delivery.destinataire else ""
+	row.add_child(_image_chip(dest_tex, IMG / 2, dest_name))
 
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -196,23 +198,39 @@ func _make_card(delivery: Delivery) -> Control:
 	return card
 
 
+const _CHIP_FALLBACK_BG := Color("11141c")
+
 # A fixed-size chip holding an image, corner radius [param radius] (use IMG/2 for a round medallion).
-func _image_chip(texture: Texture2D, radius: int) -> Control:
+# Without [param texture] (no illustrator art yet), falls back to a chip tinted from [param entity_name]
+# plus its initials — same "couleur + nom" placeholder as the 3D board tokens (IdentityFallback) —
+# instead of an identical dark, imageless void for every enseigne/destinataire.
+func _image_chip(texture: Texture2D, radius: int, entity_name: String = "") -> Control:
 	var holder := PanelContainer.new()
 	holder.custom_minimum_size = Vector2(IMG, IMG)
 	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var bg_color := _CHIP_FALLBACK_BG if texture != null else IdentityFallback.color(entity_name, _CHIP_FALLBACK_BG)
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("11141c")
+	sb.bg_color = bg_color
 	sb.set_corner_radius_all(radius)
 	sb.set_content_margin_all(0)
 	holder.add_theme_stylebox_override("panel", sb)
 	holder.clip_contents = true
-	var tex := TextureRect.new()
-	tex.custom_minimum_size = Vector2(IMG, IMG)
-	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	tex.texture = texture
-	holder.add_child(tex)
+	if texture != null:
+		var tex := TextureRect.new()
+		tex.custom_minimum_size = Vector2(IMG, IMG)
+		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tex.texture = texture
+		holder.add_child(tex)
+	elif not entity_name.is_empty():
+		var label := Label.new()
+		label.text = IdentityFallback.initials(entity_name)
+		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 15)
+		label.add_theme_color_override("font_color", Color.BLACK if bg_color.get_luminance() > 0.5 else Color.WHITE)
+		holder.add_child(label)
 	return holder
 
 

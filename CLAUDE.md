@@ -670,6 +670,28 @@ tout, y compris `TitleScreen`, puisqu'elle s'ouvre aussi bien depuis l'écran-ti
 `menu.layer > title.layer` numériquement (le seul type de test qu'un harnais headless peut faire
 pour un problème de superposition — la vraie preuve reste la capture d'écran).
 
+### Fallback « couleur + nom » étendu au panneau 2D des livraisons (2026-07-16)
+
+Suite à un retour direct (« pas du tout pro ») : la passe graphismes précédente avait corrigé le
+fallback des **jetons 3D** (`PawnView`) mais pas le **panneau 2D des livraisons** (`DeliveryPanel`) —
+chaque carte affichait un logo enseigne et un médaillon destinataire **complètement noirs, sans
+aucun texte**, ce qui se voit sur *chaque livraison de chaque partie* et se lisait comme du contenu
+cassé/manquant plutôt que comme un simple manque d'illustration.
+
+- **`IdentityFallback`** (`src/view/identity_fallback.gd`, nouveau) : extrait la logique couleur/
+  initiales de `PawnView` dans une classe partagée (`color(name, fallback)` + `initials(name)`) — les
+  deux points d'affichage (jeton 3D, carte 2D) utilisent désormais la **même** couleur et les **mêmes**
+  initiales pour une même enseigne/destinataire, cohérent entre le plateau et le panneau. `PawnView`
+  garde `_identity_color`/`_initials` comme fines délégations (aucun test existant à toucher).
+- **`DeliveryPanel._image_chip`** prend maintenant un `entity_name` optionnel : sans texture, la puce
+  se teinte via `IdentityFallback.color` et affiche ses initiales — sur les 3 sites d'appel (logo
+  enseigne, médaillon destinataire, file « À venir »).
+
+**Vérifié** par `tests/test_identity_fallback.gd` (nouveau) et `tests/test_delivery_panel.gd`
+(nouveau cas : les deux puces d'une carte affichent leurs initiales) + suite complète (407 tests),
+soak et harnais headless rejoués sans régression. Confirmé visuellement par capture d'écran réelle
+avant/après (méthode déjà établie dans la passe graphismes précédente).
+
 ### Restant / à raffiner
 
 - **Pose manuelle** des jetons drive/destinataire (V1 : placement **auto aléatoire** post-setup, drives
