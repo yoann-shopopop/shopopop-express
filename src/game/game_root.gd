@@ -40,6 +40,7 @@ var _delivery_panel: DeliveryPanel
 var _player_panel: PlayerPanel
 var _last_run_announced: bool = false  # the « Dernière tournée ! » banner fires once per game
 var _skipped_notice: String = ""       # pending turn_skipped notice(s), folded into the next turn status
+var _last_turn_player_index: int = -1  # -1 before the first turn_changed — never a handoff then
 var _tournee_session: TourneeSession = null  # non-null only for the solo "La Tournée" mode
 
 
@@ -215,6 +216,7 @@ func setup(
 	_ui.reserve_requested.connect(_on_reserve)
 	_ui.power_requested.connect(_on_power)
 	_ui.boost_requested.connect(_on_boost_requested)
+	_ui.undo_requested.connect(_on_undo_requested)
 	var camera_rig := camera as CameraRig
 	if camera_rig != null:
 		_ui.zoom_in_requested.connect(camera_rig.zoom_in)
@@ -223,6 +225,7 @@ func setup(
 	_refresh_ui()
 	_update_active_marker()
 	var first := _phase.current_player()
+	_last_turn_player_index = first.index  # so the FIRST end_turn() to a different human still hands off
 	_ui.show_banner(tr("Au tour de %s") % PlayerColor.name_of(first.color), PlayerColor.to_color(first.color))
 	if first.is_ai:
 		_play_ai_turn(first)  # turn_changed only fires from end_turn: the very first seat needs its own kick
@@ -334,18 +337,29 @@ func _token_at(def: PawnDefinition, cell: Vector2i) -> PawnView:
 	return view
 
 
-# (Re)builds the recipient token for [param delivery], reflecting its current destinataire. With the
-# identity pool capped at the tile count, a completed delivery recycles to null: no ghost token then.
+# (Re)builds the recipient token for [param delivery], reflecting its current destinataire — animated
+# (task #29 "séquence de recyclage lisible") so a recycled drive visibly reads as "new customer here"
+# rather than the portrait silently popping in: the old token scales out, a short beat, then the new
+# one scales in with a slight overshoot. With the identity pool capped at the tile count, a completed
+# delivery recycles to null: the old token just scales out, no new one to reveal.
 func _rebuild_recipient_marker(delivery: Delivery) -> void:
 	var existing = _recipient_markers.get(delivery, null)
+	_recipient_markers.erase(delivery)
+	var scale := GameSettings.pacing_scale()
+	var tween := create_tween()
 	if existing != null and is_instance_valid(existing):
-		existing.queue_free()
-		_recipient_markers.erase(delivery)
+		tween.tween_property(existing, "scale", Vector3.ZERO, 0.3 * scale)
+		tween.tween_callback(existing.queue_free)
 	if delivery.destinataire == null:
 		return  # nothing left to deliver here: leave the green cell bare
 	var token := _destinataire_token(delivery)
+	token.scale = Vector3.ZERO
 	add_child(token)
 	_recipient_markers[delivery] = token
+	if existing != null and is_instance_valid(existing):
+		tween.tween_interval(0.15 * scale)  # a beat between "gone" and "here's who's next"
+	tween.tween_property(token, "scale", Vector3.ONE, 0.35 * scale) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _on_roll() -> void:
@@ -551,7 +565,7 @@ func _walk_path(path: Array[Vector2i]) -> void:
 			if _phase.current_subphase() != GamePhase.SubPhase.DEPLACEMENT:
 				break  # reserving can auto-transition a delivery; re-check before continuing
 		if step_cell != path[path.size() - 1]:
-			await get_tree().create_timer(_WALK_STEP_DELAY).timeout
+			await get_tree().create_timer(_WALK_STEP_DELAY * GameSettings.pacing_scale()).timeout
 	_walking = false
 	_ui.set_actions_enabled(true)
 
@@ -597,10 +611,10 @@ func _play_ai_turn(player: Player) -> void:
 		return
 	_ai_playing = true
 	_ui.set_actions_enabled(false)
-	await get_tree().create_timer(0.3).timeout  # let the "Au tour de X" banner be read before it acts
+	await get_tree().create_timer(0.3 * GameSettings.pacing_scale()).timeout  # let the "Au tour de X" banner be read before it acts
 	if _can_roll and _phase.current_subphase() == GamePhase.SubPhase.PLANIFICATION:
 		_on_roll()
-		await get_tree().create_timer(0.3).timeout
+		await get_tree().create_timer(0.3 * GameSettings.pacing_scale()).timeout
 	var safety := 0
 	while _phase.movement() != null and _phase.current_subphase() == GamePhase.SubPhase.DEPLACEMENT \
 			and _phase.movement().remaining() > 0:
@@ -619,7 +633,7 @@ func _play_ai_turn(player: Player) -> void:
 			if _phase.current_subphase() != GamePhase.SubPhase.DEPLACEMENT:
 				break  # e.g. a FIN_TOUR effect
 		else:
-			await get_tree().create_timer(_AI_STEP_DELAY).timeout
+			await get_tree().create_timer(_AI_STEP_DELAY * GameSettings.pacing_scale()).timeout
 	# Reset BEFORE end_turn(), not after: end_turn() synchronously emits turn_changed, which (for a
 	# REJOUER replay of this same AI, or a next seat that's also AI) re-enters _on_turn_changed →
 	# _play_ai_turn *while still inside this call*. If _ai_playing were still true at that point, the
@@ -661,7 +675,7 @@ func _ai_resolve_event() -> void:
 	_refresh_highlights()
 	_update_active_marker()
 	_refresh_ui()
-	await get_tree().create_timer(0.5).timeout  # a short, legible reveal before the walk resumes
+	await get_tree().create_timer(0.5 * GameSettings.pacing_scale()).timeout  # a short, legible reveal before the walk resumes
 
 
 # Greedy draw-2-keep-1 pick for the AI: prefer an Avantage over a Malus (no deeper lookahead — the
@@ -759,6 +773,17 @@ func _on_reserve() -> void:
 		_ui.set_status(tr("Livraison réservée."))
 	_refresh_highlights()
 	_refresh_ui()
+
+
+## Undoes the last step taken this turn — blocked past a pickup/delivery/event (task #28), enforced
+## by [method GamePhase.can_undo_step]. [signal GamePhase.pawn_moved] (emitted by undo_step too)
+## already drives [method _on_pawn_moved]'s highlight/marker/UI refresh; nothing extra to do here.
+func _on_undo_requested() -> void:
+	if _walking or _ai_playing:
+		return
+	if _phase.undo_step():
+		AudioManager.sfx(&"ui_click")
+		_ui.set_status(tr("Dernier pas annulé."))
 
 
 # A delivery's status changed (reserved / en cours): refresh its status disc and the action bar.
@@ -877,6 +902,10 @@ func _consume_event_aftermath() -> void:
 		_ui.set_status(tr("Tous les feux au vert — tu rejoues un tour !"))
 
 
+## Interactive powers (Dépassement/Coup d'Accélérateur) already confirm via their own target/die
+## chooser (with its built-in "Annuler"). Non-interactive ones commit the moment they're used — a
+## ONE-SHOT, unlike movement — so they get their own confirm/cancel chooser here (task #28, alongside
+## undo: both exist so an accidental press never costs something that can't be undone).
 func _on_power() -> void:
 	var player := _phase.current_player()
 	if player.character == null or player.power_used or _phase.context() == null:
@@ -886,14 +915,19 @@ func _on_power() -> void:
 	if PowerResolver.is_interactive(pid):
 		_begin_interactive_power(pid)
 		return
-	if _phase.use_power():
-		AudioManager.sfx(&"power")
-		_ui.set_status(_power_message(pid))
-		_refresh_highlights()
-		_update_active_marker()
-	else:
-		_ui.set_status(tr("Ce pouvoir n'est pas disponible maintenant."))
-	_refresh_ui()
+	_ui.show_chooser(tr("Utiliser ton super-pouvoir ?"), [
+		{"text": tr("Utiliser"), "color": UITheme.ORANGE},
+	], func(choice: int) -> void:
+		if choice != 0:
+			return
+		if _phase.use_power():
+			AudioManager.sfx(&"power")
+			_ui.set_status(_power_message(pid))
+			_refresh_highlights()
+			_update_active_marker()
+		else:
+			_ui.set_status(tr("Ce pouvoir n'est pas disponible maintenant."))
+		_refresh_ui())
 
 
 # True only right after rolling, before the first step — the boost button hides itself otherwise
@@ -1011,6 +1045,13 @@ func _on_pawn_moved(player: Player, _from: Vector2i, to: Vector2i) -> void:
 
 
 func _on_turn_changed(player: Player) -> void:
+	# A hot-seat handoff: two DIFFERENT human players, an actual seat change (not a REJOUER replay
+	# of the same seat), at least 2 humans at the table (never in a solo session). AI seats need no
+	# physical handoff at all. Task #29.
+	var needs_handoff := not player.is_ai and _last_turn_player_index != -1 \
+		and _last_turn_player_index != player.index and _human_player_count() >= 2
+	_last_turn_player_index = player.index
+
 	_can_roll = true
 	_reservation_prompted.clear()  # a new turn may re-offer a delivery declined earlier
 	_clear_dice()
@@ -1025,8 +1066,20 @@ func _on_turn_changed(player: Player) -> void:
 		status = "%s %s" % [_skipped_notice, status]
 		_skipped_notice = ""
 	_ui.set_status(status)
-	if player.is_ai:
+	if needs_handoff:
+		var handoff := HandoffScreen.new()
+		add_child(handoff)
+		handoff.setup(player)
+	elif player.is_ai:
 		_play_ai_turn(player)
+
+
+func _human_player_count() -> int:
+	var count := 0
+	for p in _players:
+		if not p.is_ai:
+			count += 1
+	return count
 
 
 func _on_delivery_completed(delivery: Delivery, points: int) -> void:
@@ -1120,9 +1173,10 @@ func _show_score_breakdown(delivery: Delivery, player: Player, points: int) -> v
 	pos.y = GameConfig.TILE_HEIGHT + 0.9
 	label.position = pos
 	add_child(label)
+	var scale := GameSettings.pacing_scale()
 	var tween := create_tween()
-	tween.tween_property(label, "position:y", pos.y + 0.7, 1.6)
-	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.6).set_delay(0.5)
+	tween.tween_property(label, "position:y", pos.y + 0.7, 1.6 * scale)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.6 * scale).set_delay(0.5 * scale)
 	tween.tween_callback(label.queue_free)
 
 
@@ -1162,6 +1216,7 @@ func _refresh_ui() -> void:
 	var power_ready := player.character != null and not player.power_used and _phase.context() != null
 	_ui.set_power_available(power_ready)
 	_ui.set_boost_tokens(player.boost_tokens, _boost_usable_now())
+	_ui.set_undo_available(_phase.can_undo_step() and not _walking and not _ai_playing)
 	_ui.set_action(_current_action())
 
 

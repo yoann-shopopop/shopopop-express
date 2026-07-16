@@ -28,6 +28,33 @@ func test_step_rejects_a_non_walkable_or_non_adjacent_cell() -> void:
 	assert_false(m.step(Vector2i(2, 0)), "walkable but not adjacent")
 
 
+func test_undo_step_returns_to_the_previous_cell_and_refunds_the_budget() -> void:
+	var m := TurnMovement.new(_line(), Vector2i(0, 0), 2)
+	m.step(Vector2i(1, 0))
+	assert_true(m.undo_step())
+	assert_eq(m.current(), Vector2i(0, 0))
+	assert_eq(m.remaining(), 2)
+	assert_eq(m.path(), [Vector2i(0, 0)])
+
+
+func test_undo_step_at_the_start_cell_is_a_noop() -> void:
+	var m := TurnMovement.new(_line(), Vector2i(0, 0), 2)
+	assert_false(m.undo_step())
+	assert_eq(m.current(), Vector2i(0, 0))
+	assert_eq(m.remaining(), 2)
+
+
+func test_undo_step_can_be_chained_back_through_multiple_steps() -> void:
+	var m := TurnMovement.new(_line(), Vector2i(0, 0), 3)
+	m.step(Vector2i(1, 0))
+	m.step(Vector2i(2, 0))
+	assert_true(m.undo_step())
+	assert_eq(m.current(), Vector2i(1, 0))
+	assert_true(m.undo_step())
+	assert_eq(m.current(), Vector2i(0, 0))
+	assert_false(m.undo_step(), "back at the start: nothing left to undo")
+
+
 func test_add_steps_increases_the_budget() -> void:
 	var m := TurnMovement.new(_line(), Vector2i(0, 0), 1)
 	m.add_steps(2)

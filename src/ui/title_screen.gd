@@ -5,7 +5,9 @@ extends CanvasLayer
 ## frees itself, revealing the player-count chooser underneath. "La Tournée" emits
 ## [signal tournee_requested] for the solo score-attack mode (its own auto-built board, no placement
 ## phase). "Tutoriel" emits [signal tutorial_requested] for the guided first-time session. "⚙ Réglages"
-## opens [SettingsMenu] directly (no signal — self-contained). Pure UI — Main wires the first three.
+## opens [SettingsMenu] directly (no signal — self-contained). Espace/Entrée (task #30) triggers
+## "Jouer" — the default action for a screen with no other input focus yet. Pure UI — Main wires the
+## first three signals.
 
 signal start_requested
 signal tutorial_requested
@@ -49,9 +51,7 @@ func _ready() -> void:
 	play.add_theme_stylebox_override("hover", UITheme.button_style(UITheme.BLUE, 1.6))
 	play.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(UITheme.BLUE))
 	play.add_theme_color_override("font_color", UITheme.TEXT)
-	play.pressed.connect(func() -> void:
-		AudioManager.sfx(&"ui_click")
-		start_requested.emit())
+	play.pressed.connect(_start)
 	box.add_child(play)
 
 	var tournee := Button.new()
@@ -97,3 +97,14 @@ func _ready() -> void:
 		add_child(menu)
 		menu.setup(GameSettings.current()))
 	box.add_child(settings)
+
+
+func _start() -> void:
+	AudioManager.sfx(&"ui_click")
+	start_requested.emit()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_accept"):
+		_start()
+		get_viewport().set_input_as_handled()

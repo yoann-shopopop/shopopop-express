@@ -96,3 +96,25 @@ func test_current_is_null_until_a_real_instance_enters_the_tree() -> void:
 	gs.load_settings()
 	gs.set_music_volume(0.2)
 	assert_ne(GameSettings.current(), gs)
+
+
+func test_pacing_scale_reflects_the_live_instances_fast_mode() -> void:
+	var gs := GameSettings.new()
+	gs.set_config_path(_SCRATCH_PATH)
+	add_child_autofree(gs)  # _ready() fires: _instance = gs (scratch path, so no real file touched)
+	assert_eq(GameSettings.pacing_scale(), 1.0, "fast_mode starts off")
+	gs.set_fast_mode(true)
+	assert_eq(GameSettings.pacing_scale(), GameSettings.FAST_PACING_SCALE)
+
+
+func test_current_and_pacing_scale_stay_safe_after_the_instance_is_freed() -> void:
+	# Guards the scene-reload hazard: get_tree().reload_current_scene() (Rejouer/Terminer) frees
+	# Main's GameSettings without clearing the static _instance — current()/pacing_scale() must not
+	# hand back (or dereference) a dangling reference in that window.
+	var gs := GameSettings.new()
+	gs.set_config_path(_SCRATCH_PATH)
+	add_child(gs)  # not autofree: freed explicitly below, mid-test
+	gs.set_fast_mode(true)
+	gs.free()
+	assert_null(GameSettings.current(), "a freed instance must not be returned as live")
+	assert_eq(GameSettings.pacing_scale(), 1.0, "falls back to normal pace once the instance is gone")

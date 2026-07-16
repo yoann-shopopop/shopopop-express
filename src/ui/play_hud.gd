@@ -11,6 +11,7 @@ signal reserve_requested
 signal end_turn_requested
 signal power_requested
 signal boost_requested
+signal undo_requested
 signal zoom_in_requested
 signal zoom_out_requested
 
@@ -32,11 +33,13 @@ var _action_btn: Button
 var _end_turn_btn: Button  # secondary, visible only while the primary action is RESERVE
 var _power_btn: Button
 var _boost_btn: Button  # Coup de pouce (mitigates dice luck): text shows the remaining token count
+var _undo_btn: Button   # "↩" — visible only while a step this turn can still be undone (task #28)
 var _end_panel: Control
 var _action: int = Action.ROLL
 var _char_frame: Panel       # framed character card of the current player (right of the board)
 var _char_card: TextureRect
 var _chooser: Control        # transient modal chooser (interactive powers), null when none
+var _chooser_on_pick: Callable  # its callback, so Échap can cancel it like the "Annuler" button
 var _reference_panel: Control  # the "?" rules reference overlay, null when closed
 var _deck_pile: DeckPileView      # PIOCHE pile (card backs + count)
 var _discard_pile: DeckPileView   # DÉFAUSSE pile (top discarded face + count)
@@ -81,7 +84,7 @@ func show_banner(text: String, color: Color = UITheme.TEXT) -> void:
 	_banner.modulate.a = 0.0
 	var tween := create_tween()
 	tween.tween_property(_banner, "modulate:a", 1.0, 0.22)
-	tween.tween_interval(0.9)
+	tween.tween_interval(0.9 * GameSettings.pacing_scale())
 	tween.tween_property(_banner, "modulate:a", 0.0, 0.5)
 
 
@@ -214,6 +217,17 @@ func _build_actions() -> void:
 	box.add_theme_constant_override("separation", 10)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE  # only the buttons capture; board clicks pass through
 	add_child(box)
+
+	_undo_btn = Button.new()
+	_undo_btn.text = "↩"
+	_undo_btn.custom_minimum_size = Vector2(64, 64)
+	_undo_btn.add_theme_font_size_override("font_size", 24)
+	_theme_button(_undo_btn, Color("3c4858"))
+	_undo_btn.pressed.connect(func() -> void:
+		AudioManager.sfx(&"ui_click")
+		undo_requested.emit())
+	_undo_btn.hide()
+	box.add_child(_undo_btn)
 
 	_action_btn = Button.new()
 	_action_btn.custom_minimum_size = Vector2(190, 64)
@@ -349,6 +363,20 @@ func set_actions_enabled(enabled: bool) -> void:
 	_action_btn.disabled = not enabled
 	if _end_turn_btn != null:
 		_end_turn_btn.disabled = not enabled
+	if _undo_btn != null:
+		_undo_btn.disabled = not enabled
+
+
+## Shows/hides "↩" — visible only while [method GamePhase.can_undo_step] allows undoing the last
+## step taken this turn (task #28: blocked past a pickup/delivery/event — revealed information).
+func set_undo_available(available: bool) -> void:
+	if _undo_btn != null:
+		_undo_btn.visible = available
+
+
+## True while "↩" is shown.
+func is_undo_button_visible() -> bool:
+	return _undo_btn != null and _undo_btn.visible
 
 
 ## Shows/enables the power button (hidden once the one-shot power is spent).
@@ -405,7 +433,7 @@ func set_status(text: String) -> void:
 	_toast.text = text
 	_toast.modulate.a = 1.0
 	var tween := create_tween()
-	tween.tween_interval(1.8)
+	tween.tween_interval(1.8 * GameSettings.pacing_scale())
 	tween.tween_property(_toast, "modulate:a", 0.0, 0.7)
 
 
@@ -415,6 +443,7 @@ func set_status(text: String) -> void:
 ## open. Used by the interactive super-powers (Dépassement target, Coup d'Accélérateur die).
 func show_chooser(prompt: String, options: Array, on_pick: Callable) -> void:
 	dismiss_chooser()
+	_chooser_on_pick = on_pick  # so Échap (task #30) can cancel exactly like the "Annuler" button
 	var backdrop := ColorRect.new()
 	backdrop.color = Color(0, 0, 0, 0.5)
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -469,6 +498,7 @@ func dismiss_chooser() -> void:
 	if _chooser != null and is_instance_valid(_chooser):
 		_chooser.queue_free()
 	_chooser = null
+	_chooser_on_pick = Callable()
 
 
 ## Shows the always-available rules reference overlay ("?" button, or Échap to close): an icon-first
@@ -556,9 +586,26 @@ func _reference_section(heading: String, lines: Array) -> Control:
 	return section
 
 
+## Minimal keyboard support (task #30): Échap closes the reference overlay or cancels an open
+## chooser exactly like its "Annuler" button; Espace/Entrée presses the primary action button
+## (Lancer/Réserver/Fin de tour) when nothing modal is open and it's actually usable. Buttons here
+## use FOCUS_NONE (so they never steal focus from board clicks) — Godot's default focus-driven
+## Enter/Space handling never reaches them, hence this explicit wiring instead.
 func _unhandled_input(event: InputEvent) -> void:
 	if _reference_panel != null and event.is_action_pressed("ui_cancel"):
 		hide_reference()
+		get_viewport().set_input_as_handled()
+		return
+	if _chooser != null and event.is_action_pressed("ui_cancel"):
+		var on_pick := _chooser_on_pick
+		dismiss_chooser()
+		if on_pick.is_valid():
+			on_pick.call(-1)
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("ui_accept") and _reference_panel == null and _chooser == null \
+			and _action_btn.visible and not _action_btn.disabled:
+		_on_action_pressed()
 		get_viewport().set_input_as_handled()
 
 

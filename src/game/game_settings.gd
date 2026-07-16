@@ -26,9 +26,23 @@ var _path: String = DEFAULT_PATH
 
 
 ## The live instance [Main] created at startup, or null before that (headless tools/tests that never
-## instantiate one).
+## instantiate one) — also guards against a stale reference surviving a scene reload
+## ([code]get_tree().reload_current_scene()[/code] frees the old Main/GameSettings; [code]_instance[/code]
+## would otherwise dangle non-null until the new one's [method _ready] runs).
 static func current() -> GameSettings:
-	return _instance
+	return _instance if _instance != null and is_instance_valid(_instance) else null
+
+
+const FAST_PACING_SCALE := 0.3  # a flat speed-up, not a fine-grained slider — kept minimal per the plan
+
+## The multiplier every animated wait in the game (walk steps, AI turns, event reveals, banner/toast
+## hold times — task #27) should apply to its base duration: [constant FAST_PACING_SCALE] while
+## [member fast_mode] is on, [code]1.0[/code] (normal pace) otherwise. Static and null-safe so any
+## file can call [code]GameSettings.pacing_scale()[/code] directly, the same way [AudioManager.sfx]
+## no-ops before an instance exists — headless tools/tests always see normal pace.
+static func pacing_scale() -> float:
+	var gs := current()
+	return FAST_PACING_SCALE if gs != null and gs.fast_mode else 1.0
 
 
 func _ready() -> void:

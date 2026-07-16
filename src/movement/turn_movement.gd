@@ -69,6 +69,21 @@ func step(cell: Vector2i) -> bool:
 	return true
 
 
+## Undoes the last [method step] (if any beyond the start cell): moves back to the previous cell and
+## refunds the budget it cost. Returns false if already at the start cell (nothing to undo). Callers
+## enforce any "can't undo past revealed information" barrier (task #28,
+## [method GamePhase.can_undo_step]) — this method itself just reverses one step unconditionally.
+func undo_step() -> bool:
+	if _path.size() <= 1:
+		return false
+	_path.pop_back()
+	_current = _path[_path.size() - 1]
+	_remaining += 1
+	moved.emit(_current)
+	step_budget_changed.emit(_remaining)
+	return true
+
+
 ## Grants [param n] extra steps this turn (event bonuses, e.g. Grand Soleil +3).
 func add_steps(n: int) -> void:
 	_remaining += n

@@ -45,6 +45,7 @@ var _movement: TurnMovement = null
 var _context: TurnContext = null       # mutable state for the current turn's events/powers
 var _generator: DeliveryGenerator = null  # when set, delivering recycles a new recipient (index-aligned with _deliveries)
 var _spent_event_cells: Dictionary = {}  # event cells consumed this round (set); re-armed each round
+var _undo_barrier: int = 0  # movement().path().size() the player may not undo_step() back past (task #28)
 
 ## Maximum in-flight deliveries (RESERVE + EN_COURS) a player may hold simultaneously.
 const MAX_IN_FLIGHT := 2
@@ -117,6 +118,7 @@ func begin_movement(budget: int) -> void:
 	_movement = TurnMovement.new(walkable, position_of(current_player()), budget)
 	_context = TurnContext.new(_movement, current_player())
 	_context.current_delivery = _primary_delivery(_current)
+	_undo_barrier = 1  # the path starts at the current cell alone — nothing to undo past it yet
 	_set_subphase(SubPhase.DEPLACEMENT)
 
 
@@ -130,14 +132,37 @@ func try_step(cell: Vector2i) -> bool:
 		return false
 	_positions[current_player().index] = cell
 	pawn_moved.emit(current_player(), from, cell)
-	_check_delivery_transitions()
+	if _check_delivery_transitions():
+		_undo_barrier = _movement.path().size()  # a pickup/delivery just happened: can't undo past it
 	# An event cell triggers once, then is consumed for the round: crossing it back and forth cannot
 	# farm the deck, and passing through a spent cell no longer interrupts the walk.
 	if _board.cell_type_at(cell) == CellType.Kind.EVENT and is_event_cell_armed(cell):
 		_spent_event_cells[cell] = true
 		event_cell_spent.emit(cell)
+		_undo_barrier = _movement.path().size()  # about to draw a card: can't undo past seeing it
 		_set_subphase(SubPhase.EVENEMENT)
 		event_triggered.emit(cell)
+	return true
+
+
+## True while at least one step taken this turn can still be undone. Blocked once the pawn has
+## crossed a barrier — an automatic pickup, a completed delivery, or an event cell trigger — since
+## undoing past one of those would un-happen scored points or "unsee" a drawn card, not just retrace
+## a walk (see CLAUDE.md's "Undo jusqu'à information révélée").
+func can_undo_step() -> bool:
+	return _subphase == SubPhase.DEPLACEMENT and _movement != null and _movement.path().size() > _undo_barrier
+
+
+## Undoes the last step taken this turn (refunds its budget), if [method can_undo_step] allows it.
+func undo_step() -> bool:
+	if not can_undo_step():
+		return false
+	var from := _movement.current()
+	if not _movement.undo_step():
+		return false
+	var to := _movement.current()
+	_positions[current_player().index] = to
+	pawn_moved.emit(current_player(), from, to)
 	return true
 
 
@@ -276,6 +301,8 @@ func _sync_pawn_after_event(from: Vector2i) -> void:
 	_positions[_current] = to
 	pawn_moved.emit(current_player(), from, to)
 	_check_delivery_transitions()
+	if _movement != null:
+		_undo_barrier = _movement.path().size()  # a teleport just happened: undo_step() must never pop it
 
 
 # The drive cell of the delivery farthest from [param from] (a big relocation). null if none.
@@ -356,6 +383,8 @@ func swap_positions(other_index: int) -> bool:
 	pawn_moved.emit(player, mine, theirs)
 	pawn_moved.emit(_players[other_index], theirs, mine)
 	_check_delivery_transitions()
+	if _movement != null:
+		_undo_barrier = _movement.path().size()  # a teleport just happened: undo_step() must never pop it
 	return true
 
 
@@ -442,22 +471,28 @@ func reserve_delivery() -> bool:
 	delivery.status = DeliveryStatus.Kind.RESERVE
 	delivery.reserved_by = _current
 	delivery_reserved.emit(delivery)
-	_check_delivery_transitions()
+	if _check_delivery_transitions() and _movement != null:
+		_undo_barrier = _movement.path().size()  # reserving jumped straight to EN_COURS: same barrier as a pickup
 	return true
 
 
 # Drives automatic transitions from the current pawn position; called after each step and after a
 # reservation. RESERVE -> EN_COURS on the drive cell; EN_COURS -> delivery on the recipient cell.
-func _check_delivery_transitions() -> void:
+# Returns true if any transition fired (the caller may need to move the undo barrier past it).
+func _check_delivery_transitions() -> bool:
 	var cell := position_of(current_player())
+	var transitioned := false
 	for delivery in deliveries_in_flight(_current):
 		if delivery.status == DeliveryStatus.Kind.RESERVE and cell == delivery.drive_cell:
 			delivery.status = DeliveryStatus.Kind.EN_COURS
 			delivery_in_progress.emit(delivery)
+			transitioned = true
 		elif delivery.status == DeliveryStatus.Kind.EN_COURS and cell == delivery.recipient_cell:
 			_complete_delivery(delivery)
+			transitioned = true
 	if _context != null:
 		_context.current_delivery = _primary_delivery(_current)
+	return transitioned
 
 
 # Scores [param delivery], recycles a new recipient (or leaves the drive free), checks for game end.

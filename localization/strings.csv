@@ -36,6 +36,7 @@ Bouclier Vert : malus « %s » annulé !,Bouclier Vert: “%s” malus cancelled
 Bouclier Vert · annule un malus,Bouclier Vert · cancels a malus
 Bronze,Bronze
 Budget ÷2,Budget ÷2
+C'est parti,Let's go
 Camion,Truck
 "Carnet d'Adresses : garde 1 carte, l'autre est défaussée.","Carnet d'Adresses: keep 1 card, the other is discarded."
 "Carnet d'Adresses : ton prochain événement, pioche 2 et garde 1.","Carnet d'Adresses: your next event, draw 2 and keep 1."
@@ -53,6 +54,7 @@ Coup d'Accélérateur — relance quel dé ?,Coup d'Accélérateur — reroll wh
 Coup de pouce : %s (%+d cases).,Lucky Break: %s (%+d tiles).
 Coup de pouce — que faire ?,Lucky Break — what now?
 Course prise !,Run claimed!
+Dernier pas annulé.,Last step undone.
 Dernière tournée !,Last round!
 Disponible,Available
 Disponible → Réservé → En cours → Livré (transitions automatiques),Available → Reserved → In progress → Delivered (automatic transitions)
@@ -118,6 +120,7 @@ Parrainage,Referral Bonus
 Partie terminée !,Game over!
 Passage Secret : tu peux franchir l'eau ce tour-ci !,Passage Secret: you can cross water this turn!
 Passage Secret · franchis l'eau,Passage Secret · cross the water
+Passe l'appareil à,Pass the device to
 Pic de Pollution,Pollution Spike
 Plein écran : activé,Fullscreen: on
 Plein écran : désactivé,Fullscreen: off
@@ -169,6 +172,8 @@ Téléportation,Teleport
 Un raccourci te mène au prochain drive disponible.,A shortcut takes you to the next available pickup point.
 Une faille te projette au drive le plus éloigné.,A rift throws you to the farthest pickup point.
 Une route est bloquée : détour de 3 cases.,A road is blocked: a 3-tile detour.
+Utiliser,Use
+Utiliser ton super-pouvoir ?,Use your super-power?
 "VALIDER
 LE PLACEMENT","CONFIRM
 PLACEMENT"

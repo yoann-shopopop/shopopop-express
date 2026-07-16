@@ -39,6 +39,26 @@ func _setup_root() -> GameRoot:
 	return root
 
 
+# Same board as _setup_root(), but a single player carries a character with [param power_id] — for
+# the power confirmation chooser tests (task #28).
+func _setup_root_with_power(power_id: StringName) -> GameRoot:
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, 0)
+	var character := CharacterDefinition.new()
+	character.power_id = power_id
+	var player := _player(0, PlayerColor.Kind.BLUE, tile)
+	player.character = character
+	var players: Array[Player] = [player]
+	var camera := Camera3D.new()
+	add_child_autofree(camera)
+
+	var root := GameRoot.new()
+	add_child_autofree(root)
+	root.setup(board, players, camera)
+	return root
+
+
 func test_setup_spawns_one_pawn_view_per_player_without_error() -> void:
 	var root := _setup_root()
 
@@ -481,3 +501,129 @@ func test_forced_event_order_overrides_the_shuffle() -> void:
 	root.phase().try_step(Vector2i(1, 0))
 	root.phase().try_step(Vector2i(2, 0))  # the EVENT cell: draws 2 from the forced order
 	assert_eq(root._events.draw_count(), 0, "both forced cards were drawn (draw(2) from a 2-card deck)")
+
+
+# --- Undo + power confirmation (task #28) ------------------------------------
+
+func test_undo_requested_reverses_the_last_step() -> void:
+	var root := _setup_root()
+	var player := root.phase().current_player()
+	root.phase().begin_movement(3)
+	root.phase().try_step(Vector2i(1, 0))
+	root._on_undo_requested()
+	assert_eq(root.phase().position_of(player), Vector2i(0, 0))
+	assert_eq(root.phase().movement().remaining(), 3)
+
+
+func test_undo_requested_is_ignored_while_walking() -> void:
+	var root := _setup_root()
+	var player := root.phase().current_player()
+	root.phase().begin_movement(3)
+	root.phase().try_step(Vector2i(1, 0))
+	root._walking = true
+	root._on_undo_requested()
+	assert_eq(root.phase().position_of(player), Vector2i(1, 0), "undo must not fire mid-walk")
+
+
+func test_undo_button_hidden_before_any_step_and_shown_after() -> void:
+	var root := _setup_root()
+	root.phase().begin_movement(3)
+	root._refresh_ui()
+	assert_false(root.hud().is_undo_button_visible(), "nothing to undo yet")
+	root.phase().try_step(Vector2i(1, 0))
+	root._refresh_ui()
+	assert_true(root.hud().is_undo_button_visible())
+
+
+func test_undo_button_hidden_past_an_automatic_pickup() -> void:
+	var root := _setup_root()
+	root.phase().begin_movement(3)
+	root.phase().try_step(Vector2i(1, 0))
+	root.phase().reserve_delivery()
+	root.phase().try_step(Vector2i(2, 0))  # the drive cell: automatic EN_COURS, a barrier
+	root._refresh_ui()
+	assert_false(root.hud().is_undo_button_visible())
+
+
+func test_pressing_power_opens_a_confirmation_chooser_without_using_it_yet() -> void:
+	var root := _setup_root_with_power(&"bonne_marcheuse")
+	var player := root.phase().current_player()
+	root.phase().begin_movement(3)
+	root.hud().power_requested.emit()
+	assert_not_null(root.hud()._chooser, "a confirmation chooser is showing")
+	assert_false(player.power_used, "not applied until confirmed")
+
+
+func test_confirming_the_power_chooser_applies_the_power() -> void:
+	var root := _setup_root_with_power(&"bonne_marcheuse")
+	var player := root.phase().current_player()
+	root.phase().begin_movement(3)
+	root.hud().power_requested.emit()
+	var hud := root.hud()
+	var use_button: Button = hud._chooser.get_child(0).get_child(0).get_child(0).get_child(1).get_child(0)
+	use_button.pressed.emit()
+	assert_true(player.power_used)
+	assert_null(hud._chooser, "the chooser dismisses itself once picked")
+
+
+func test_cancelling_the_power_chooser_leaves_the_power_unused() -> void:
+	var root := _setup_root_with_power(&"bonne_marcheuse")
+	var player := root.phase().current_player()
+	root.phase().begin_movement(3)
+	root.hud().power_requested.emit()
+	var hud := root.hud()
+	var cancel_button: Button = hud._chooser.get_child(0).get_child(0).get_child(0).get_child(2)
+	cancel_button.pressed.emit()
+	assert_false(player.power_used)
+
+
+# --- Hot-seat handoff screen (task #29) --------------------------------------
+
+func _has_handoff_screen(root: GameRoot) -> bool:
+	for child in root.get_children():
+		if child is HandoffScreen:
+			return true
+	return false
+
+
+func test_handoff_screen_appears_between_two_different_human_seats() -> void:
+	var root := _setup_root_with_ai([false, false])
+	root.phase().begin_movement(1)
+	root.phase().end_turn()
+	assert_true(_has_handoff_screen(root))
+
+
+func test_handoff_screen_does_not_appear_for_a_solo_session() -> void:
+	var root := _setup_root_with_power(&"bonne_marcheuse")  # a single (human) player
+	root.phase().begin_movement(1)
+	root.phase().end_turn()
+	assert_false(_has_handoff_screen(root))
+
+
+func test_handoff_screen_does_not_appear_before_an_ai_seat() -> void:
+	var root := _setup_root_with_ai([false, true])
+	root.phase().begin_movement(1)
+	root.phase().end_turn()  # hands off to seat 1, which is AI: no physical handoff needed
+	assert_false(_has_handoff_screen(root))
+
+
+func test_handoff_screen_does_not_appear_on_a_replay_of_the_same_seat() -> void:
+	var root := _setup_root_with_ai([false, false])
+	var player := root.phase().current_player()
+	root._last_turn_player_index = player.index  # pretend we're already mid-session on this seat
+	root._on_turn_changed(player)  # a REJOUER replay: turn_changed fires again for the SAME player
+	assert_false(_has_handoff_screen(root))
+
+
+func test_continuing_the_handoff_screen_frees_it() -> void:
+	var root := _setup_root_with_ai([false, false])
+	root.phase().begin_movement(1)
+	root.phase().end_turn()
+	var handoff: HandoffScreen = null
+	for child in root.get_children():
+		if child is HandoffScreen:
+			handoff = child
+	assert_not_null(handoff)
+	handoff._continue()
+	await wait_process_frames(1)
+	assert_false(_has_handoff_screen(root))

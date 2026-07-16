@@ -151,6 +151,119 @@ func test_stepping_onto_the_recipient_scores_and_is_free() -> void:
 	assert_true(phase.is_finished(), "the only delivery is done, no recycling")
 
 
+# --- Undo (task #28: undo up to revealed information) --------------------
+
+func test_cannot_undo_step_before_any_step_is_taken() -> void:
+	var phase := _phase()
+	phase.begin_movement(3)
+	assert_false(phase.can_undo_step())
+	assert_false(phase.undo_step())
+
+
+func test_undo_step_reverses_a_plain_walk_and_refunds_the_budget() -> void:
+	var phase := _phase()
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))
+	assert_true(phase.can_undo_step())
+	assert_true(phase.undo_step())
+	assert_eq(phase.position_of(phase.current_player()), Vector2i(0, 0))
+	assert_eq(phase.movement().remaining(), 3)
+	assert_false(phase.can_undo_step(), "back at the start: nothing left to undo")
+
+
+func test_undo_step_chains_back_through_several_plain_steps() -> void:
+	var phase := _phase()
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))
+	phase.try_step(Vector2i(2, 0))
+	assert_true(phase.undo_step())
+	assert_eq(phase.position_of(phase.current_player()), Vector2i(1, 0))
+	assert_true(phase.undo_step())
+	assert_eq(phase.position_of(phase.current_player()), Vector2i(0, 0))
+
+
+func test_undo_step_is_blocked_past_an_automatic_pickup() -> void:
+	var phase := _phase_with_delivery()
+	phase.begin_movement(3)
+	phase.reserve_delivery()
+	phase.try_step(Vector2i(1, 0))  # the drive cell -> automatic EN_COURS: a barrier
+	assert_false(phase.can_undo_step(), "undoing would un-happen the pickup")
+	assert_false(phase.undo_step())
+	assert_eq(phase.deliveries_in_flight(0)[0].status, DeliveryStatus.Kind.EN_COURS,
+		"the blocked undo attempt must not have changed anything")
+
+
+func test_undo_step_is_blocked_past_a_completed_delivery() -> void:
+	var phase := _phase_with_delivery()
+	var player := phase.current_player()
+	phase.begin_movement(3)
+	phase.reserve_delivery()
+	phase.try_step(Vector2i(1, 0))  # drive -> EN_COURS (already a barrier)
+	phase.try_step(Vector2i(2, 0))  # recipient -> delivered, scored
+	assert_false(phase.can_undo_step())
+	assert_eq(phase.score_of(player), 25, "a blocked undo must not un-score the delivery")
+
+
+func test_undo_step_is_allowed_again_after_a_fresh_step_past_the_barrier() -> void:
+	# The barrier only blocks undoing PAST the revealing moment — a step taken after it (with no
+	# further reveal) is a plain walk again and can be undone normally.
+	var board := Board.new()
+	var tile := BlockDefinition.new()
+	tile.id = &"t"
+	tile.cells = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)] as Array[Vector2i]
+	tile.cell_types = [
+		CellType.Kind.GREEN, CellType.Kind.ROUTE, CellType.Kind.URBAN, CellType.Kind.ROUTE,
+	]
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	player.character = _red_character()
+	var piece: PlacedPiece = board.pieces()[0]
+	var delivery := Delivery.new(Vector2i(2, 0), Vector2i(50, 0), [piece] as Array[PlacedPiece])
+	delivery.destinataire = DestinataireDefinition.new()
+	var phase := GamePhase.new([player] as Array[Player], board, [delivery] as Array[Delivery])
+	phase.begin_movement(4)
+	phase.reserve_delivery()
+	phase.try_step(Vector2i(1, 0))
+	phase.try_step(Vector2i(2, 0))  # drive -> EN_COURS: barrier
+	assert_false(phase.can_undo_step())
+	phase.try_step(Vector2i(3, 0))  # a plain step past the barrier
+	assert_true(phase.can_undo_step())
+	assert_true(phase.undo_step())
+	assert_eq(phase.position_of(player), Vector2i(2, 0))
+	assert_false(phase.can_undo_step(), "back at the barrier cell: still blocked")
+
+
+func test_undo_step_is_blocked_past_an_event_cell_trigger() -> void:
+	var phase := _phase_with_event()
+	phase.begin_movement(3)
+	phase.try_step(Vector2i(1, 0))
+	assert_true(phase.can_undo_step())
+	phase.try_step(Vector2i(2, 0))  # the EVENT cell: a barrier, about to draw a card
+	assert_false(phase.can_undo_step(), "undoing would let the player unsee the drawn card")
+
+
+func test_undo_step_never_pops_a_teleport_from_an_event() -> void:
+	# A teleport (Faille Spatio-Temporelle) is appended to TurnMovement's path just like a walked
+	# step; without its own barrier, undo_step() would pop the teleport and hand back a phantom
+	# budget refund for a step that never cost anything.
+	var board := Board.new()
+	var tile := _tile()
+	board.place(tile, Vector2i.ZERO, 0, PlayerColor.Kind.RED)
+	var player := _player(0, PlayerColor.Kind.RED, tile)
+	var piece: PlacedPiece = board.pieces()[0]
+	var near := Delivery.new(Vector2i(1, 0), Vector2i(2, 0), [piece] as Array[PlacedPiece])
+	near.destinataire = DestinataireDefinition.new()
+	var far := Delivery.new(Vector2i(50, 0), Vector2i(51, 0), [piece] as Array[PlacedPiece])
+	far.destinataire = DestinataireDefinition.new()
+	var phase := GamePhase.new([player] as Array[Player], board, [near, far] as Array[Delivery])
+	phase.begin_movement(3)
+	var card := EventCardDefinition.new()
+	card.effect = EventCardDefinition.Effect.TELEPORT_QUARTIER
+	phase.apply_event(card)
+	assert_eq(phase.position_of(player), Vector2i(50, 0))
+	assert_false(phase.can_undo_step(), "the teleport itself must be a barrier")
+
+
 func test_cannot_reserve_more_than_two_in_flight() -> void:
 	var board := Board.new()
 	var tile := _tile()

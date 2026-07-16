@@ -535,6 +535,102 @@ de lookup ambiant) pour rester testable isolément.
   immédiate de la locale, signal `settings_changed`) et `tests/test_settings_menu.gd` (widgets reflètent
   l'état, curseurs/boutons routent bien vers `GameSettings`).
 
+### Rythme : vitesse & skip global (2026-07-16)
+
+`GameSettings.pacing_scale()` (statique, null-safe comme `AudioManager.sfx`) renvoie **0,3** tant que
+`fast_mode` est activé (réglage « Rythme rapide » de `SettingsMenu`, tâche #26), **1,0** sinon — un
+multiplicateur unique appliqué à **tous** les délais animés que le joueur subit en attendant : pas de
+la marche (`GameRoot._WALK_STEP_DELAY`), tempo de l'IA (`_AI_STEP_DELAY` + les pauses de
+`_play_ai_turn`/`_ai_resolve_event`), tenue des bannières/toasts (`PlayHud.show_banner`/`set_status`),
+et l'étiquette flottante de décomposition du score. Portée volontairement **réduite à un flat
+speed-up** (pas de curseur continu) — cohérent avec le réglage « minimal » de la tâche #26. « Tout
+skippable » du plan est interprété comme *tout accéléré par ce réglage*, pas comme une touche « passer »
+interactive par-dessus chaque animation — celle-ci vivrait plus naturellement avec le clavier minimal
+(tâche #30) si elle est ajoutée plus tard.
+
+⚠️ **Garde-fou ajouté en même temps** : `GameSettings.current()`/`pacing_scale()` vérifient
+`is_instance_valid(...)`, pas seulement `!= null` — sans ça, un `get_tree().reload_current_scene()`
+(« Rejouer »/« Terminer ») libère l'instance de `Main` sans jamais annuler la référence statique
+`_instance`, qui resterait non-null mais invalide jusqu'au `_ready()` du prochain `GameSettings`.
+
+**Vérifié** par `tests/test_game_settings.gd` (le multiplicateur reflète `fast_mode` d'une instance
+vivante, reste à 1.0 une fois cette instance libérée) et la suite complète (GUT, soak, harnais
+headless) rejouée sans régression après le branchement des délais.
+
+### Undo jusqu'à information révélée + confirmation des pouvoirs (2026-07-16)
+
+`TurnMovement.undo_step()` inverse le dernier `step()` (retour à la case précédente, budget remboursé
+de 1) en dépilant `_path` — pure logique, aucune règle de barrière ici. La barrière vit dans
+`GamePhase._undo_barrier` (l'indice de `movement().path().size()` que `undo_step()` ne peut pas
+dépasser) : posée à `1` par `begin_movement` (rien à annuler avant le premier pas), puis avancée à
+`movement().path().size()` chaque fois qu'une case spéciale déclenche une transition automatique —
+**prise en charge** (RESERVE→EN_COURS, y compris via `reserve_delivery()` directement depuis le drive),
+**livraison** (EN_COURS→terminée, score attribué), **déclenchement d'un événement** (case arc-en-ciel,
+avant même la pioche), et **toute téléportation** (`_sync_pawn_after_event`, `swap_positions` du
+pouvoir Dépassement) — un tp s'ajoute aussi à `_path` sans coûter de budget ; sans sa propre barrière,
+`undo_step()` le dépilerait et rendrait un remboursement fantôme. `GamePhase.can_undo_step()` /
+`undo_step()` sont les points d'entrée publics ; `undo_step()` réémet `pawn_moved`, donc
+`GameRoot._on_pawn_moved` (déjà branché) anime/rafraîchit tout seul, sans code dédié côté vue.
+
+**UI** : bouton « ↩ » dans la barre d'actions de `PlayHud` (`undo_requested`,
+`set_undo_available`/`is_undo_button_visible`), visible seulement quand `can_undo_step()` est vrai
+et qu'aucune marche animée (humaine ou IA) n'est en cours. **Confirmation des pouvoirs** (même souci
+d'irréversibilité, groupé dans le même item du plan) : les pouvoirs **non interactifs** passent
+désormais par le même `show_chooser` (« Utiliser ton super-pouvoir ? » / Annuler) avant d'être
+consommés — les pouvoirs **interactifs** (Dépassement, Coup d'Accélérateur) avaient déjà leur propre
+chooser de cible/dé avec un Annuler intégré, rien à changer là.
+
+**Vérifié** par `tests/test_turn_movement.gd` (undo_step pur), `tests/test_game_phase.gd` (barrières
+pickup/livraison/événement/téléportation, y compris le cas piégeux du remboursement fantôme sur
+téléportation) et `tests/test_game_root.gd` (bouton affiché/cadré, chooser de confirmation du
+pouvoir) + suite complète rejouée sans régression.
+
+### Séquence de recyclage lisible + écran tampon de passation (2026-07-16)
+
+**Recyclage lisible** : `GameRoot._rebuild_recipient_marker` anime la transition au lieu de faire
+apparaître le nouveau portrait en silence — l'ancien jeton se réduit à zéro (scale, `TRANS_BACK`
+sur l'apparition du nouveau après un court temps mort), le tout mis à l'échelle par
+`GameSettings.pacing_scale()` (tâche #27). Un `Node3D` n'a pas de `modulate` (propriété
+`CanvasItem`/`Node2D`) — l'anim joue sur `scale`, pas l'alpha.
+
+**Écran tampon de passation** : `HandoffScreen` (CanvasLayer, `src/ui/handoff_screen.gd`) — plein
+écran opaque « Passe l'appareil à [Couleur] » + bouton « C'est parti » (ou Entrée/clic). `GameRoot`
+le déclenche dans `_on_turn_changed` seulement pour un **vrai changement de siège humain→humain**
+(`_last_turn_player_index` suivi d'un tour à l'autre) : jamais en solo (`_human_player_count() < 2`),
+jamais avant un siège **IA** (aucune manipulation physique à faire), jamais sur un **REJOUER** (même
+joueur, `turn_changed` refire mais l'indice de siège n'a pas changé). ⚠️ **Piège initial corrigé** :
+`_last_turn_player_index` doit être initialisé au **premier joueur dès `setup()`** (pas seulement au
+premier `_on_turn_changed`, qui ne part que depuis `end_turn()`) — sinon le tout premier passage de
+relais (siège 0 → siège 1) est silencieusement sauté, faute de « siège précédent » enregistré.
+
+**Vérifié** par `tests/test_game_root.gd` (apparaît entre deux humains, absent en solo/avant IA/sur
+replay, se referme sur confirmation) + suite complète, soak et harnais headless rejoués sans
+régression.
+
+### Clavier minimal (2026-07-16)
+
+Portée volontairement réduite à Espace/Entrée/Échap (nom de la tâche) sur les deux écrans qui en
+avaient le plus besoin — pas une refonte de la navigation clavier complète (pas de `FOCUS_NONE` à
+revoir sur chaque bouton).
+
+- **`PlayHud._unhandled_input`** : Échap ferme l'aide-mémoire *ou* annule un chooser ouvert
+  **exactement comme son bouton « Annuler »** — `_chooser_on_pick` (le callback fourni à
+  `show_chooser`) est maintenant retenu pour ça, appelé avec l'index `-1`. Espace/Entrée
+  (`ui_accept`) déclenche le bouton d'action principal (Lancer/Réserver/Fin de tour) — **seulement**
+  si rien de modal n'est ouvert (aide-mémoire, chooser) et que le bouton est visible et activé.
+  ⚠️ Les boutons du HUD utilisent `FOCUS_NONE` (pour ne jamais voler le focus aux clics sur le
+  plateau) : le système de focus/Enter natif de Godot ne les atteint donc jamais — ce câblage
+  explicite est nécessaire, pas un doublon.
+- **`TitleScreen._unhandled_input`** : Espace/Entrée déclenche « Jouer » (`_start()`, factorisé hors
+  du callback du bouton pour être appelable des deux côtés).
+- **`SettingsMenu`/`HandoffScreen`** avaient déjà leur propre Échap/Entrée (tâches #26/#29) — rien à
+  ajouter là.
+
+**Vérifié** par `tests/test_play_hud.gd` (Échap annule un chooser avec l'index -1, ferme l'aide-
+mémoire ; Entrée déclenche l'action principale, mais jamais par-dessus un chooser/l'aide-mémoire
+ouverts) et `tests/test_title_screen.gd` (nouveau fichier ; Entrée → `start_requested`) + suite
+complète, soak et harnais headless rejoués sans régression.
+
 ### Restant / à raffiner
 
 - **Pose manuelle** des jetons drive/destinataire (V1 : placement **auto aléatoire** post-setup, drives
