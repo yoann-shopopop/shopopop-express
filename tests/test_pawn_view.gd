@@ -47,3 +47,50 @@ func test_every_shape_kind_builds_a_figure_without_error() -> void:
 		add_child_autofree(view)
 		view.bind(Pawn.new(d))
 		assert_gt(view.get_child_count(), 0, "a figure (body + head) was built for shape_kind %d" % shape)
+
+
+# --- Textureless drive/recipient token fallback (graphics pass, 2026-07-16) --------------
+
+# Without art, every drive/recipient used to render as the exact same blank grey disc — now a
+# colored chip + initials label so different identities read as different tokens on the board.
+func _token(display_name: String, texture: Texture2D = null) -> PawnView:
+	var d := PawnDefinition.new()
+	d.type = PawnDefinition.PawnType.DRIVE
+	d.display_name = display_name
+	d.texture = texture
+	var view := PawnView.new()
+	add_child_autofree(view)
+	view.bind(Pawn.new(d))
+	return view
+
+
+func test_textureless_token_shows_an_initials_label() -> void:
+	var view := _token("Le Fournil d'Hector")
+	var label: Label3D = null
+	for child in view.get_children():
+		if child is Label3D:
+			label = child
+	assert_not_null(label, "a fallback label was built")
+	assert_eq(label.text, "FD", "skips the filler article \"Le\"")
+
+
+func test_textured_token_has_no_fallback_label() -> void:
+	var view := _token("Le Fournil d'Hector", PlaceholderTexture2D.new())
+	for child in view.get_children():
+		assert_false(child is Label3D, "real art means no fallback label is needed")
+
+
+func test_identity_color_is_deterministic_and_differs_across_names() -> void:
+	var a1 := PawnView._identity_color("Croquettes & Cie")
+	var a2 := PawnView._identity_color("Croquettes & Cie")
+	var b := PawnView._identity_color("Fanfan Fleurs")
+	assert_eq(a1, a2, "the same name always gets the same color")
+	assert_ne(a1, b, "different names get different colors (very likely, hash-based)")
+
+
+func test_initials_falls_back_to_raw_words_when_everything_is_a_filler() -> void:
+	assert_eq(PawnView._initials("Le La"), "LL", "no meaningful word survives: fall back to the raw words")
+
+
+func test_initials_of_empty_name_is_empty() -> void:
+	assert_eq(PawnView._initials(""), "")

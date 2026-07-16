@@ -631,6 +631,33 @@ mémoire ; Entrée déclenche l'action principale, mais jamais par-dessus un cho
 ouverts) et `tests/test_title_screen.gd` (nouveau fichier ; Entrée → `start_requested`) + suite
 complète, soak et harnais headless rejoués sans régression.
 
+### Passe graphismes (2026-07-16, priorité affichée après le fonctionnel du Lot 1)
+
+Relevé via `tools/capture_play.gd` (captures réelles, fenêtré) — deux bugs visuels trouvés et
+corrigés, pas de nouvel art (les personnages ont déjà leurs illustrations ; enseignes/destinataires
+restent `texture = null` en attendant l'illustrateur, cf. Lot 0).
+
+- **`PlayerPanel` chevauchait `DeliveryPanel`** : centré sur la largeur **totale** de l'écran, le
+  bandeau joueurs pouvait glisser sous la colonne gauche des livraisons (texte tronqué/superposé,
+  visible dès 4 joueurs). Corrigé en calant `PlayerPanel` sur les **mêmes marges** (`342`/`-317` px)
+  que `GameRoot._fit_camera_to_board()` utilise déjà pour centrer le plateau lui-même entre les deux
+  panneaux — cohérence entre deux endroits qui devaient être alignés mais ne l'étaient pas.
+- **Jetons drive/destinataire tous identiques sans art** : `PawnView._build_token` construisait un
+  disque **gris-blanc uni, sans aucun texte**, pour `texture == null` — tous les drives/destinataires
+  d'une partie étaient donc rigoureusement indiscernables sur le plateau (repérables seulement via le
+  panneau 2D). Corrigé avec un vrai fallback « couleur + nom » (déjà promis par CLAUDE.md, jamais
+  implémenté) : `PawnView._identity_color(name)` (teinte HSV dérivée du hash du nom, stable) + un
+  `Label3D` plat (même orientation que l'étiquette de score, `rotation -90° X`, pas de billboard —
+  caméra fixe zénithale) affichant les initiales via `PawnView._initials(name)` (ignore les articles
+  courts « le/la/les/au/du/de/d'… », ex. « Le Fournil d'Hector » → « FD »). `GameRoot._drive_token`/
+  `_destinataire_token` renseignent désormais `PawnDefinition.display_name` (jamais fait avant) pour
+  alimenter ce fallback.
+
+**Vérifié** par `tests/test_pawn_view.gd` (label d'initiales présent seulement sans texture,
+couleur déterministe et distincte par nom, cas des articles filtrés/vide) + suite complète, soak et
+harnais headless rejoués sans régression. Root cause trouvée en comparant des captures avant/après
+avec `tools/capture_play.gd` — pas seulement en lisant le code.
+
 ### Restant / à raffiner
 
 - **Pose manuelle** des jetons drive/destinataire (V1 : placement **auto aléatoire** post-setup, drives

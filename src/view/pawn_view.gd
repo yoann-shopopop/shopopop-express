@@ -47,7 +47,7 @@ func bind(pawn: Pawn) -> void:
 	if pawn.definition.is_mobile():
 		_build_figure(pawn.definition.color, pawn.definition.shape_kind)
 	else:
-		_build_token(pawn.definition.texture)
+		_build_token(pawn.definition.texture, pawn.definition.display_name)
 	pawn.placed.connect(_on_pawn_placed)
 	pawn.moved.connect(_on_pawn_moved)
 	if pawn.is_placed:
@@ -137,8 +137,11 @@ func _add_head(material: StandardMaterial3D) -> void:
 	add_child(head)
 
 
-# Builds the chip body plus, if any, the image plane on top.
-func _build_token(texture: Texture2D) -> void:
+# Builds the chip body plus, if any, the image plane on top. Without a texture (no illustrator art
+# yet for this enseigne/destinataire), falls back to a chip tinted from [param display_name]'s own
+# hash plus its initials in a flat top-down label — "couleur + nom" per CLAUDE.md's i18n/art-gap
+# notes — instead of every undressed drive/recipient reading as the exact same blank grey disc.
+func _build_token(texture: Texture2D, display_name: String = "") -> void:
 	var chip := MeshInstance3D.new()
 	var body := CylinderMesh.new()
 	body.top_radius = CHIP_RADIUS
@@ -147,25 +150,71 @@ func _build_token(texture: Texture2D) -> void:
 	body.radial_segments = 48  # high enough to read as a smooth round disc
 	chip.mesh = body
 	var chip_material := StandardMaterial3D.new()
-	chip_material.albedo_color = CHIP_COLOR
+	var fallback_color := _identity_color(display_name)
+	chip_material.albedo_color = CHIP_COLOR if texture != null else fallback_color
+	chip_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED if texture == null else BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	chip.material_override = chip_material
 	add_child(chip)
 
-	if texture == null:
+	if texture != null:
+		var face := MeshInstance3D.new()
+		var plane := PlaneMesh.new()
+		var diameter := CHIP_RADIUS * 2.0 * 0.98  # circle matches the rim, with a thin chip border
+		plane.size = Vector2(diameter, diameter)
+		face.mesh = plane
+		face.position = Vector3(0.0, CHIP_HEIGHT * 0.5 + 0.01, 0.0)  # just above the top face
+		var shader := Shader.new()
+		shader.code = _FACE_SHADER_CODE
+		var face_material := ShaderMaterial.new()
+		face_material.shader = shader
+		face_material.set_shader_parameter("image", texture)
+		face.material_override = face_material
+		add_child(face)
 		return
-	var face := MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	var diameter := CHIP_RADIUS * 2.0 * 0.98  # circle matches the rim, with a thin chip border
-	plane.size = Vector2(diameter, diameter)
-	face.mesh = plane
-	face.position = Vector3(0.0, CHIP_HEIGHT * 0.5 + 0.01, 0.0)  # just above the top face
-	var shader := Shader.new()
-	shader.code = _FACE_SHADER_CODE
-	var face_material := ShaderMaterial.new()
-	face_material.shader = shader
-	face_material.set_shader_parameter("image", texture)
-	face.material_override = face_material
-	add_child(face)
+
+	if display_name.is_empty():
+		return
+	var label := Label3D.new()
+	label.text = _initials(display_name)
+	label.font_size = 220
+	label.pixel_size = 0.0065
+	label.modulate = Color.BLACK if fallback_color.get_luminance() > 0.5 else Color.WHITE
+	label.billboard = BaseMaterial3D.BILLBOARD_DISABLED  # flat on the chip, readable under the fixed top-down camera
+	label.shaded = false
+	label.position = Vector3(0.0, CHIP_HEIGHT * 0.5 + 0.02, 0.0)
+	label.rotation_degrees = Vector3(-90, 0, 0)
+	add_child(label)
+
+
+## A stable color derived from [param name]'s hash — distinct-enough placeholder identities for
+## drives/recipients before real art exists, without needing per-entity authored colors.
+static func _identity_color(name: String) -> Color:
+	if name.is_empty():
+		return CHIP_COLOR
+	var hue := float(hash(name) % 360) / 360.0
+	return Color.from_hsv(hue, 0.55, 0.88)
+
+
+const _INITIALS_SKIP_WORDS := ["le", "la", "les", "l'", "au", "aux", "du", "de", "des", "d'"]
+
+## Up to two initials from [param name]'s meaningful words (short French articles skipped), e.g.
+## "Le Fournil d'Hector" -> "FD". Falls back to the raw first letters if every word is skipped.
+static func _initials(name: String) -> String:
+	var all_words := name.split(" ", false)
+	var words: Array = []
+	for w in all_words:
+		if not (w.to_lower() in _INITIALS_SKIP_WORDS):
+			words.append(w)
+	if words.is_empty():
+		words = all_words
+	var result := ""
+	for w in words:
+		if w.is_empty():
+			continue
+		result += w.substr(0, 1).to_upper()
+		if result.length() >= 2:
+			break
+	return result
 
 
 func _on_pawn_placed(cell: Vector2i) -> void:

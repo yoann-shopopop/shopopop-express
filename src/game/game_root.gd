@@ -313,10 +313,13 @@ func _build_delivery_markers(deliveries: Array[Delivery]) -> void:
 
 
 # A drive token: a PawnView in DRIVE token-mode carrying the enseigne logo, placed on the drive cell.
+# display_name is set even when texture isn't (no illustrator art yet): PawnView falls back to a
+# colored initials chip instead of an identical blank disc for every drive on the board.
 func _drive_token(delivery: Delivery) -> PawnView:
 	var def := PawnDefinition.new()
 	def.type = PawnDefinition.PawnType.DRIVE
 	def.texture = delivery.enseigne.texture if delivery.enseigne != null else null
+	def.display_name = delivery.enseigne.display_name if delivery.enseigne != null else ""
 	return _token_at(def, delivery.drive_cell)
 
 
@@ -325,6 +328,7 @@ func _destinataire_token(delivery: Delivery) -> PawnView:
 	var def := PawnDefinition.new()
 	def.type = PawnDefinition.PawnType.RECIPIENT
 	def.texture = delivery.destinataire.texture if delivery.destinataire != null else null
+	def.display_name = delivery.destinataire.display_name if delivery.destinataire != null else ""
 	return _token_at(def, delivery.recipient_cell)
 
 

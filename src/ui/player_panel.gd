@@ -23,6 +23,11 @@ var _power_icons: Array[Label] = []
 func build(players: Array[Player]) -> void:
 	_players = players
 	set_anchors_preset(Control.PRESET_TOP_WIDE)
+	# Centering across the FULL viewport width used to let the leftmost card drift under the
+	# delivery panel's reserved left column — clamp to the same ~342/317 px margins GameRoot's own
+	# _fit_camera_to_board() already uses to keep the board itself clear of both side panels.
+	offset_left = 342
+	offset_right = -317
 	offset_top = 46
 	offset_bottom = 94
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
