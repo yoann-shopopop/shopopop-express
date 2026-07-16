@@ -64,6 +64,20 @@ func test_toggling_fast_mode_flips_the_setting() -> void:
 	assert_true(gs.fast_mode)
 
 
+func test_layer_is_above_title_screen_so_it_is_actually_visible_when_opened_from_it() -> void:
+	# Regression: SettingsMenu used to sit at layer 90, BELOW TitleScreen's opaque full-screen
+	# backdrop (layer 100) — opening it from the title screen built a real node that was completely
+	# invisible (hidden behind TitleScreen's own CanvasLayer). Only caught by an actual screenshot;
+	# GUT never renders a frame to compare, hence this numeric layer-ordering check instead.
+	var title := TitleScreen.new()
+	add_child_autofree(title)
+	var gs := _fresh_settings()
+	var menu := SettingsMenu.new()
+	add_child_autofree(menu)
+	menu.setup(gs)
+	assert_gt(menu.layer, title.layer, "SettingsMenu must render above TitleScreen to ever be seen")
+
+
 func test_close_button_emits_closed_and_frees_the_menu() -> void:
 	var gs := _fresh_settings()
 	var menu := SettingsMenu.new()

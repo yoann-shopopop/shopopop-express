@@ -20,7 +20,10 @@ var _fast_btn: Button
 ## Builds the modal bound to [param settings] (the live instance — see [method GameSettings.current]).
 func setup(settings: GameSettings) -> void:
 	_settings = settings
-	layer = 90  # above the play HUD / placement UI — a modal, nothing else stacks over it
+	# Above EVERYTHING, including TitleScreen (100): opened from both TitleScreen and PlayHud, and
+	# TitleScreen's own opaque backdrop would otherwise hide this entirely when layer <= 100 — a
+	# real bug caught only by an actual screenshot (GUT never renders a frame to compare).
+	layer = 110
 	_backdrop = ColorRect.new()
 	_backdrop.color = Color(0, 0, 0, 0.55)
 	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

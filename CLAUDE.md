@@ -658,6 +658,18 @@ couleur déterministe et distincte par nom, cas des articles filtrés/vide) + su
 harnais headless rejoués sans régression. Root cause trouvée en comparant des captures avant/après
 avec `tools/capture_play.gd` — pas seulement en lisant le code.
 
+⚠️ **Bug de superposition de `CanvasLayer` trouvé par capture réelle du menu réglages depuis
+l'écran-titre** (les tests GUT ne rendent jamais une frame à comparer — invisible sans capture) :
+`SettingsMenu` vivait à `layer = 90`, **sous** le fond opaque plein écran de `TitleScreen`
+(`layer = 100`) — l'ouvrir depuis le titre construisait bien le nœud (signaux/valeurs corrects) mais
+il restait **totalement invisible**, cachée derrière l'écran-titre. Chaque `CanvasLayer` modal du jeu
+a son propre `layer` choisi indépendamment (60/55/95/100/90) sans jamais vérifier l'ordre relatif
+entre celles qui peuvent coexister — corrigé en passant `SettingsMenu` à `layer = 110` (au-dessus de
+tout, y compris `TitleScreen`, puisqu'elle s'ouvre aussi bien depuis l'écran-titre que depuis
+`PlayHud`). Verrou de non-régression : `tests/test_settings_menu.gd` compare désormais
+`menu.layer > title.layer` numériquement (le seul type de test qu'un harnais headless peut faire
+pour un problème de superposition — la vraie preuve reste la capture d'écran).
+
 ### Restant / à raffiner
 
 - **Pose manuelle** des jetons drive/destinataire (V1 : placement **auto aléatoire** post-setup, drives
