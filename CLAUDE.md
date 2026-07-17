@@ -699,6 +699,16 @@ logo réel. Balayage fait sur tout `src/` pour d'autres angles morts du même ge
 personnage, carte-cadre) : aucun trouvé, `PlayHud` cache déjà proprement le cadre quand
 `character.texture == null` plutôt que d'afficher un vide.
 
+### Chrome 2D : rester en placeholder `StyleBoxFlat` (2026-07-17)
+
+Un essai d'intégration d'un pack d'assets UI tiers acheté/téléchargé (« Fantasy RPG UI Pack »,
+itch.io) a été tenté puis **entièrement annulé** (`git revert`) sur retour direct : le résultat ne
+convenait pas du tout. **Ne pas retenter d'intégrer un pack d'art tiers pré-fait pour « faire
+joli »** sans validation explicite et progressive au préalable. Le système `StyleBoxFlat` de
+`UITheme` (`button_style`, `panel_card`, `pill_style`, `status_pill`, `tray_card_style` — couleurs
+plates, coins arrondis, léger relief) reste la référence : un placeholder volontairement simple et
+lisible, à remplacer à la main plus tard par une vraie direction artistique.
+
 ### Restant / à raffiner
 
 - **Pose manuelle** des jetons drive/destinataire (V1 : placement **auto aléatoire** post-setup, drives
