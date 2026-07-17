@@ -27,28 +27,16 @@ static func build_texture(card: EventCardDefinition, host: Node) -> ViewportText
 ## Builds the face content for [param card].
 func populate(card: EventCardDefinition) -> void:
 	var accent := UITheme.RED if card.is_malus else UITheme.GREEN
-
-	# dobo_ui card art replaces the flat panel background; the MALUS/AVANTAGE pill below still
-	# carries the accent color, so the red/green cue survives without a matching border tint.
-	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-
-	var bg := TextureRect.new()
-	bg.texture = UITheme.card_texture()
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_%s" % side, 22)
-	add_child(margin)
+	var sb := UITheme.panel_card(Color("232a38"))
+	sb.set_corner_radius_all(18)
+	sb.set_border_width_all(6)
+	sb.border_color = accent
+	sb.set_content_margin_all(22)
+	add_theme_stylebox_override("panel", sb)
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 16)
-	margin.add_child(box)
+	add_child(box)
 
 	box.add_child(_pill(tr("MALUS") if card.is_malus else tr("AVANTAGE"), accent, 22))
 

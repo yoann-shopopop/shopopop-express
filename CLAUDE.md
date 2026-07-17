@@ -699,57 +699,6 @@ logo réel. Balayage fait sur tout `src/` pour d'autres angles morts du même ge
 personnage, carte-cadre) : aucun trouvé, `PlayHud` cache déjà proprement le cadre quand
 `character.texture == null` plutôt que d'afficher un vide.
 
-### Intégration du pack UI « dobo_ui » (2026-07-17)
-
-Suite au retour direct « l'UI n'est pas du tout pro », le chrome 2D plat (`StyleBoxFlat` partout)
-a été enrichi avec un sous-ensemble stylistiquement neutre du pack acheté **« Fantasy RPG UI Pack »**
-(itch.io, ~1950 PNG). ⚠️ **Licence non fournie dans le pack téléchargé** (juste un mot de
-remerciement + lien itch.io, aucune mention d'usage commercial/revente/Steam) — **à vérifier sur la
-page itch.io réelle avant toute publication publique/Steam**, même logique de flag-sans-bloquer que
-la purge juridique du Lot 0. Les fichiers sont copiés **à la demande** sous `assets/ui_pack/` (jamais
-tout le pack), pas de licence versionnée dans le dépôt.
-
-Les méthodes `StyleBoxTexture` vivent **à côté** des méthodes `StyleBoxFlat` existantes dans
-`src/ui/ui_theme.gd` (`button_style`, `panel_card`, `pill_style`… inchangées), adoptées fichier par
-fichier plutôt qu'un basculement global :
-
-- `UITheme.PackRole { BLUE, NEUTRAL, GREEN }` — **pas de RED/ORANGE** : le pack n'a pas de teinte
-  fidèle (`coral` = saumon pâle, `yellow` = doré/moutarde) ; ces rôles restent en `StyleBoxFlat`
-  (bouton pouvoir ⚡ orange, bandeau MALUS rouge des cartes événement, etc.).
-- `UITheme.card_texture(role)` — art brut `Cards/Card1_<couleur>` (285×429), posé en fond plein-cadre
-  (`TextureRect` + `STRETCH_KEEP_ASPECT_COVERED`) derrière le contenu existant de `CardBackFace` et
-  `EventCardFace` — cibles SubViewport à **taille fixe** (384×538), donc pas de 9-slice à régler.
-  Réutilisé tel quel pour les dos de pile `DeckPileView` (PIOCHE + couches empilées de la DÉFAUSSE).
-- `UITheme.button_style_textured(role, pressed)` — pilule `Buttons/Button2_<couleur>` (401×107,
-  bouts totalement arrondis) : marges 9-slice `left/right=52` (≈ moitié de la hauteur source, pour
-  garder les bouts intacts) `top/bottom=16`. Pas d'état pressé recoloré dans l'art → assombri via
-  `modulate_color`. Adopté par `ZoomControls` (`NEUTRAL`, premier consommateur isolé validant les
-  marges) puis `PlayHud` : bouton d'action principal (`BLUE`), Annuler-dernier-pas/Fin de tour
-  (`NEUTRAL`), Coup de pouce (`GREEN`) — le bouton pouvoir reste `ORANGE` plat (pas de rôle pack).
-- `UITheme.panel_style_textured(role)` — bandeau `Containers/Container1_<couleur>` (721×129, marges
-  `30` partout) : remplace `pill_style()` dans `PlayHud.show_chooser()`.
-- `UITheme.modal_style_textured()` — cadre `Modals/Modal4` (433×425, design unique, pas de variante
-  couleur) : marges `left/right=20`, `top=58` (préserve le bandeau-titre plus clair du haut sous le
-  9-slice), `bottom=20`. Remplace `panel_card()` dans `PlayHud.show_reference()` et
-  `SettingsMenu` ; **`HandoffScreen` garde son fond plein-écran opaque en `StyleBoxFlat`** (doit
-  masquer le plateau quel que soit l'écran, ce que l'art à coins fixes ne permet pas) et gagne à la
-  place un panneau centré `modal_style_textured()` autour de son contenu — écart assumé par rapport
-  au texte du plan (« panneau plein écran ») car un étirement bord-à-bord du cadre aurait dénaturé
-  l'art.
-
-**Hors périmètre de cette passe** (décisions prises en implémentant, cf. règle « ne pas demander ») :
-plateau 3D/tuiles/pions (le pack est un chrome 2D pur), `status_pill()` (RED sans match, détail trop
-petit), les puces `IdentityFallback` couleur+initiales (métaphore différente), `tray_card_style()`
-(cartes personnages en attente d'illustrateur), rubans `Header1/2` (forme non 9-slice-able), les
-petits boutons ronds ⚙/−/+/? de la barre de titre de `PlayHud` (restent `StyleBoxFlat`, taille trop
-petite pour la pilule `Button2`).
-
-**Vérifié** par capture d'écran réelle à chaque étape (`tools/capture_play.gd` pour le plateau/dos de
-carte/carte événement en situation, scripts SceneTree ad hoc pour les modales isolées — méthode déjà
-établie) + suite GUT complète (407 tests) + `tools/soak_test.gd` (30 parties, 0 échec) + les 3
-harnais headless (`smoke_tutorial.gd`, `smoke_tournee.gd`, `smoke_i18n_en.gd`) rejoués sans
-régression.
-
 ### Restant / à raffiner
 
 - **Pose manuelle** des jetons drive/destinataire (V1 : placement **auto aléatoire** post-setup, drives

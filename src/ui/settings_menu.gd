@@ -36,7 +36,7 @@ func setup(settings: GameSettings) -> void:
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(420, 0)
-	panel.add_theme_stylebox_override("panel", UITheme.modal_style_textured())
+	panel.add_theme_stylebox_override("panel", UITheme.panel_card())
 	center.add_child(panel)
 
 	var box := VBoxContainer.new()

@@ -1,8 +1,8 @@
 class_name CardBackFace
 extends PanelContainer
-## The 2D back of an event card — the Shopopop Express emblem over the dobo_ui pack's card-back art
-## (task: "dobo_ui" integration), with an "ÉVÉNEMENT" caption. Rendered off-screen into a texture
-## (like [EventCardFace]) and applied to the [CardView] back. Shared by all event cards.
+## The 2D back of an event card — the Shopopop Express emblem on a branded panel with an "ÉVÉNEMENT"
+## caption. Rendered off-screen into a texture (like [EventCardFace]) and applied to the [CardView]
+## back, replacing the old placeholder logo + "CARD_TYPE" label. Shared by all event cards.
 
 const SIZE := Vector2i(384, 538)   # ~1 : 1.4, matching CardView WIDTH:HEIGHT
 const _LOGO := "res://assets/logo/logo_shopopop_express.png"
@@ -23,19 +23,12 @@ static func build_texture(host: Node) -> ViewportTexture:
 
 
 func populate() -> void:
-	# No StyleBox background here — the dobo_ui card art below already bakes in the frame/border/
-	# corners; an empty override keeps PanelContainer's default theme panel from drawing underneath it.
-	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-
-	var bg := TextureRect.new()
-	bg.texture = UITheme.card_texture()
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	# COVERED, not a StyleBoxTexture stretch: the source art's aspect (285:429) is close to but not
-	# identical to SIZE's (384:538) — COVERED crops evenly instead of distorting the art to fit exactly.
-	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
+	var sb := UITheme.panel_card(Color("1b2436"))
+	sb.set_corner_radius_all(18)
+	sb.set_border_width_all(6)
+	sb.border_color = UITheme.BLUE
+	sb.set_content_margin_all(26)
+	add_theme_stylebox_override("panel", sb)
 
 	var col := VBoxContainer.new()
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
