@@ -222,7 +222,7 @@ func _build_actions() -> void:
 	_undo_btn.text = "↩"
 	_undo_btn.custom_minimum_size = Vector2(64, 64)
 	_undo_btn.add_theme_font_size_override("font_size", 24)
-	_theme_button(_undo_btn, Color("3c4858"))
+	_theme_button_textured(_undo_btn, UITheme.PackRole.NEUTRAL)
 	_undo_btn.pressed.connect(func() -> void:
 		AudioManager.sfx(&"ui_click")
 		undo_requested.emit())
@@ -232,7 +232,7 @@ func _build_actions() -> void:
 	_action_btn = Button.new()
 	_action_btn.custom_minimum_size = Vector2(190, 64)
 	_action_btn.add_theme_font_size_override("font_size", 24)
-	_theme_button(_action_btn, UITheme.BLUE)
+	_theme_button_textured(_action_btn, UITheme.PackRole.BLUE)
 	_action_btn.pressed.connect(_on_action_pressed)
 	box.add_child(_action_btn)
 
@@ -242,7 +242,7 @@ func _build_actions() -> void:
 	_end_turn_btn.text = tr(_ACTION_LABEL[Action.END_TURN])
 	_end_turn_btn.custom_minimum_size = Vector2(150, 64)
 	_end_turn_btn.add_theme_font_size_override("font_size", 20)
-	_theme_button(_end_turn_btn, Color("3c4858"))
+	_theme_button_textured(_end_turn_btn, UITheme.PackRole.NEUTRAL)
 	_end_turn_btn.pressed.connect(func() -> void:
 		AudioManager.sfx(&"ui_click")
 		end_turn_requested.emit())
@@ -253,7 +253,7 @@ func _build_actions() -> void:
 	_power_btn.text = "⚡"
 	_power_btn.custom_minimum_size = Vector2(64, 64)
 	_power_btn.add_theme_font_size_override("font_size", 24)
-	_theme_button(_power_btn, UITheme.ORANGE)
+	_theme_button(_power_btn, UITheme.ORANGE)  # no ORANGE pack role — stays flat, see UITheme
 	_power_btn.pressed.connect(func() -> void:
 		AudioManager.sfx(&"ui_click")
 		power_requested.emit())
@@ -262,7 +262,7 @@ func _build_actions() -> void:
 	_boost_btn = Button.new()
 	_boost_btn.custom_minimum_size = Vector2(64, 64)
 	_boost_btn.add_theme_font_size_override("font_size", 20)
-	_theme_button(_boost_btn, UITheme.GREEN)
+	_theme_button_textured(_boost_btn, UITheme.PackRole.GREEN)
 	_boost_btn.pressed.connect(func() -> void:
 		AudioManager.sfx(&"ui_click")
 		boost_requested.emit())
@@ -277,6 +277,17 @@ func _theme_button(btn: Button, base: Color) -> void:
 	btn.add_theme_stylebox_override("pressed", UITheme.button_style_pressed(base))
 	btn.add_theme_stylebox_override("disabled", UITheme.button_style(base.darkened(0.3)))
 	btn.add_theme_stylebox_override("focus", UITheme.button_style(base))
+	btn.add_theme_color_override("font_color", UITheme.TEXT)
+
+
+# The dobo_ui "Button2" pill counterpart of [method _theme_button], for the bottom action bar
+# (BLUE/NEUTRAL/GREEN roles only — see UITheme's note on why RED/ORANGE stay flat).
+func _theme_button_textured(btn: Button, role: int) -> void:
+	btn.add_theme_stylebox_override("normal", UITheme.button_style_textured(role))
+	btn.add_theme_stylebox_override("hover", UITheme.button_style_textured(role))
+	btn.add_theme_stylebox_override("pressed", UITheme.button_style_textured(role, true))
+	btn.add_theme_stylebox_override("disabled", UITheme.button_style_textured(role, true))
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	btn.add_theme_color_override("font_color", UITheme.TEXT)
 	btn.add_theme_color_override("font_disabled_color", UITheme.TEXT.darkened(0.35))
 
@@ -454,7 +465,7 @@ func show_chooser(prompt: String, options: Array, on_pick: Callable) -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	backdrop.add_child(center)
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UITheme.pill_style())
+	panel.add_theme_stylebox_override("panel", UITheme.panel_style_textured())
 	center.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
@@ -518,7 +529,7 @@ func show_reference() -> void:
 	backdrop.add_child(center)
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(560, 0)
-	panel.add_theme_stylebox_override("panel", UITheme.panel_card())
+	panel.add_theme_stylebox_override("panel", UITheme.modal_style_textured())
 	center.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 16)

@@ -32,10 +32,17 @@ func setup(player: Player) -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	backdrop.add_child(center)
 
+	# A framed card on top of the opaque backdrop (which stays a flat full-bleed color — it must
+	# fully hide the board regardless of screen size, unlike the pack's fixed-corner-radius art).
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(420, 0)
+	panel.add_theme_stylebox_override("panel", UITheme.modal_style_textured())
+	center.add_child(panel)
+
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_theme_constant_override("separation", 28)
-	center.add_child(box)
+	panel.add_child(box)
 
 	var title := Label.new()
 	title.text = tr("Passe l'appareil à")

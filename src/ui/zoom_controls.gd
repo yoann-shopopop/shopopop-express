@@ -32,5 +32,9 @@ func _make_button(label: String, intent: Signal) -> Button:
 	button.custom_minimum_size = BUTTON_SIZE
 	button.add_theme_font_size_override("font_size", 28)
 	button.focus_mode = Control.FOCUS_NONE  # don't steal keyboard focus from the board
+	button.add_theme_stylebox_override("normal", UITheme.button_style_textured(UITheme.PackRole.NEUTRAL))
+	button.add_theme_stylebox_override("hover", UITheme.button_style_textured(UITheme.PackRole.NEUTRAL))
+	button.add_theme_stylebox_override("pressed", UITheme.button_style_textured(UITheme.PackRole.NEUTRAL, true))
+	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	button.pressed.connect(func() -> void: intent.emit())
 	return button

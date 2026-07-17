@@ -103,6 +103,8 @@ func _rebuild(n: int) -> void:
 		layer.position = Vector2(i * LAYER_OFFSET, i * LAYER_OFFSET)
 		layer.size = Vector2(CARD_W, CARD_H)
 		layer.add_theme_stylebox_override("panel", _card_style(false))
+		layer.clip_contents = true
+		layer.add_child(_card_art())
 		_stack.add_child(layer)
 	_stack.add_child(_build_top_card(n > 0))
 	_badge.text = str(maxi(n, 0))
@@ -116,6 +118,7 @@ func _build_top_card(filled: bool) -> Control:
 	card.size = Vector2(CARD_W, CARD_H)
 	card.add_theme_stylebox_override("panel", _card_style(true))
 	card.modulate = Color.WHITE if filled else Color(1, 1, 1, 0.4)
+	card.clip_contents = true
 
 	if _is_discard and _face_texture != null:
 		var face := TextureRect.new()
@@ -126,6 +129,7 @@ func _build_top_card(filled: bool) -> Control:
 		face.texture = _face_texture
 		card.add_child(face)
 	else:
+		card.add_child(_card_art())
 		var logo := TextureRect.new()
 		logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		logo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -134,6 +138,18 @@ func _build_top_card(filled: bool) -> Control:
 		logo.texture = _LOGO
 		card.add_child(logo)
 	return card
+
+
+# The dobo_ui card-back art, full-rect — the same asset [CardBackFace] uses, reused here for every
+# card-back layer of the pile (only the DÉFAUSSE's own top face, set via set_top_face, differs).
+func _card_art() -> TextureRect:
+	var art := TextureRect.new()
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	art.texture = UITheme.card_texture()
+	return art
 
 
 func _card_style(top: bool) -> StyleBoxFlat:
